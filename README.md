@@ -1,5 +1,7 @@
 # Good Enough JDBC
 
+[![Coverage](.github/badges/jacoco.svg)](jacoco.svg)
+
 ## Why?
 Have you tried the latest/greatest ORM frameworks out there yet?
 

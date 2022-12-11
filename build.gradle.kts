@@ -13,6 +13,7 @@
 
 plugins {
     id("java")
+    id("jacoco")
 }
 
 group = "org.viablespark"
@@ -44,4 +45,10 @@ java {
 
 tasks.getByName<Test>("test") {
     useJUnitPlatform()
+}
+
+tasks.jacocoTestReport {
+    reports {
+        csv.required.set(true)
+    }
 }
