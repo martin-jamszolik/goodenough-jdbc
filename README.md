@@ -1,5 +1,7 @@
 # Good Enough JDBC
 
+[![Java CI with Gradle](https://github.com/martin-jamszolik/goodenough-jdbc/actions/workflows/gradle.yml/badge.svg)](https://github.com/martin-jamszolik/goodenough-jdbc/actions/workflows/gradle.yml)
+
 [![Coverage](.github/badges/jacoco.svg)](jacoco.svg)
 
 ## Why?
