@@ -14,6 +14,8 @@
 package org.viablespark.persistence;
 
 import java.util.Collection;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -44,6 +46,16 @@ public class KeyTest {
     }
 
     @Test
+    public void testConstructorWithMap(){
+        var map = new LinkedHashMap<String,Long>();
+        map.put("primary",123L);
+        map.put("second",345L);
+        Key key = new Key(map);
+        assertEquals(123L,key.getPrimaryKey().value);
+        assertEquals(123L,key.getKey("primary"));
+    }
+
+    @Test
     public void testOf() {
         assertEquals(key.getPrimaryKey(), Key.of("primary", 123L).getPrimaryKey());
     }
@@ -51,8 +63,10 @@ public class KeyTest {
     @Test
     public void testAdd_String_Number() {
         key.add("Test",234L);
+        key.add("Failed",null);
         
         assertEquals( Long.valueOf("234"),key.getKey("Test"));
+        assertEquals( Integer.MIN_VALUE,key.getKey("Failed"));
     }
 
     @Test
@@ -90,18 +104,32 @@ public class KeyTest {
     @Test
     public void testGetKey() {
         assertEquals( Long.valueOf(567L),key.getKey("third"));
+
+        RuntimeException thrown = assertThrows(
+            RuntimeException.class,
+            () -> key.getKey("fake"),
+            "Expected getKey() to throw, but it didn't"
+        );
+
+        assertTrue("Should be missing key",
+            thrown.getMessage().contains("Key fake not found. Other keys?"));
+
+
     }
+
 
     @Test
     public void testContains() {
         assertTrue("Expect contains",key.contains("second").isPresent());
         assertEquals(Pair.of("second", 345L),key.contains("second").get());
+        assertFalse(key.contains("fake").isPresent() );
     }
 
     @Test
     public void testEquals() {
         assertEquals(Key.of("IamKey",1L), Key.of("IamKey",1L));
         assertNotEquals(Key.of("IamKey",1L), Key.of("IamDifferent",2L));
+        assertNotEquals(Key.of("IamKey",1L), Pair.of("IamPair",1L));
     }
 
     @Test

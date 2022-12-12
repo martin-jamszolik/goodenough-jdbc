@@ -17,6 +17,7 @@ import org.viablespark.persistence.Pair;
 import org.viablespark.persistence.Persistable;
 import org.viablespark.persistence.InstanceData;
 
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.sql.SQLException;
 import java.util.*;
@@ -27,7 +28,7 @@ public abstract class WithSql {
     public static String getSQLSelectClause(Class<?> cls, String... customFields) {
         List<Method> methods = Arrays.stream(cls.getDeclaredMethods())
                 .filter(m -> m.getName().startsWith("get"))
-                .filter(m -> (!m.isAnnotationPresent(Skip.class) && !m.isAnnotationPresent(Ref.class)))
+                .filter(m -> !m.isAnnotationPresent(Skip.class) )
                 .filter(m -> !m.getReturnType().equals(InstanceData.class))
                 .sorted(Comparator.comparing(Method::getName)).collect(Collectors.toList());
 
@@ -133,6 +134,13 @@ public abstract class WithSql {
     }
 
     private static String deriveNameForSelectClause(Method m) {
+
+        if (m.isAnnotationPresent(Ref.class)) {
+            Class<?> foreignType = m.getReturnType();
+            if (foreignType.isAnnotationPresent(PrimaryKey.class)) {
+                return foreignType.getAnnotation(PrimaryKey.class).value();
+            }
+        }
 
         if (m.isAnnotationPresent(Named.class)) {
             return m.getAnnotation(Named.class).value()

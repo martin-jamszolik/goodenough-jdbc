@@ -67,10 +67,10 @@ public abstract class BaseRepository<E extends Persistable> {
 
     public Optional<E> get(Key key, Class<E> cls) throws NoSuchElementException {
         List<E> list = jdbc.query(
-                "SELECT " + WithSql.getSQLSelectClause(cls)
+                "SELECT " + WithSql.getSQLSelectClause(cls,key.getPrimaryKey().key)
                         + " FROM " + deriveEntityName(cls)
-                        + " WHERE " + key.getPrimaryKey().key + " =?",
-                new BeanPropertyRowMapper<>(cls),
+                        + " WHERE " + key.getPrimaryKey().key + "=?",
+                new PersistableRowMapper<>(cls),
                 key.getPrimaryKey().value);
 
         Optional<E> res = list.stream().findFirst();
@@ -82,7 +82,7 @@ public abstract class BaseRepository<E extends Persistable> {
         return jdbc.query(
                 "SELECT " + WithSql.getSQLSelectClause(cls, query.getPrimaryKeyName())
                         + " FROM " + deriveEntityName(cls) + " "
-                        + query.sql(), new BeanPropertyRowMapper<>(cls), query.values());
+                        + query.sql(), new PersistableRowMapper<>(cls), query.values());
     }
 
     public List<E> rowQuery(SqlQuery query, PersistableMapper<E> mapper) {

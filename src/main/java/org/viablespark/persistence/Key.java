@@ -32,15 +32,14 @@ public class Key implements Serializable {
         return new Key(new Pair<>(key,value));
     }
     
-    public Key(Map<String, Object> map){
-        for ( Entry<String,Object> e: map.entrySet() ){
+    public Key(Map<String, ?> map){
+        for ( Entry<String,?> e: map.entrySet() ){
             keys.put(e.getKey(), Pair.of(e.getKey(), ((Number)e.getValue()).longValue() ));
         }
     }
 
     public void add(String name, Number key) {
         keys.put(name,Pair.of(name, key != null ? key.longValue() : Integer.MIN_VALUE));
-
     }
 
     public void add(String name, Long key) {
@@ -70,7 +69,7 @@ public class Key implements Serializable {
     public Long getKey(String name) {
         Pair<String, Long> found = keys.get(name);
         if( found == null ){
-            throw new RuntimeException("Key " + name + " not found. Other keys? " + this);
+            throw new RuntimeException("Key " + name + " not found. Other keys?" + this);
         }
         return found.value;
     }

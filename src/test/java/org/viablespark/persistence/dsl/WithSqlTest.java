@@ -32,11 +32,8 @@ public class WithSqlTest {
 
     @Test
     public void testGetSQLSelectClause() {
-        
         String select = WithSql.getSQLSelectClause(Proposal.class);
-        
-        assertNotNull("Should not be null", select);
-        assertEquals("dist as distance,prop_date,prop_id,proposal_name as prop_name,submit_deadline", select);
+        assertEquals("sc_key,dist as distance,prop_date,prop_id,proposal_name as prop_name,submit_deadline", select);
     }
 
     @Test

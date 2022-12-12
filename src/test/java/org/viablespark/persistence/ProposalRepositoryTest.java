@@ -55,15 +55,15 @@ public class ProposalRepositoryTest {
 
     @Test
     public void testSave() throws Exception {
-        Proposal e = new Proposal();
-        e.setDistance(123);
-        e.setPropDate(new Date());
-        e.setPropName("Name1");
-        e.setPropId("ID2");
+        Proposal proposal = new Proposal();
+        proposal.setDistance(123);
+        proposal.setPropDate(new Date());
+        proposal.setPropName("Name1");
+        proposal.setPropId("ID2");
 
-        e.setContractor(new Contractor("sc_key",1L)); //foreign-key
+        proposal.setContractor(new Contractor("sc_key",1L)); //foreign-key
 
-        Key key = repository.save(e);
+        Key key = repository.save(proposal);
 
         logger.info("Entity Saved, let's check valid keys");
 
@@ -72,6 +72,17 @@ public class ProposalRepositoryTest {
         assertNotNull(key.getPrimaryKey());
         assertEquals("pr_key",key.getPrimaryKey().key);
 
+        logger.info("Let's update");
+
+        var foundOption = repository.get(key,Proposal.class);
+        assertTrue(foundOption.isPresent());
+        var found = foundOption.get();
+        found.setDistance(567);
+        found.setPropName("Saved again");
+        var savedKey = repository.save(found);
+        assertEquals(key,savedKey);
+        repository.get(key,Proposal.class)
+            .ifPresent( f -> assertEquals("Saved again",f.getPropName()));
     }
 
     @Test

@@ -25,6 +25,7 @@ repositories {
 
 dependencies {
     implementation("org.springframework:spring-jdbc:5.3.3")
+    implementation("org.slf4j:slf4j-api:1.7.25")
 
     compileOnly ("com.google.code.findbugs:jsr305:3.0.2")
     testImplementation("org.junit.jupiter:junit-jupiter-api:5.9.1")
