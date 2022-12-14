@@ -13,6 +13,7 @@
 
 package org.viablespark.persistence;
 
+import java.math.BigDecimal;
 import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -64,7 +65,8 @@ public class KeyTest {
     public void testAdd_String_Number() {
         key.add("Test",234L);
         key.add("Failed",null);
-        
+        key.add("ThirdDecimal",new BigDecimal("23345.23"));
+
         assertEquals( Long.valueOf("234"),key.getKey("Test"));
         assertEquals( Integer.MIN_VALUE,key.getKey("Failed"));
     }
@@ -73,6 +75,7 @@ public class KeyTest {
     public void testGetCount() {
         assertTrue("Should count as 3", key.getCount() ==3);
     }
+
 
     @Test
     public void testGetKeys() {
@@ -127,9 +130,12 @@ public class KeyTest {
 
     @Test
     public void testEquals() {
+        assertTrue("Should have the same hash",
+            Key.of("same",2322L).hashCode() == Key.of("same",2322L).hashCode() );
         assertEquals(Key.of("IamKey",1L), Key.of("IamKey",1L));
         assertNotEquals(Key.of("IamKey",1L), Key.of("IamDifferent",2L));
         assertNotEquals(Key.of("IamKey",1L), Pair.of("IamPair",1L));
+        assertNotEquals(Key.of("IamKey",1L),Key.of("IamDifferent",2L).add("second",23L) );
     }
 
     @Test
