@@ -53,7 +53,7 @@ public class PersistableRowMapper<E extends Persistable> implements PersistableM
     private void assignPrimaryKey(Persistable e, ResultSet rs ) throws SQLException{
         if(persistableType.isAnnotationPresent(PrimaryKey.class) ){
             String primaryKeyName = e.getClass().getAnnotation(PrimaryKey.class).value();
-            e.getKey().add(primaryKeyName,rs.getLong(primaryKeyName));
+            e.setKey(Key.of(primaryKeyName,rs.getLong(primaryKeyName)));
         }
     }
 

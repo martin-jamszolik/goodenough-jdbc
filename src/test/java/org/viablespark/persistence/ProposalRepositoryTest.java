@@ -44,6 +44,7 @@ public class ProposalRepositoryTest {
         // classpath:schema.sql and classpath:data.sql
         db = new EmbeddedDatabaseBuilder()
                 .addDefaultScripts()
+                .setName("ProposalTest")
                 .build();
         repository = new ProposalRepository(new JdbcTemplate(db));
     }
@@ -112,6 +113,15 @@ public class ProposalRepositoryTest {
         
         results.forEach(e -> assertTrue(e.getId() > 0));
 
+    }
+
+    @Test
+    public void testRowQuery(){
+        var results = repository.rowQuery(
+            SqlQuery.asRawSql("select * from est_proposal where dist > 0"),
+            new ProposalMapper());
+
+        results.forEach(e -> assertTrue(e.getId() > 0));
     }
 
     @Test
