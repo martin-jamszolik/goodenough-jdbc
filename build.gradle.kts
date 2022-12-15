@@ -28,12 +28,14 @@ dependencies {
     implementation("org.springframework:spring-jdbc:5.3.3")
     implementation("org.slf4j:slf4j-api:2.0.5")
 
+
     compileOnly ("com.google.code.findbugs:jsr305:3.0.2")
     testImplementation("org.junit.jupiter:junit-jupiter-api:5.9.1")
     testImplementation("org.hsqldb:hsqldb:2.7.1")
     testImplementation("org.springframework:spring-test:5.3.3")
     testImplementation("ch.qos.logback:logback-classic:1.4.5")
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.9.1")
+    testImplementation("org.mockito:mockito-core:4.10.0")
 }
 
 

@@ -28,10 +28,6 @@ public interface Persistable {
         return getStoreContainer().key.getPrimaryKey().value;
     }
 
-    default void putId(String key, Long id) {
-        getStoreContainer().key.add(key,id);
-    }
-
     default Key getKey() {
         return getStoreContainer().key;
     }

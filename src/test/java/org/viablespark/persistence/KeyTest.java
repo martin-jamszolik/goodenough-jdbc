@@ -68,7 +68,7 @@ public class KeyTest {
         key.add("ThirdDecimal",new BigDecimal("23345.23"));
 
         assertEquals( Long.valueOf("234"),key.getKey("Test"));
-        assertEquals( Integer.MIN_VALUE,key.getKey("Failed"));
+        assertNull( key.getKey("Failed"));
     }
 
     @Test
@@ -141,6 +141,13 @@ public class KeyTest {
     @Test
     public void testGetPrimaryKey() {
         assertEquals(Pair.of("primary", 123L),key.getPrimaryKey());
+    }
+
+    @Test
+    public void testPairsForKeys(){
+        assertNotEquals( null, Pair.of("first",1L));
+        assertNotEquals( Pair.of("first",1L),null);
+        assertEquals("",Pair.of(null,null).toString());
     }
 
 
