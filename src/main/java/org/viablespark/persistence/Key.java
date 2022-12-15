@@ -39,12 +39,11 @@ public class Key implements Serializable {
     }
 
     public Key add(String name, Number key) {
-        keys.put(name,Pair.of(name, key != null ? key.longValue() : Integer.MIN_VALUE));
-        return this;
+        return add(name,key.longValue());
     }
 
     public Key add(String name, Long key) {
-        keys.put(name,Pair.of(name, key != null ? key : Integer.MIN_VALUE));
+        keys.put(name,Pair.of(name, key));
         return this;
     }
 

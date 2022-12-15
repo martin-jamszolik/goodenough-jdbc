@@ -13,7 +13,6 @@
 
 package org.viablespark.persistence;
 
-import org.springframework.jdbc.core.BeanPropertyRowMapper;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.jdbc.support.KeyHolder;
@@ -42,17 +41,15 @@ public abstract class BaseRepository<E extends Persistable> {
             SqlClause withInsert = WithSql.getSQLInsertClause(entity);
             String sql = "INSERT INTO " + deriveEntityName(entity.getClass()) + " " + withInsert.getClause();
             KeyHolder key = execWithKey(sql, withInsert.getValues());
-            if (key.getKeys() != null) {
-                entity.setKey(Key.of(entity.getClass()
-                        .getAnnotation(PrimaryKey.class)
-                        .value(), key.getKey().longValue()));
-            }
+            entity.setKey(Key.of(entity.getClass()
+                .getAnnotation(PrimaryKey.class)
+                .value(), key.getKey().longValue()));
             return entity.getKey();
         }
 
         SqlClause withUpdate = WithSql.getSQLUpdateClause(entity);
         String sql = "UPDATE " + deriveEntityName(entity.getClass()) + " "
-                + withUpdate.getClause();
+            + withUpdate.getClause();
         jdbc.update(sql, withUpdate.getValues());
 
         return entity.getKey();
@@ -60,18 +57,18 @@ public abstract class BaseRepository<E extends Persistable> {
 
     public void delete(E entity) {
         String sql = "DELETE FROM " + deriveEntityName(entity.getClass())
-                + " WHERE " + entity.getKey().getPrimaryKey().key + "=? ";
+            + " WHERE " + entity.getKey().getPrimaryKey().key + "=? ";
 
         jdbc.update(sql, entity.getKey().getPrimaryKey().value);
     }
 
     public Optional<E> get(Key key, Class<E> cls) throws NoSuchElementException {
         List<E> list = jdbc.query(
-                "SELECT " + WithSql.getSQLSelectClause(cls,key.getPrimaryKey().key)
-                        + " FROM " + deriveEntityName(cls)
-                        + " WHERE " + key.getPrimaryKey().key + "=?",
-                new PersistableRowMapper<>(cls),
-                key.getPrimaryKey().value);
+            "SELECT " + WithSql.getSQLSelectClause(cls, key.getPrimaryKey().key)
+                + " FROM " + deriveEntityName(cls)
+                + " WHERE " + key.getPrimaryKey().key + "=?",
+            new PersistableRowMapper<>(cls),
+            key.getPrimaryKey().value);
 
         Optional<E> res = list.stream().findFirst();
         res.ifPresent(e -> e.setKey(key));
@@ -80,9 +77,9 @@ public abstract class BaseRepository<E extends Persistable> {
 
     public List<E> query(SqlQuery query, Class<E> cls) {
         return jdbc.query(
-                "SELECT " + WithSql.getSQLSelectClause(cls, query.getPrimaryKeyName())
-                        + " FROM " + deriveEntityName(cls) + " "
-                        + query.sql(), new PersistableRowMapper<>(cls), query.values());
+            "SELECT " + WithSql.getSQLSelectClause(cls, query.getPrimaryKeyName())
+                + " FROM " + deriveEntityName(cls) + " "
+                + query.sql(), new PersistableRowMapper<>(cls), query.values());
     }
 
     public List<E> rowQuery(SqlQuery query, PersistableMapper<E> mapper) {
@@ -90,7 +87,6 @@ public abstract class BaseRepository<E extends Persistable> {
     }
 
     public List<E> rowSetQuery(SqlQuery query, PersistableMapper<E> mapper) {
-
         SqlRowSet rs = jdbc.queryForRowSet(query.sql(), query.values());
         List<E> list = new ArrayList<>();
         while (rs.next()) {
@@ -103,13 +99,13 @@ public abstract class BaseRepository<E extends Persistable> {
     private KeyHolder execWithKey(final String sql, final Object... args) {
         KeyHolder keyHolder = new GeneratedKeyHolder();
         jdbc.update(
-                connection -> {
-                    PreparedStatement stmt = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);
-                    for (int i = 0; i < args.length; i++) {
-                        stmt.setObject(i + 1, args[i]);
-                    }
-                    return stmt;
-                }, keyHolder);
+            connection -> {
+                PreparedStatement stmt = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);
+                for (int i = 0; i < args.length; i++) {
+                    stmt.setObject(i + 1, args[i]);
+                }
+                return stmt;
+            }, keyHolder);
 
         return keyHolder;
     }
