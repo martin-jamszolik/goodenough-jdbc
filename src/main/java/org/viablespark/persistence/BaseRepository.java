@@ -41,9 +41,11 @@ public abstract class BaseRepository<E extends Persistable> {
             SqlClause withInsert = WithSql.getSQLInsertClause(entity);
             String sql = "INSERT INTO " + deriveEntityName(entity.getClass()) + " " + withInsert.getClause();
             KeyHolder key = execWithKey(sql, withInsert.getValues());
-            entity.setKey(Key.of(entity.getClass()
-                .getAnnotation(PrimaryKey.class)
-                .value(), key.getKey().longValue()));
+            if ( key.getKeys() != null ) {
+                entity.setKey(Key.of(entity.getClass()
+                    .getAnnotation(PrimaryKey.class)
+                    .value(), key.getKey().longValue()));
+            }
             return entity.getKey();
         }
 
