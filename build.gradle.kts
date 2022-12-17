@@ -71,3 +71,9 @@ publishing {
     }
 }
 
+tasks.jar {
+    manifest {
+        attributes("Automatic-Module-Name" to "org.viablespark.persistence")
+    }
+}
+

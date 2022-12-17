@@ -31,7 +31,10 @@ public class Pair<T, Y> {
 
     @Override
     public String toString() {
-        return value != null ? value.toString() : "";
+        return "Pair{" +
+            "key=" + key +
+            ", value=" + value +
+            '}';
     }
 
     @Override

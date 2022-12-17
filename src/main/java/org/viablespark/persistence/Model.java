@@ -16,10 +16,15 @@ package org.viablespark.persistence;
 import java.io.Serializable;
 
 public abstract class Model implements Persistable, Serializable {
-    private final InstanceData container = new InstanceData();
+    private Key key;
 
     @Override
-    public InstanceData getStoreContainer() {
-        return container;
+    public Key getKey() {
+        return key;
+    }
+
+    @Override
+    public void setKey(Key key) {
+        this.key = key;
     }
 }

@@ -28,9 +28,9 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 public class PersistableRowMapper<E extends Persistable> implements PersistableMapper<E> {
-    final Logger logger = LoggerFactory.getLogger(PersistableRowMapper.class);
     private final BeanPropertyRowMapper<E> propertyMapper;
     private final Class<E> persistableType;
+
     public PersistableRowMapper(Class<E> cls) {
         this.propertyMapper = new BeanPropertyRowMapper<>(cls);
         this.persistableType = cls;
@@ -38,49 +38,49 @@ public class PersistableRowMapper<E extends Persistable> implements PersistableM
 
     @Override
     public E mapRow(ResultSet rs, int rowNum) throws SQLException {
-        var bean = propertyMapper.mapRow(rs,rowNum);
-        assignPrimaryKey(bean,rs);
+        var bean = propertyMapper.mapRow(rs, rowNum);
+        assert(bean != null);
+        assignPrimaryKey(bean, rs);
         assignForeignRefs(bean, rs);
         return bean;
     }
 
     @Override
     public E mapRow(SqlRowSet rs, int rowNum) {
-        return null;
+        try {
+            return mapRow(PersistableMapper.proxy(rs),rowNum);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 
 
-    private void assignPrimaryKey(Persistable e, ResultSet rs ) throws SQLException{
-        if(persistableType.isAnnotationPresent(PrimaryKey.class) ){
+    private void assignPrimaryKey(Persistable e, ResultSet rs) throws SQLException {
+        if (persistableType.isAnnotationPresent(PrimaryKey.class)) {
             String primaryKeyName = e.getClass().getAnnotation(PrimaryKey.class).value();
-            e.setKey(Key.of(primaryKeyName,rs.getLong(primaryKeyName)));
+            e.setKey(Key.of(primaryKeyName, rs.getLong(primaryKeyName)));
         }
     }
 
     private void assignForeignRefs(Persistable entity, ResultSet rs) throws SQLException {
-        if( entity == null ){
-            return;
-        }
         List<Method> methods = Arrays.stream(entity.getClass().getDeclaredMethods())
             .filter(m -> m.getName().startsWith("get"))
             .filter(m -> m.isAnnotationPresent(Ref.class))
+            .filter(m -> m.getReturnType().isAnnotationPresent(PrimaryKey.class))
             .collect(Collectors.toList());
         try {
             for (Method m : methods) {
                 Class<?> foreignType = m.getReturnType();
-                if (foreignType.isAnnotationPresent(PrimaryKey.class)) {
-                    var pkName = foreignType.getAnnotation(PrimaryKey.class).value();
-                    var pkValue = rs.getLong(pkName);
-                    var fkInstance = foreignType.getDeclaredConstructor().newInstance();
-                    ((Persistable) fkInstance).setKey(Key.of(pkName,pkValue));
-                    Method setterMethod = entity.getClass().getDeclaredMethod(
-                        m.getName().replace("get", "set"), foreignType);
-                    setterMethod.invoke(entity, fkInstance);
-                }
+                var pkName = foreignType.getAnnotation(PrimaryKey.class).value();
+                var pkValue = rs.getLong(pkName);
+                var fkInstance = foreignType.getDeclaredConstructor().newInstance();
+                ((Persistable) fkInstance).setKey(Key.of(pkName, pkValue));
+                Method setterMethod = entity.getClass().getDeclaredMethod(
+                    m.getName().replace("get", "set"), foreignType);
+                setterMethod.invoke(entity, fkInstance);
             }
-        }catch (Exception ex){
+        } catch (Exception ex) {
             throw new SQLException(ex);
         }
-
     }
 }

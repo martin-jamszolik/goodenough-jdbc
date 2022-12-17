@@ -23,22 +23,28 @@ import org.viablespark.persistence.dsl.PrimaryKey;
  */
 @PrimaryKey("sc_key")
 public class Contractor implements Persistable {
-    private final InstanceData data = new InstanceData();
+    private Key key=null;
     private String name;
     private String contact;
     private String phone1;
     private String fax;
     private String email;
+
     @Override
-    public InstanceData getStoreContainer() {
-        return data;
+    public Key getKey() {
+        return key;
+    }
+
+    @Override
+    public void setKey(Key key) {
+        this.key = key;
     }
 
     public Contractor() {
     }
 
     public Contractor(String key, Long id) {
-        getStoreContainer().key = Key.of(key,id);
+        setKey(Key.of(key,id));
     }
 
     @Named("sc_name")
