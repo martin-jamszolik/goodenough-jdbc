@@ -18,7 +18,7 @@ plugins {
 }
 
 group = "org.viablespark"
-version = "1.0-SNAPSHOT"
+version = "1.0"
 
 repositories {
     mavenCentral()
@@ -60,11 +60,21 @@ tasks.jacocoTestReport {
 
 
 publishing {
+    repositories {
+        maven {
+            name = "GitHubPackages"
+            url = uri("https://maven.pkg.github.com/martin-jamszolik/goodenough-jdbc")
+            credentials {
+                username = project.findProperty("gpr.user") as String? ?: System.getenv("USERNAME")
+                password = project.findProperty("gpr.key") as String? ?: System.getenv("TOKEN")
+            }
+        }
+    }
     publications {
         create<MavenPublication>("maven") {
             groupId = "org.viablespark"
             artifactId = "goodenough-jdbc"
-            version = "1.0-SNAPSHOT"
+            version = "1.0"
 
             from(components["java"])
         }
