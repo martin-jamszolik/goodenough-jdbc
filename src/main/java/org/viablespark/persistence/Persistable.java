@@ -13,94 +13,18 @@
 
 package org.viablespark.persistence;
 
-import java.beans.PropertyChangeEvent;
-import java.beans.PropertyChangeListener;
-import java.beans.PropertyChangeSupport;
-
 
 public interface Persistable {
+    Key getKey();
 
-    Long EMPTY = -1L;
-
-    InstanceData getStoreContainer();
+    void setKey(Key key);
 
     default Long getId() {
-        return getStoreContainer().key.getPrimaryKey().value;
-    }
-
-    default Key getKey() {
-        return getStoreContainer().key;
-    }
-
-    default void setKey(Key complexId) {
-        getStoreContainer().key = complexId;
+        return getKey().getPrimaryKey().value;
     }
 
     default boolean isNew() {
         return getKey() == null;
     }
-
-    default void addPropertyChangeListener(
-            PropertyChangeListener listener) {
-        if (listener == null) {
-            return;
-        }
-        if (getStoreContainer().changeSupport == null) {
-            getStoreContainer().changeSupport = getStoreContainer().createPropertyChangeSupport(this);
-        }
-        getStoreContainer().changeSupport.addPropertyChangeListener(listener);
-    }
-
-    default void removePropertyChangeListener(
-            PropertyChangeListener listener) {
-        getStoreContainer().removePropertyChangeListener(listener);
-    }
-
-    default void setPropertyChangeListener(PropertyChangeListener listener) {
-        getStoreContainer().setPropertyChangeListener(listener,this);
-    }
-
-    default void firePropertyChange(PropertyChangeEvent event) {
-        PropertyChangeSupport aChangeSupport = getStoreContainer().changeSupport;
-        if (aChangeSupport == null) {
-            return;
-        }
-        aChangeSupport.firePropertyChange(event);
-    }
-
-    default void firePropertyChange(String propertyName,
-                                    Object oldValue,
-                                    Object newValue) {
-        PropertyChangeSupport aChangeSupport = getStoreContainer().changeSupport;
-        if (aChangeSupport == null) {
-            return;
-        }
-        aChangeSupport.firePropertyChange(propertyName, oldValue, newValue);
-    }
-
-    default void firePropertyChange(String propertyName,
-                                    boolean oldValue,
-                                    boolean newValue) {
-        PropertyChangeSupport aChangeSupport = getStoreContainer().changeSupport;
-        if (aChangeSupport == null) {
-            return;
-        }
-        aChangeSupport.firePropertyChange(propertyName, oldValue, newValue);
-    }
-
-    default void fireMultiplePropertiesChanged() {
-        firePropertyChange(null, null, null);
-    }
-
-    default void fireIndexedPropertyChange(String propertyName, int index,
-                                           Object oldValue, Object newValue) {
-        PropertyChangeSupport aChangeSupport = getStoreContainer().changeSupport;
-        if (aChangeSupport == null) {
-            return;
-        }
-        aChangeSupport.fireIndexedPropertyChange(propertyName, index,
-                oldValue, newValue);
-    }
-
 
 }

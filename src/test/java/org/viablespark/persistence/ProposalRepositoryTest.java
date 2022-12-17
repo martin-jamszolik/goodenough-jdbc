@@ -109,7 +109,7 @@ public class ProposalRepositoryTest {
                 .primaryKey("pr_key"),
                 Proposal.class);
 
-        assertEquals(2, results.size());
+        assertEquals(3, results.size());
         
         results.forEach(e -> assertTrue(e.getId() > 0));
 
@@ -117,11 +117,15 @@ public class ProposalRepositoryTest {
 
     @Test
     public void testRowQuery(){
+        var mapper = new ProposalMapper();
         var results = repository.rowQuery(
-            SqlQuery.asRawSql("select * from est_proposal where dist > 0"),
-            new ProposalMapper());
+            SqlQuery.asRawSql("select * from est_proposal p " +
+                "INNER JOIN contractor c on (c.sc_key = p.sc_key) "+
+                "where dist > 0"),
+            mapper);
 
         results.forEach(e -> assertTrue(e.getId() > 0));
+        assertEquals(2, mapper.getContractors().size());
     }
 
     @Test
@@ -140,7 +144,7 @@ public class ProposalRepositoryTest {
                     return e;
                 });
 
-        assertEquals(2, results.size());
+        assertEquals(3, results.size());
         
         results.forEach(e -> assertTrue(e.getId() > 0));
     }

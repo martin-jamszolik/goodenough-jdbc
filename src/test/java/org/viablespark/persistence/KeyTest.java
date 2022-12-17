@@ -147,7 +147,9 @@ public class KeyTest {
     public void testPairsForKeys(){
         assertNotEquals( null, Pair.of("first",1L));
         assertNotEquals( Pair.of("first",1L),null);
-        assertEquals("",Pair.of(null,null).toString());
+        assertNotEquals(Pair.of("me", 1L), new Object());
+        assertEquals("Pair{key=null, value=null}",Pair.of(null,null).toString());
+        assertNotEquals(Pair.of("one", 1L), Pair.of("one", 2L));
     }
 
 

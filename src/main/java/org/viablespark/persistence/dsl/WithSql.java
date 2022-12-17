@@ -13,24 +13,26 @@
 
 package org.viablespark.persistence.dsl;
 
+import org.viablespark.persistence.Key;
 import org.viablespark.persistence.Pair;
 import org.viablespark.persistence.Persistable;
-import org.viablespark.persistence.InstanceData;
 
-import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.sql.SQLException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Comparator;
+import java.util.List;
 import java.util.stream.Collectors;
 
 public abstract class WithSql {
 
     public static String getSQLSelectClause(Class<?> cls, String... customFields) {
         List<Method> methods = Arrays.stream(cls.getDeclaredMethods())
-                .filter(m -> m.getName().startsWith("get"))
-                .filter(m -> !m.isAnnotationPresent(Skip.class) )
-                .filter(m -> !m.getReturnType().equals(InstanceData.class))
-                .sorted(Comparator.comparing(Method::getName)).collect(Collectors.toList());
+            .filter(m -> m.getName().startsWith("get"))
+            .filter(m -> !m.isAnnotationPresent(Skip.class))
+            .filter(m -> !m.getReturnType().equals(Key.class))
+            .sorted(Comparator.comparing(Method::getName)).collect(Collectors.toList());
 
         StringBuilder sql = new StringBuilder();
 
@@ -50,17 +52,17 @@ public abstract class WithSql {
     public static SqlClause getSQLUpdateClause(Persistable entity) throws SQLException {
         try {
             List<Method> methods = Arrays.stream(entity.getClass().getDeclaredMethods())
-                    .filter(m -> m.getName().startsWith("get"))
-                    .filter(m -> !m.isAnnotationPresent(Skip.class))
-                    .filter(m -> !m.getReturnType().equals(InstanceData.class))
-                    .sorted(Comparator.comparing(Method::getName))
-                    .collect(Collectors.toList());
+                .filter(m -> m.getName().startsWith("get"))
+                .filter(m -> !m.isAnnotationPresent(Skip.class))
+                .filter(m -> !m.getReturnType().equals(Key.class))
+                .sorted(Comparator.comparing(Method::getName))
+                .collect(Collectors.toList());
 
             StringBuilder sql = new StringBuilder("SET ");
             List<Object> answers = new ArrayList<>(methods.size());
             for (Method m : methods) {
-                sql.append(deriveName(m,entity)).append("=?,");
-                answers.add(deriveValue(m,entity));
+                sql.append(deriveName(m, entity)).append("=?,");
+                answers.add(deriveValue(m, entity));
             }
             sql.deleteCharAt(sql.length() - 1); // remove last comma.
             Pair<String, Long> primaryKey = entity.getKey().getPrimaryKey();
@@ -77,19 +79,19 @@ public abstract class WithSql {
     public static SqlClause getSQLInsertClause(Persistable entity) throws SQLException {
         try {
             List<Method> methods = Arrays.stream(entity.getClass().getDeclaredMethods())
-                    .filter(m -> m.getName().startsWith("get"))
-                    .filter(m -> !m.isAnnotationPresent(Skip.class))
-                    .filter(m -> !m.getReturnType().equals(InstanceData.class))
-                    .sorted(Comparator.comparing(Method::getName))
-                    .collect(Collectors.toList());
+                .filter(m -> m.getName().startsWith("get"))
+                .filter(m -> !m.isAnnotationPresent(Skip.class))
+                .filter(m -> !m.getReturnType().equals(Key.class))
+                .sorted(Comparator.comparing(Method::getName))
+                .collect(Collectors.toList());
 
             StringBuilder columns = new StringBuilder("(");
             StringBuilder values = new StringBuilder("VALUES (");
             List<Object> answers = new ArrayList<>(methods.size());
             for (Method m : methods) {
-                columns.append(deriveName(m,entity)).append(",");
+                columns.append(deriveName(m, entity)).append(",");
                 values.append("?,");
-                answers.add(deriveValue(m,entity));
+                answers.add(deriveValue(m, entity));
             }
             columns = new StringBuilder(columns.toString().replaceAll(".$", "") + ")");
             values = new StringBuilder(values.toString().replaceAll(".$", "") + ")");
@@ -105,7 +107,7 @@ public abstract class WithSql {
     private static String deriveName(Method m, Persistable entity) {
         try {
             if (m.isAnnotationPresent(Ref.class)) {
-                Persistable refObj = (Persistable)m.invoke(entity);
+                Persistable refObj = (Persistable) m.invoke(entity);
                 return refObj.getKey().getPrimaryKey().key;
             }
 
@@ -119,15 +121,15 @@ public abstract class WithSql {
             return null;
         }
     }
-    
-    private static Object deriveValue(Method m, Persistable entity ){
+
+    private static Object deriveValue(Method m, Persistable entity) {
         try {
             if (m.isAnnotationPresent(Ref.class)) {
-                Persistable refObj = (Persistable)m.invoke(entity);
+                Persistable refObj = (Persistable) m.invoke(entity);
                 return refObj.getKey().getPrimaryKey().value;
             }
             return m.invoke(entity);
-            
+
         } catch (Exception ex) {
             return null;
         }
@@ -144,7 +146,7 @@ public abstract class WithSql {
 
         if (m.isAnnotationPresent(Named.class)) {
             return m.getAnnotation(Named.class).value()
-                    + " as " + camelToSnake(m.getName().substring(3));
+                + " as " + camelToSnake(m.getName().substring(3));
         }
         String name = m.getName().substring(3);
         name = camelToSnake(name);

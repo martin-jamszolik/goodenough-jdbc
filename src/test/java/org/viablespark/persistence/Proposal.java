@@ -25,11 +25,11 @@ import java.util.Date;
 @Named("est_proposal")
 @PrimaryKey("pr_key")
 public class Proposal extends Model {
-    
+
     private String propName;
     private Date propDate;
     private Integer distance;
-    
+
     private Date submitDeadline;
     private String propId;
     private String skipMeIamWorthless;
@@ -40,16 +40,16 @@ public class Proposal extends Model {
     }
 
     public Proposal(String key, Long id) {
-        super.setKey(Key.of(key,id));
+        super.setKey(Key.of(key, id));
     }
 
     @Named("proposal_name")
     public String getPropName() {
         return propName;
     }
-    
-    public void setPr_key(Long id){
-        setKey(Key.of("pr_key",id));
+
+    public void setPr_key(Long id) {
+        setKey(Key.of("pr_key", id));
     }
 
     public void setPropName(String propName) {
