@@ -1,8 +1,8 @@
 # Good Enough JDBC
 
-[![Java CI with Gradle](https://github.com/martin-jamszolik/goodenough-jdbc/actions/workflows/gradle.yml/badge.svg)](https://github.com/martin-jamszolik/goodenough-jdbc/actions/workflows/gradle.yml)
-
+[![Gradle CI](https://github.com/martin-jamszolik/goodenough-jdbc/actions/workflows/gradle.yml/badge.svg)](https://github.com/martin-jamszolik/goodenough-jdbc/actions/workflows/gradle.yml) 
 [![Coverage](.github/badges/jacoco.svg)](jacoco.svg)
+[![branches](.github/badges/branches.svg)](branches.svg)
 
 ## Why?
 Have you tried the latest/greatest ORM frameworks out there yet?
@@ -12,7 +12,7 @@ Most of them want to remove you from the RDBMS layer as much as possible. Some u
 to generate the model in runtime, some are statically typed and require us to define the schema 
 in the application layer so that a rich DSL layer can be used.
 
-Reflecting on this entire space, you may find yourself needing to be close to SQL and all that
+Reflecting on this, you may find yourself needing to be close to SQL and all that
 it has to offer in flexibility and transparency. Tailor each query for optimal retrieval, using
 your knowledge of to put together a performant query. At the same time, have a good enough api to
 help you with the boring,silly stuff.  Just enough to help with the needed 
@@ -28,13 +28,52 @@ prolific frameworks out there, which is `spring-jdbc`. An already slim, low leve
 Between `spring-jdbc` and Springs next flagship library `spring-data`,
 this little project sits right in between. We don't do any meta-programming (autogenerate interfaces),
 we don't generate any clever queries. Instead, we help with the most boring parts and leave the power
-and flexibility and a level of complexity to you. This project will not protect you from doing silly stuff,
-but, with some good guidelines, best practices and test cases, you may find this library useful.
+and flexibility and a level of complexity to you. With some good guidelines, best practices and test cases, you may find this library useful.
 
 
 ## Details
 
-Best way to start, is to look at one of our test cases. 
-[ProposalRepositoryTest](src/test/java/org/viablespark/persistence/ProposalRepositoryTest.java)
-A repository pattern demonstrating common use cases with entity storage
-and foreign key relationship.
+### 1) The Entity
+
+First major component is the Entity:
+```java
+@PrimaryKey("t_key")
+public class Task extends Model {
+    
+    @Named("sc_name")
+    public String getName() {
+        return name;
+    }
+    
+    @Ref
+    public Proposal getProposal(){
+        return proposal;
+    }
+}
+```
+
+By convention, if your entity matches snake case names, `@Named` is not necessary. But in the real world
+that is rarely true. Extending `Model` makes it convenient, but your entity might already be inheriting
+from another class, so use `implements Persistable` instead.
+
+### 2) The Repository
+
+`BaseRepository` does most of the work to help you `create`, `remove`, `update`, `delete`, `list`. 
+Beyond that, extend the class and define your desired helper methods for additional queries and composites.
+
+### 3) The Mapper
+
+Most mapping needs can be delegated over to `PersistableRowMapper`. Only if you want to take full control of
+how every column, field and foreign relationships is mapped, you will want to implement 
+`PersistableMapper` and go from there. For an advanced example of this, see 
+[ProposalMapper](src/test/java/org/viablespark/persistence/ProposalMapper.java)
+
+
+### Test Cases
+
+Have a look at the various Test Cases for common uses typically found in a real scenarios.
+
+| Example                         | Reference                                                                                               |
+|---------------------------------|:--------------------------------------------------------------------------------------------------------|
+| Composite Repository (Line 74+) | [ProposalTaskRepositoryTest](src/test/java/org/viablespark/persistence/ProposalTaskRepositoryTest.java) |
+| Many to One Entity Mapping      | [ProposalTaskMapper](src/test/java/org/viablespark/persistence/ProposalTaskMapper.java)                 |
