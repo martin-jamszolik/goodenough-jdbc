@@ -18,7 +18,7 @@ plugins {
 }
 
 group = "org.viablespark"
-version = "1.0"
+version = "1.2.0"
 
 repositories {
     mavenCentral()
@@ -43,6 +43,7 @@ java {
     toolchain {
         languageVersion.set(JavaLanguageVersion.of(11))
     }
+    withSourcesJar()
 }
 
 
@@ -74,10 +75,30 @@ publishing {
         create<MavenPublication>("maven") {
             groupId = "org.viablespark"
             artifactId = "goodenough-jdbc"
-            version = "1.0"
+            version = "1.2.0"
 
             from(components["java"])
+            pom {
+                description.set("Good Enough JDBC")
+                scm {
+                    connection.set("scm:git:git@github.com:martin-jamszolik/goodenough-jdbc.git")
+                    url.set("https://github.com/martin-jamszolik/goodenough-jdbc")
+                }
+                licenses {
+                    license {
+                        name.set("The Apache License, Version 2.0")
+                        url.set("http://www.apache.org/licenses/LICENSE-2.0.txt")
+                    }
+                }
+                developers {
+                    developer {
+                        id.set("martin-jamszolik")
+                        name.set("Martin Jamszolik")
+                    }
+                }
+            }
         }
+
     }
 }
 
