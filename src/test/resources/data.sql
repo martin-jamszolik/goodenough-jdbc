@@ -18,3 +18,10 @@ INSERT INTO est_proposal
 (proposal_name, dist, prop_date, submit_deadline, prop_id,sc_key)
 VALUES('proposal 3', 456, curdate(), curdate(), 'ID3',2);
 
+INSERT INTO task (t_key,task_name) VALUES(1, 'task 1');
+INSERT INTO task (t_key,task_name) VALUES(2, 'task 2');
+INSERT INTO task (t_key,task_name) VALUES(3, 'task 3');
+INSERT INTO task (t_key,task_name) VALUES(4, 'task 4');
+
+INSERT INTO proposal_task (t_key,pr_key,price ) VALUES (1,1,200);
+INSERT INTO proposal_task (t_key,pr_key,price ) VALUES (2,1,300);

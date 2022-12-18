@@ -64,11 +64,12 @@ public class ProposalRepositoryTest {
 
         proposal.setContractor(new Contractor("sc_key",1L)); //foreign-key
 
-        Key key = repository.save(proposal);
+        Optional<Key> optionalKey = repository.save(proposal);
 
         logger.info("Entity Saved, let's check valid keys");
 
-        assertNotNull(key);
+        assertTrue(optionalKey.isPresent());
+        var key = optionalKey.get();
         assertEquals(1, key.getCount());
         assertNotNull(key.getPrimaryKey());
         assertEquals("pr_key",key.getPrimaryKey().key);
@@ -80,8 +81,8 @@ public class ProposalRepositoryTest {
         var found = foundOption.get();
         found.setDistance(567);
         found.setPropName("Saved again");
-        var savedKey = repository.save(found);
-        assertEquals(key,savedKey);
+        var keyOption = repository.save(found);
+        keyOption.ifPresent( k -> assertEquals(key,k) );
         repository.get(key,Proposal.class)
             .ifPresent( f -> assertEquals("Saved again",f.getPropName()));
     }
@@ -104,7 +105,7 @@ public class ProposalRepositoryTest {
     @Test
     public void testQuery() {
 
-        List<Proposal> results = repository.query(SqlQuery
+        List<Proposal> results = repository.queryEntity(SqlQuery
                 .where(Pair.of("dist >= ?", 10))
                 .primaryKey("pr_key"),
                 Proposal.class);
@@ -118,7 +119,7 @@ public class ProposalRepositoryTest {
     @Test
     public void testRowQuery(){
         var mapper = new ProposalMapper();
-        var results = repository.rowQuery(
+        var results = repository.query(
             SqlQuery.asRawSql("select * from est_proposal p " +
                 "INNER JOIN contractor c on (c.sc_key = p.sc_key) "+
                 "where dist > 0"),
@@ -131,7 +132,7 @@ public class ProposalRepositoryTest {
     @Test
     public void testRowSetQuery() {
         
-        List<Proposal> results = repository.rowSetQuery(SqlQuery
+        List<Proposal> results = repository.query(SqlQuery
                 .asRawSql("select * from est_proposal"),
                 (rowSet,row) -> {
                     Proposal e = new Proposal();

@@ -19,7 +19,9 @@ import org.viablespark.persistence.dsl.PrimaryKey;
 import org.viablespark.persistence.dsl.Ref;
 import org.viablespark.persistence.dsl.Skip;
 
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
 
 
 @Named("est_proposal")
@@ -35,6 +37,8 @@ public class Proposal extends Model {
     private String skipMeIamWorthless;
 
     private Contractor contractor;
+
+    private List<ProposalTask> tasks = new ArrayList<>();
 
     public Proposal() {
     }
@@ -106,5 +110,17 @@ public class Proposal extends Model {
 
     public void setContractor(Contractor contractor) {
         this.contractor = contractor;
+    }
+
+    @Skip
+    public List<ProposalTask> getTasks() {
+        return tasks;
+    }
+
+    public void setTasks(List<ProposalTask> tasks) {
+        this.tasks = tasks;
+    }
+    public void addTask(ProposalTask task){
+        tasks.add(task);
     }
 }

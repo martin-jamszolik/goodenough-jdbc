@@ -35,7 +35,7 @@ public abstract class BaseRepository<E extends Persistable> {
         jdbc = db;
     }
 
-    public Key save(E entity) throws SQLException {
+    public Optional<Key> save(E entity) throws SQLException {
 
         if (entity.isNew()) {
             SqlClause withInsert = WithSql.getSQLInsertClause(entity);
@@ -46,7 +46,7 @@ public abstract class BaseRepository<E extends Persistable> {
                     .getAnnotation(PrimaryKey.class)
                     .value(), key.getKey().longValue()));
             }
-            return entity.getKey();
+            return Optional.ofNullable(entity.getKey());
         }
 
         SqlClause withUpdate = WithSql.getSQLUpdateClause(entity);
@@ -54,7 +54,7 @@ public abstract class BaseRepository<E extends Persistable> {
             + withUpdate.getClause();
         jdbc.update(sql, withUpdate.getValues());
 
-        return entity.getKey();
+        return Optional.ofNullable(entity.getKey());
     }
 
     public void delete(E entity) {
@@ -77,18 +77,13 @@ public abstract class BaseRepository<E extends Persistable> {
         return res;
     }
 
-    public List<E> query(SqlQuery query, Class<E> cls) {
+    public List<E> queryEntity(SqlQuery query, Class<E> cls) {
         return jdbc.query(
             "SELECT " + WithSql.getSQLSelectClause(cls, query.getPrimaryKeyName())
                 + " FROM " + deriveEntityName(cls) + " "
                 + query.sql(), new PersistableRowMapper<>(cls), query.values());
     }
-
-    public List<E> rowQuery(SqlQuery query, PersistableMapper<E> mapper) {
-        return jdbc.query(query.sql(), mapper, query.values());
-    }
-
-    public List<E> rowSetQuery(SqlQuery query, PersistableMapper<E> mapper) {
+    public List<E> query(SqlQuery query, PersistableMapper<E> mapper) {
         SqlRowSet rs = jdbc.queryForRowSet(query.sql(), query.values());
         List<E> list = new ArrayList<>();
         while (rs.next()) {
@@ -96,7 +91,6 @@ public abstract class BaseRepository<E extends Persistable> {
         }
         return list;
     }
-
 
     private KeyHolder execWithKey(final String sql, final Object... args) {
         KeyHolder keyHolder = new GeneratedKeyHolder();
