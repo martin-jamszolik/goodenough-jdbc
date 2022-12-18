@@ -77,3 +77,5 @@ Have a look at the various Test Cases for common uses typically found in a real 
 |---------------------------------|:--------------------------------------------------------------------------------------------------------|
 | Composite Repository (Line 74+) | [ProposalTaskRepositoryTest](src/test/java/org/viablespark/persistence/ProposalTaskRepositoryTest.java) |
 | Many to One Entity Mapping      | [ProposalTaskMapper](src/test/java/org/viablespark/persistence/ProposalTaskMapper.java)                 |
+| Simple Repository Example       | [ProposalRepositoryTest](src/test/java/org/viablespark/persistence/ProposalRepositoryTest.java)         |
+ 
