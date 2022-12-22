@@ -13,12 +13,12 @@
 
 package org.viablespark.persistence;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.jdbc.core.BeanPropertyRowMapper;
 import org.springframework.jdbc.support.rowset.SqlRowSet;
+import org.viablespark.persistence.dsl.Named;
 import org.viablespark.persistence.dsl.PrimaryKey;
 import org.viablespark.persistence.dsl.Ref;
+import org.viablespark.persistence.dsl.WithSql;
 
 import java.lang.reflect.Method;
 import java.sql.ResultSet;
@@ -65,14 +65,19 @@ public class PersistableRowMapper<E extends Persistable> implements PersistableM
     private void assignForeignRefs(Persistable entity, ResultSet rs) throws SQLException {
         List<Method> methods = Arrays.stream(entity.getClass().getDeclaredMethods())
             .filter(m -> m.getName().startsWith("get"))
-            .filter(m -> m.isAnnotationPresent(Ref.class))
+            .filter(m -> WithSql.getAnnotation(m,entity.getClass(),Ref.class).isPresent())
             .filter(m -> m.getReturnType().isAnnotationPresent(PrimaryKey.class))
             .collect(Collectors.toList());
         try {
             for (Method m : methods) {
                 Class<?> foreignType = m.getReturnType();
                 var pkName = foreignType.getAnnotation(PrimaryKey.class).value();
-                var pkValue = rs.getLong(pkName);
+                var namedOption = WithSql.getAnnotation(m,entity.getClass(), Named.class);
+                String columnName = pkName;
+                if ( namedOption.isPresent() ){
+                    columnName = namedOption.get().value();
+                }
+                var pkValue = rs.getLong(columnName);
                 var fkInstance = foreignType.getDeclaredConstructor().newInstance();
                 ((Persistable) fkInstance).setKey(Key.of(pkName, pkValue));
                 Method setterMethod = entity.getClass().getDeclaredMethod(
