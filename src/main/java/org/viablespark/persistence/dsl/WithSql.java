@@ -17,33 +17,30 @@ import org.viablespark.persistence.Key;
 import org.viablespark.persistence.Pair;
 import org.viablespark.persistence.Persistable;
 
+import java.lang.annotation.Annotation;
+import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Comparator;
-import java.util.List;
+import java.util.*;
 import java.util.stream.Collectors;
 
-public abstract class WithSql {
+public final class WithSql {
 
     public static String getSQLSelectClause(Class<?> cls, String... customFields) {
         List<Method> methods = Arrays.stream(cls.getDeclaredMethods())
             .filter(m -> m.getName().startsWith("get"))
-            .filter(m -> !m.isAnnotationPresent(Skip.class))
+            .filter(m -> getAnnotation(m, cls, Skip.class).isEmpty())
             .filter(m -> !m.getReturnType().equals(Key.class))
             .sorted(Comparator.comparing(Method::getName)).collect(Collectors.toList());
 
         StringBuilder sql = new StringBuilder();
 
-        if (customFields != null) {
-            for (String cName : customFields) {
-                sql.append(cName).append(",");
-            }
+        for (String cName : customFields) {
+            sql.append(cName).append(",");
         }
 
         for (Method m : methods) {
-            sql.append(deriveNameForSelectClause(m)).append(",");
+            sql.append(deriveNameForSelectClause(m, cls)).append(",");
         }
         sql.deleteCharAt(sql.length() - 1);
         return sql.toString();
@@ -53,8 +50,7 @@ public abstract class WithSql {
         try {
             List<Method> methods = Arrays.stream(entity.getClass().getDeclaredMethods())
                 .filter(m -> m.getName().startsWith("get"))
-                .filter(m -> !m.isAnnotationPresent(Skip.class))
-                .filter(m -> !m.getReturnType().equals(Key.class))
+                .filter(m -> getAnnotation(m, entity.getClass(), Skip.class).isEmpty())
                 .sorted(Comparator.comparing(Method::getName))
                 .collect(Collectors.toList());
 
@@ -80,8 +76,7 @@ public abstract class WithSql {
         try {
             List<Method> methods = Arrays.stream(entity.getClass().getDeclaredMethods())
                 .filter(m -> m.getName().startsWith("get"))
-                .filter(m -> !m.isAnnotationPresent(Skip.class))
-                .filter(m -> !m.getReturnType().equals(Key.class))
+                .filter(m -> getAnnotation(m, entity.getClass(), Skip.class).isEmpty())
                 .sorted(Comparator.comparing(Method::getName))
                 .collect(Collectors.toList());
 
@@ -104,53 +99,85 @@ public abstract class WithSql {
         }
     }
 
-    private static String deriveName(Method m, Persistable entity) {
-        try {
-            if (m.isAnnotationPresent(Ref.class)) {
-                Persistable refObj = (Persistable) m.invoke(entity);
-                return refObj.getKey().getPrimaryKey().key;
-            }
-
-            if (m.isAnnotationPresent(Named.class)) {
-                return m.getAnnotation(Named.class).value();
-            }
-            String name = m.getName().substring(3);
-            name = camelToSnake(name);
-            return name;
-        } catch (Exception ex) {
-            return null;
+    private static String deriveName(Method m, Persistable entity) throws Exception {
+        Optional<Named> namedOption = getAnnotation(m, entity.getClass(), Named.class);
+        if (namedOption.isPresent()) {
+            return namedOption.get().value();
         }
+
+        Optional<Ref> refOption = getAnnotation(m, entity.getClass(), Ref.class);
+        if (refOption.isPresent()) {
+            Persistable refObj = (Persistable) m.invoke(entity);
+            return refObj.getKey().getPrimaryKey().key;
+        }
+
+        String name = m.getName().substring(3);
+        name = camelToSnake(name);
+        return name;
     }
 
-    private static Object deriveValue(Method m, Persistable entity) {
-        try {
-            if (m.isAnnotationPresent(Ref.class)) {
-                Persistable refObj = (Persistable) m.invoke(entity);
-                return refObj.getKey().getPrimaryKey().value;
-            }
-            return m.invoke(entity);
-
-        } catch (Exception ex) {
-            return null;
+    private static Object deriveValue(Method m, Persistable entity) throws Exception {
+        Optional<Ref> refOption = getAnnotation(m, entity.getClass(), Ref.class);
+        if (refOption.isPresent()) {
+            Persistable refObj = (Persistable) m.invoke(entity);
+            return refObj.getKey().getPrimaryKey().value;
         }
+        return m.invoke(entity);
     }
 
-    private static String deriveNameForSelectClause(Method m) {
+    private static String deriveNameForSelectClause(Method m, Class<?> cls) {
+        Optional<Named> namedOption = getAnnotation(m, cls, Named.class);
+        Optional<Ref> refOption = getAnnotation(m, cls, Ref.class);
 
-        if (m.isAnnotationPresent(Ref.class)) {
+        if (namedOption.isPresent()) {
+            if (refOption.isPresent()) {
+                return namedOption.get().value();
+            } else {
+                return namedOption.get().value()
+                    + " as " + camelToSnake(m.getName().substring(3));
+            }
+        }
+
+
+        if (refOption.isPresent()) {
             Class<?> foreignType = m.getReturnType();
             if (foreignType.isAnnotationPresent(PrimaryKey.class)) {
                 return foreignType.getAnnotation(PrimaryKey.class).value();
             }
         }
 
-        if (m.isAnnotationPresent(Named.class)) {
-            return m.getAnnotation(Named.class).value()
-                + " as " + camelToSnake(m.getName().substring(3));
-        }
         String name = m.getName().substring(3);
         name = camelToSnake(name);
         return name;
+    }
+
+    private static Optional<Field> getFieldForMethod(Method m, Class<?> cls) {
+        try {
+            Field field = cls.getDeclaredField(toLowerCamelCase(m.getName()));
+            return Optional.of(field);
+        } catch (NoSuchFieldException e) {
+            return Optional.empty();
+        }
+    }
+
+    public static <T extends Annotation> Optional<T> getAnnotation(
+        Method m, Class<?> cls, Class<T> annotation) {
+
+        if (m.isAnnotationPresent(annotation)) {
+            return Optional.of(m.getAnnotation(annotation));
+        }
+
+        Optional<Field> optField = getFieldForMethod(m, cls);
+        if (optField.isPresent() && optField.get().isAnnotationPresent(annotation)) {
+            return Optional.of(optField.get().getAnnotation(annotation));
+        }
+        return Optional.empty();
+    }
+
+    private static String toLowerCamelCase(String methodName) {
+        StringBuilder b = new StringBuilder(methodName.substring(3));
+        var result = b.replace(0, 1, (b.charAt(0) + "").toLowerCase());
+        return result.toString();
     }
 
     private static String camelToSnake(String str) {

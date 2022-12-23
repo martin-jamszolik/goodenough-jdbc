@@ -25,3 +25,6 @@ INSERT INTO task (t_key,task_name) VALUES(4, 'task 4');
 
 INSERT INTO proposal_task (t_key,pr_key,price ) VALUES (1,1,200);
 INSERT INTO proposal_task (t_key,pr_key,price ) VALUES (2,1,300);
+
+INSERT INTO progress(percent) VALUES (50);
+INSERT INTO note (note,note_date,additional,progress_id) VALUES('note1', curdate(),'additional',1);

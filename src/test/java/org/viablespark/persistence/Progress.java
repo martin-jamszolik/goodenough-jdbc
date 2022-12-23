@@ -11,15 +11,19 @@
  * See the License for the specific language governing permissions and limitations under the License.
  */
 
-package org.viablespark.persistence.dsl;
+package org.viablespark.persistence;
 
-import java.lang.annotation.ElementType;
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
-import java.lang.annotation.Target;
+import org.viablespark.persistence.dsl.PrimaryKey;
 
-@Retention(RetentionPolicy.RUNTIME)
-@Target({ElementType.METHOD,ElementType.FIELD})
-public @interface Skip {
+import java.math.BigDecimal;
 
+@PrimaryKey("id")
+public class Progress extends Model {
+    private BigDecimal percent;
+    public BigDecimal getPercent() {
+        return percent;
+    }
+    public void setPercent(BigDecimal percent) {
+        this.percent = percent;
+    }
 }

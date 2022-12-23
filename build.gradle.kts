@@ -18,7 +18,7 @@ plugins {
 }
 
 group = "org.viablespark"
-version = "1.2.0"
+version = "1.3.0"
 
 repositories {
     mavenCentral()
@@ -75,7 +75,7 @@ publishing {
         create<MavenPublication>("maven") {
             groupId = "org.viablespark"
             artifactId = "goodenough-jdbc"
-            version = "1.2.0"
+            version = "1.3.0"
 
             from(components["java"])
             pom {
