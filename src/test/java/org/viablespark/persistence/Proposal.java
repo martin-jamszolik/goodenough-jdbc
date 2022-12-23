@@ -30,7 +30,7 @@ public class Proposal extends Model {
 
     private String propName;
     private Date propDate;
-    private Integer distance;
+    private Integer distanceToFollow;
 
     private Date submitDeadline;
     private String propId;
@@ -70,11 +70,11 @@ public class Proposal extends Model {
 
     @Named("dist")
     public Integer getDistance() {
-        return distance;
+        return distanceToFollow;
     }
 
-    public void setDistance(Integer distance) {
-        this.distance = distance;
+    public void setDistance(Integer distanceToFollow) {
+        this.distanceToFollow = distanceToFollow;
     }
 
     public Date getSubmitDeadline() {

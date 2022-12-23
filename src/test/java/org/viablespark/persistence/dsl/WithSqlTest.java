@@ -13,6 +13,7 @@
 
 package org.viablespark.persistence.dsl;
 
+import org.springframework.jdbc.support.rowset.SqlRowSet;
 import org.viablespark.persistence.Contractor;
 import org.viablespark.persistence.Key;
 import java.util.Date;
@@ -21,6 +22,7 @@ import org.viablespark.persistence.Note;
 import org.viablespark.persistence.Proposal;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.springframework.test.util.AssertionErrors.assertTrue;
 
 /**
  *
@@ -59,6 +61,15 @@ public class WithSqlTest {
         assertEquals(
                 "SET sc_key=?,dist=?,prop_date=?,prop_id=?,proposal_name=?,submit_deadline=? WHERE pri_key=?",
                 update.getClause());
+
+        Exception thrown = assertThrows(
+            Exception.class,
+            () -> WithSql.getSQLUpdateClause(null),
+            "Should throw Exception"
+        );
+
+        assertTrue("Should throw",
+            thrown != null);
         
     }
 
@@ -79,6 +90,15 @@ public class WithSqlTest {
         assertEquals(
                 "(sc_key,dist,prop_date,prop_id,proposal_name,submit_deadline) VALUES (?,?,?,?,?,?)",
                 insert.getClause());
+
+        Exception thrown = assertThrows(
+            Exception.class,
+            () -> WithSql.getSQLInsertClause(null),
+            "Should throw Exception"
+        );
+
+        assertTrue("Should throw",
+            thrown != null);
         
     }
     

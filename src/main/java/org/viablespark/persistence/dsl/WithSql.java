@@ -29,7 +29,7 @@ public final class WithSql {
     public static String getSQLSelectClause(Class<?> cls, String... customFields) {
         List<Method> methods = Arrays.stream(cls.getDeclaredMethods())
             .filter(m -> m.getName().startsWith("get"))
-            .filter(m -> getAnnotation(m,cls,Skip.class).isEmpty())
+            .filter(m -> getAnnotation(m, cls, Skip.class).isEmpty())
             .filter(m -> !m.getReturnType().equals(Key.class))
             .sorted(Comparator.comparing(Method::getName)).collect(Collectors.toList());
 
@@ -40,7 +40,7 @@ public final class WithSql {
         }
 
         for (Method m : methods) {
-            sql.append(deriveNameForSelectClause(m,cls)).append(",");
+            sql.append(deriveNameForSelectClause(m, cls)).append(",");
         }
         sql.deleteCharAt(sql.length() - 1);
         return sql.toString();
@@ -50,7 +50,7 @@ public final class WithSql {
         try {
             List<Method> methods = Arrays.stream(entity.getClass().getDeclaredMethods())
                 .filter(m -> m.getName().startsWith("get"))
-                .filter(m -> getAnnotation(m,entity.getClass(),Skip.class).isEmpty())
+                .filter(m -> getAnnotation(m, entity.getClass(), Skip.class).isEmpty())
                 .sorted(Comparator.comparing(Method::getName))
                 .collect(Collectors.toList());
 
@@ -76,7 +76,7 @@ public final class WithSql {
         try {
             List<Method> methods = Arrays.stream(entity.getClass().getDeclaredMethods())
                 .filter(m -> m.getName().startsWith("get"))
-                .filter(m -> getAnnotation(m,entity.getClass(),Skip.class).isEmpty() )
+                .filter(m -> getAnnotation(m, entity.getClass(), Skip.class).isEmpty())
                 .sorted(Comparator.comparing(Method::getName))
                 .collect(Collectors.toList());
 
@@ -99,49 +99,40 @@ public final class WithSql {
         }
     }
 
-    private static String deriveName(Method m, Persistable entity) {
-        try {
-            Optional<Named> namedOption = getAnnotation(m, entity.getClass(), Named.class);
-            if (namedOption.isPresent()) {
-                return namedOption.get().value();
-            }
-
-            Optional<Ref> refOption = getAnnotation(m, entity.getClass(), Ref.class);
-            if (refOption.isPresent()) {
-                Persistable refObj = (Persistable) m.invoke(entity);
-                return refObj.getKey().getPrimaryKey().key;
-            }
-
-            String name = m.getName().substring(3);
-            name = camelToSnake(name);
-            return name;
-        } catch (Exception ex) {
-            return null;
+    private static String deriveName(Method m, Persistable entity) throws Exception {
+        Optional<Named> namedOption = getAnnotation(m, entity.getClass(), Named.class);
+        if (namedOption.isPresent()) {
+            return namedOption.get().value();
         }
+
+        Optional<Ref> refOption = getAnnotation(m, entity.getClass(), Ref.class);
+        if (refOption.isPresent()) {
+            Persistable refObj = (Persistable) m.invoke(entity);
+            return refObj.getKey().getPrimaryKey().key;
+        }
+
+        String name = m.getName().substring(3);
+        name = camelToSnake(name);
+        return name;
     }
 
-    private static Object deriveValue(Method m, Persistable entity) {
-        try {
-            Optional<Ref> refOption = getAnnotation(m, entity.getClass(), Ref.class);
-            if (refOption.isPresent()) {
-                Persistable refObj = (Persistable) m.invoke(entity);
-                return refObj.getKey().getPrimaryKey().value;
-            }
-            return m.invoke(entity);
-
-        } catch (Exception ex) {
-            return null;
+    private static Object deriveValue(Method m, Persistable entity) throws Exception {
+        Optional<Ref> refOption = getAnnotation(m, entity.getClass(), Ref.class);
+        if (refOption.isPresent()) {
+            Persistable refObj = (Persistable) m.invoke(entity);
+            return refObj.getKey().getPrimaryKey().value;
         }
+        return m.invoke(entity);
     }
 
-    private static String deriveNameForSelectClause(Method m,Class<?>cls) {
+    private static String deriveNameForSelectClause(Method m, Class<?> cls) {
         Optional<Named> namedOption = getAnnotation(m, cls, Named.class);
         Optional<Ref> refOption = getAnnotation(m, cls, Ref.class);
 
         if (namedOption.isPresent()) {
-            if(refOption.isPresent()){
+            if (refOption.isPresent()) {
                 return namedOption.get().value();
-            }else {
+            } else {
                 return namedOption.get().value()
                     + " as " + camelToSnake(m.getName().substring(3));
             }
@@ -160,7 +151,7 @@ public final class WithSql {
         return name;
     }
 
-    private static Optional<Field> getFieldForMethod(Method m, Class<?> cls){
+    private static Optional<Field> getFieldForMethod(Method m, Class<?> cls) {
         try {
             Field field = cls.getDeclaredField(toLowerCamelCase(m.getName()));
             return Optional.of(field);
@@ -169,23 +160,23 @@ public final class WithSql {
         }
     }
 
-    public static <T extends Annotation>  Optional<T> getAnnotation(
-                                Method m, Class<?>cls, Class<T> annotation) {
+    public static <T extends Annotation> Optional<T> getAnnotation(
+        Method m, Class<?> cls, Class<T> annotation) {
 
         if (m.isAnnotationPresent(annotation)) {
             return Optional.of(m.getAnnotation(annotation));
         }
 
-        Optional<Field> optField =  getFieldForMethod(m,cls);
-        if ( optField.isPresent() && optField.get().isAnnotationPresent(annotation) ){
+        Optional<Field> optField = getFieldForMethod(m, cls);
+        if (optField.isPresent() && optField.get().isAnnotationPresent(annotation)) {
             return Optional.of(optField.get().getAnnotation(annotation));
         }
         return Optional.empty();
     }
 
-    private static String toLowerCamelCase(String methodName){
-       StringBuilder b = new StringBuilder(methodName.substring(3));
-        var result = b.replace(0, 1,(b.charAt(0)+"").toLowerCase());
+    private static String toLowerCamelCase(String methodName) {
+        StringBuilder b = new StringBuilder(methodName.substring(3));
+        var result = b.replace(0, 1, (b.charAt(0) + "").toLowerCase());
         return result.toString();
     }
 
