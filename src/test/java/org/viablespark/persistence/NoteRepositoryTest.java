@@ -19,7 +19,6 @@ import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.embedded.EmbeddedDatabase;
 import org.springframework.jdbc.datasource.embedded.EmbeddedDatabaseBuilder;
-import org.viablespark.persistence.dsl.WithSql;
 
 import java.math.BigDecimal;
 
@@ -43,16 +42,16 @@ public class NoteRepositoryTest {
         progress.save(entity.getProgress());
 
         var keyOption = repository.save(entity);
-        keyOption.ifPresent( key -> assertEquals(2L, key.getPrimaryKey().value));
-        assertEquals( 2L,entity.getProgress().getKey().getPrimaryKey().value);
-        assertEquals( "id",entity.getProgress().getKey().getPrimaryKey().key);
+        keyOption.ifPresent( key -> assertEquals(2L, key.primaryKey().getValue()));
+        assertEquals( 2L,entity.getProgress().getKey().primaryKey().getValue());
+        assertEquals( "id",entity.getProgress().getKey().primaryKey().getKey());
     }
 
     @Test
     public void testSelectNote() throws Exception {
         var found = repository.get(Key.of("n_key",1L),Note.class);
 
-        found.ifPresent( n -> assertEquals(1L, n.getKey().getPrimaryKey().value));
+        found.ifPresent( n -> assertEquals(1L, n.getKey().primaryKey().getValue()));
         found.ifPresent( n -> assertNotNull( n.getProgress().getKey()));
     }
 

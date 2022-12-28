@@ -20,7 +20,7 @@ public interface Persistable {
     void setKey(Key key);
 
     default Long getId() {
-        return getKey().getPrimaryKey().value;
+        return getKey().primaryKey().getValue();
     }
 
     default boolean isNew() {

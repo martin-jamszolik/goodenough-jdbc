@@ -70,9 +70,9 @@ public class ProposalRepositoryTest {
 
         assertTrue(optionalKey.isPresent());
         var key = optionalKey.get();
-        assertEquals(1, key.getCount());
-        assertNotNull(key.getPrimaryKey());
-        assertEquals("pr_key",key.getPrimaryKey().key);
+        assertEquals(1, key.count());
+        assertNotNull(key.primaryKey());
+        assertEquals("pr_key",key.primaryKey().getKey());
 
         logger.info("Let's update");
 
@@ -99,7 +99,7 @@ public class ProposalRepositoryTest {
     public void testGet() {
         Optional<Proposal> result = repository.get(Key.of("pr_key", 1L), Proposal.class);
         assertTrue(result.isPresent());
-        assertEquals(1L, result.get().getKey().getPrimaryKey().value);
+        assertEquals(1L, result.get().getKey().primaryKey().getValue());
     }
 
     @Test

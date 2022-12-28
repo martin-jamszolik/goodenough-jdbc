@@ -24,8 +24,11 @@ public class Key implements Serializable {
 
     private final Map<String,Pair<String, Long>> keys = new LinkedHashMap<>();
 
+    public Key() {
+    }
+
     public Key(Pair<String, Long> primaryKey) {
-        keys.put(primaryKey.key, primaryKey);
+        keys.put(primaryKey.getKey(), primaryKey);
     }
     
     public static Key of(String key, Long value){
@@ -47,12 +50,16 @@ public class Key implements Serializable {
         return this;
     }
 
-    public int getCount() {
+    public int count() {
         return keys.size();
     }
 
     public Collection<Pair<String, Long>> getKeys() {
         return keys.values();
+    }
+
+    public void setKeys(Collection<Pair<String,Long>> _keys){
+        _keys.forEach( pair -> keys.put(pair.getKey(),pair));
     }
 
     public Pair<String, Long> getAt(int index) {
@@ -71,7 +78,7 @@ public class Key implements Serializable {
         if( found == null ){
             throw new RuntimeException("Key " + name + " not found. Other keys?" + this);
         }
-        return found.value;
+        return found.getValue();
     }
 
     public Optional<Pair<String, Long>> contains(String strKey) {
@@ -88,11 +95,11 @@ public class Key implements Serializable {
             return false;
         }
 
-        if (((Key) other).getCount() != getCount()) {
+        if (((Key) other).count() != count()) {
             return false;
         }
 
-        for (int i = 0; i < getCount(); i++) {
+        for (int i = 0; i < count(); i++) {
             if (!getAt(i).equals(((Key) other).getAt(i))) {
                 return false;
             }
@@ -104,13 +111,13 @@ public class Key implements Serializable {
     @Override
     public int hashCode() {
         int hash = 0;
-        for (int i = 0; i < getCount(); i++) {
+        for (int i = 0; i < count(); i++) {
             hash += getAt(i).hashCode();
         }
         return hash;
     }
 
-    public Pair<String, Long> getPrimaryKey() {
+    public Pair<String, Long> primaryKey() {
         return getAt(0);
     }
 
@@ -118,7 +125,7 @@ public class Key implements Serializable {
     public String toString() {
         StringBuilder str = new StringBuilder("Key(s) ");
         for (Pair<String,Long> key : keys.values()) {
-            str.append(key.key).append("=").append(key.value).append(" ");
+            str.append(key.getKey()).append("=").append(key.getValue()).append(" ");
         }
         return str.toString();
     }

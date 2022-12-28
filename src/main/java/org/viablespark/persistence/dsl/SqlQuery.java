@@ -81,20 +81,20 @@ public class SqlQuery {
         }
         
         Optional<String> whereResult = where.stream()
-                .map(p -> p.key)
+                .map(Pair::getKey)
                 .reduce((acc, a) -> "" + acc + " AND " + a);
 
         String whereStr = whereResult.map(s -> "WHERE " + s).orElse(" ");
 
         Optional<String> condResult = conditions.stream()
-                .map(p -> p.key)
+                .map(Pair::getKey)
                 .reduce((acc, a) -> "" + acc + " " + a);
 
         String condStr = condResult.orElse("");
 
-        String orderStr = orderBy != null ? " ORDER BY " +orderBy.key + " " + orderBy.value.toString() : "";
+        String orderStr = orderBy != null ? " ORDER BY " +orderBy.getKey() + " " + orderBy.getValue().toString() : "";
 
-        String limitStr = limit != null ? " LIMIT "+limit.key : "";
+        String limitStr = limit != null ? " LIMIT "+limit.getKey() : "";
 
         return whereStr + condStr + orderStr + limitStr;
     }
@@ -104,8 +104,8 @@ public class SqlQuery {
             return rawValues;
         }
         List<Object> list = new LinkedList<>();
-        list.addAll(where.stream().map(p -> p.value).collect(Collectors.toList()));
-        list.addAll(conditions.stream().map(p -> p.value).collect(Collectors.toList()));
+        list.addAll(where.stream().map(Pair::getValue).collect(Collectors.toList()));
+        list.addAll(conditions.stream().map(Pair::getValue).collect(Collectors.toList()));
         return list.toArray();
     }
     

@@ -5,30 +5,29 @@
 [![branches](.github/badges/branches.svg)](branches.svg)
 
 ## Why?
-Have you tried the latest/greatest ORM frameworks out there yet?
+Have you tried the latest/greatest ORM frameworks out there yet? 
 
-There are more than I can count, each one of them makes some kind of promise to you.  
 Most of them want to remove you from the RDBMS layer as much as possible. Some use meta-programming
 to generate the model in runtime, some are statically typed and require us to define the schema 
 in the application layer so that a rich DSL layer can be used.
 
-Reflecting on this, you may find yourself needing to be close to SQL and all that
+Reflecting on this, you may find yourself needing to stay close to SQL and all that
 it has to offer in flexibility and transparency. Tailor each query for optimal retrieval, using
-your knowledge of to put together a performant query. At the same time, have a good enough api to
-help you with the boring,silly stuff.  Just enough to help with the needed 
-insert,update and simple select statements. Find that middle ground of convention and flexibility.
-How low level can we stay and still be productive with RDBMS? This little library was born from
-having to work with so many frameworks, between `spring-data` and `rails` and many other 
-specialized libraries.
+your knowledge to put together a performant query. At the same time, have a good enough api to
+help you with the boring stuff.  Just enough to help with the needed 
+insert, update and simple select statements. Find that middle ground of convention and flexibility.
+How low level can we stay and still be productive with RDBMS? This little library was created as a 
+reflection on other frameworks I worked with `spring-data`, `rails` and the likes, among others.
 
 ## How?
 
-Clearly, we start of with the fact that we are on the JVM. Taking advantage of one of the most
+Starting of with the fact that we are on the JVM and using Java. Taking advantage of one of the most
 prolific frameworks out there, which is `spring-jdbc`. An already slim, low level library. 
 Between `spring-jdbc` and Springs next flagship library `spring-data`,
 this little project sits right in between. We don't do any meta-programming (autogenerate interfaces),
 we don't generate any clever queries. Instead, we help with the most boring parts and leave the power
-and flexibility and a level of complexity to you. With some good guidelines, best practices and test cases, you may find this library useful.
+and flexibility and a level of complexity to you. With some good guidelines, best practices and test cases, 
+you may find this library useful.
 
 
 ## Details
@@ -66,7 +65,9 @@ Beyond that, extend the class and define your desired helper methods for additio
 Most mapping needs can be delegated over to `PersistableRowMapper`. Only if you want to take full control of
 how every column, field and foreign relationships is mapped, you will want to implement 
 `PersistableMapper` and go from there. For an advanced example of this, see 
-[ProposalMapper](src/test/java/org/viablespark/persistence/ProposalMapper.java)
+[ProposalMapper](src/test/java/org/viablespark/persistence/ProposalMapper.java) This is the most laborious 
+part of the library, queries will need to match entities fields, so often you will have to spell out
+the select statement with `column as renamed`.  A tradeoff I can live with to retain fine control.
 
 
 ### Test Cases
