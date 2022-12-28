@@ -17,11 +17,30 @@ import java.util.Objects;
 
 public class Pair<T, Y> {
 
-    public final T key;
-    public final Y value;
+    private T key;
+    private Y value;
 
     public Pair(T key, Y value) {
         this.key = key;
+        this.value = value;
+    }
+
+    public Pair() {
+    }
+
+    public T getKey() {
+        return key;
+    }
+
+    public void setKey(T key) {
+        this.key = key;
+    }
+
+    public Y getValue() {
+        return value;
+    }
+
+    public void setValue(Y value) {
         this.value = value;
     }
 

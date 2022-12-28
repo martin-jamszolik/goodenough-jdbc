@@ -15,7 +15,6 @@ package org.viablespark.persistence;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.embedded.EmbeddedDatabase;
@@ -51,7 +50,7 @@ public class ProposalTaskRepositoryTest {
 
         var keyOption = repository.save(entity);
         entity.setKey( entity.getTask().getKey() ); //composite pk - Not auto-generated
-        keyOption.ifPresent( key -> assertEquals(1L, key.getPrimaryKey().value));
+        keyOption.ifPresent( key -> assertEquals(1L, key.primaryKey().getValue()));
     }
 
 

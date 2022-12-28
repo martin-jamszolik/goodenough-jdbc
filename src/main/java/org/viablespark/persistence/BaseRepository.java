@@ -59,18 +59,18 @@ public abstract class BaseRepository<E extends Persistable> {
 
     public void delete(E entity) {
         String sql = "DELETE FROM " + deriveEntityName(entity.getClass())
-            + " WHERE " + entity.getKey().getPrimaryKey().key + "=? ";
+            + " WHERE " + entity.getKey().primaryKey().getKey() + "=? ";
 
-        jdbc.update(sql, entity.getKey().getPrimaryKey().value);
+        jdbc.update(sql, entity.getKey().primaryKey().getValue());
     }
 
     public Optional<E> get(Key key, Class<E> cls) throws NoSuchElementException {
         List<E> list = jdbc.query(
-            "SELECT " + WithSql.getSQLSelectClause(cls, key.getPrimaryKey().key)
+            "SELECT " + WithSql.getSQLSelectClause(cls, key.primaryKey().getKey())
                 + " FROM " + deriveEntityName(cls)
-                + " WHERE " + key.getPrimaryKey().key + "=?",
+                + " WHERE " + key.primaryKey().getKey() + "=?",
             new PersistableRowMapper<>(cls),
-            key.getPrimaryKey().value);
+            key.primaryKey().getValue());
 
         Optional<E> res = list.stream().findFirst();
         res.ifPresent(e -> e.setKey(key));

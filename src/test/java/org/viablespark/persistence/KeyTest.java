@@ -14,16 +14,15 @@
 package org.viablespark.persistence;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashMap;
-import java.util.Map;
+import java.util.List;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.TestInstance.Lifecycle;
-import org.viablespark.persistence.Key;
-import org.viablespark.persistence.Pair;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.springframework.test.util.AssertionErrors.assertTrue;
@@ -43,7 +42,6 @@ public class KeyTest {
         key = Key.of("primary", 123L);
         key.add("second", 345L);
         key.add("third", 567L);
-
     }
 
     @Test
@@ -52,13 +50,27 @@ public class KeyTest {
         map.put("primary",123L);
         map.put("second",345L);
         Key key = new Key(map);
-        assertEquals(123L,key.getPrimaryKey().value);
+        assertEquals(123L,key.primaryKey().getValue());
         assertEquals(123L,key.getKey("primary"));
     }
 
     @Test
+    public void testSetKeys(){
+        List<Pair<String,Long>> pairs = new ArrayList<>();
+        pairs.add(Pair.of("anotherKey",2333L));
+        Pair<String,Long> p = new Pair<>();
+        p.setKey("yetAgain");
+        p.setValue(1243L);
+        pairs.add(p);
+        key.setKeys(pairs);
+
+        assertEquals(Pair.of("anotherKey",2333L).getValue(), key.getKey("anotherKey") );
+        assertEquals(p, key.getAt(4) );
+    }
+    @Test
     public void testOf() {
-        assertEquals(key.getPrimaryKey(), Key.of("primary", 123L).getPrimaryKey());
+        assertEquals(key.primaryKey(), Key.of("primary", 123L).primaryKey());
+        assertEquals(key.primaryKey(), new Key().add("primary",123L).primaryKey() );
     }
 
     @Test
@@ -73,7 +85,7 @@ public class KeyTest {
 
     @Test
     public void testGetCount() {
-        assertTrue("Should count as 3", key.getCount() ==3);
+        assertTrue("Should count as 3", key.count() ==3);
     }
 
 
@@ -96,10 +108,10 @@ public class KeyTest {
         key.add("third", 567L);
         key.add("primary", 234L);
 
-        assertEquals(key.getPrimaryKey(), key.getAt(0));
-        assertEquals("third", key.getAt(2).key);
-        assertEquals( "second", key.getAt(1).key);
-        assertEquals(3, key.getCount());
+        assertEquals(key.primaryKey(), key.getAt(0));
+        assertEquals("third", key.getAt(2).getKey());
+        assertEquals( "second", key.getAt(1).getKey());
+        assertEquals(3, key.count());
 
         assertNull(key.getAt(23));
     }
@@ -140,7 +152,7 @@ public class KeyTest {
 
     @Test
     public void testGetPrimaryKey() {
-        assertEquals(Pair.of("primary", 123L),key.getPrimaryKey());
+        assertEquals(Pair.of("primary", 123L),key.primaryKey());
     }
 
     @Test

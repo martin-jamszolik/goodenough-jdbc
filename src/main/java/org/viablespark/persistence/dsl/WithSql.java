@@ -61,9 +61,9 @@ public final class WithSql {
                 answers.add(deriveValue(m, entity));
             }
             sql.deleteCharAt(sql.length() - 1); // remove last comma.
-            Pair<String, Long> primaryKey = entity.getKey().getPrimaryKey();
-            sql.append(" WHERE ").append(primaryKey.key).append("=?");
-            answers.add(primaryKey.value);
+            Pair<String, Long> primaryKey = entity.getKey().primaryKey();
+            sql.append(" WHERE ").append(primaryKey.getKey()).append("=?");
+            answers.add(primaryKey.getValue());
 
             //sql = new StringBuilder(sql.toString().replaceAll(".$", ""));
             return new SqlClause(sql.toString(), answers.toArray());
@@ -108,7 +108,7 @@ public final class WithSql {
         Optional<Ref> refOption = getAnnotation(m, entity.getClass(), Ref.class);
         if (refOption.isPresent()) {
             Persistable refObj = (Persistable) m.invoke(entity);
-            return refObj.getKey().getPrimaryKey().key;
+            return refObj.getKey().primaryKey().getKey();
         }
 
         String name = m.getName().substring(3);
@@ -120,7 +120,7 @@ public final class WithSql {
         Optional<Ref> refOption = getAnnotation(m, entity.getClass(), Ref.class);
         if (refOption.isPresent()) {
             Persistable refObj = (Persistable) m.invoke(entity);
-            return refObj.getKey().getPrimaryKey().value;
+            return refObj.getKey().primaryKey().getValue();
         }
         return m.invoke(entity);
     }
