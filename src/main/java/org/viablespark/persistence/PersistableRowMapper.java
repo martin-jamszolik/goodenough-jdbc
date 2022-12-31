@@ -39,53 +39,82 @@ public class PersistableRowMapper<E extends Persistable> implements PersistableM
     @Override
     public E mapRow(ResultSet rs, int rowNum) throws SQLException {
         var bean = propertyMapper.mapRow(rs, rowNum);
-        assert(bean != null);
-        assignPrimaryKey(bean, rs);
-        assignForeignRefs(bean, rs);
-        return bean;
+        try {
+            assignPrimaryKey(bean, rs);
+            assignForeignRefs(bean, rs);
+            assignNamedFields(bean, rs);
+            return bean;
+        } catch (Exception ex) {
+            throw new SQLException(ex);
+        }
     }
 
     @Override
     public E mapRow(SqlRowSet rs, int rowNum) {
         try {
-            return mapRow(PersistableMapper.proxy(rs),rowNum);
+            return mapRow(PersistableMapper.proxy(rs), rowNum);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
     }
 
 
-    private void assignPrimaryKey(Persistable e, ResultSet rs) throws SQLException {
+    private void assignPrimaryKey(Persistable e, ResultSet rs) throws Exception {
         if (persistableType.isAnnotationPresent(PrimaryKey.class)) {
             String primaryKeyName = e.getClass().getAnnotation(PrimaryKey.class).value();
             e.setKey(Key.of(primaryKeyName, rs.getLong(primaryKeyName)));
         }
     }
 
-    private void assignForeignRefs(Persistable entity, ResultSet rs) throws SQLException {
+    private void assignNamedFields(Persistable entity, ResultSet rs) throws Exception {
         List<Method> methods = Arrays.stream(entity.getClass().getDeclaredMethods())
             .filter(m -> m.getName().startsWith("get"))
-            .filter(m -> WithSql.getAnnotation(m,entity.getClass(),Ref.class).isPresent())
+            .filter(m -> WithSql.getAnnotation(m, entity.getClass(), Named.class).isPresent())
+            .filter(m -> WithSql.getAnnotation(m, entity.getClass(), Ref.class).isEmpty())
+            .collect(Collectors.toList());
+
+        for (Method m : methods) {
+            var optionMethod = WithSql.getAnnotation(m, entity.getClass(), Named.class);
+
+            var customField = optionMethod.orElseThrow().value();
+
+            if (rs.getObject(customField) != null) {
+                var setterValue = rs.getObject(customField);
+                Method setterMethod = entity.getClass().getDeclaredMethod(
+                    m.getName().replace("get", "set"), m.getReturnType());
+                setterMethod.invoke(entity, interpolateValue(setterValue,m.getReturnType()));
+            }
+
+        }
+    }
+
+    private static Object interpolateValue(Object value, Class<?> asType) {
+        if( value instanceof Long && asType == Integer.class ){
+            value = Math.toIntExact((Long) value);
+        }
+        return value;
+    }
+
+    private void assignForeignRefs(Persistable entity, ResultSet rs) throws Exception {
+        List<Method> methods = Arrays.stream(entity.getClass().getDeclaredMethods())
+            .filter(m -> m.getName().startsWith("get"))
+            .filter(m -> WithSql.getAnnotation(m, entity.getClass(), Ref.class).isPresent())
             .filter(m -> m.getReturnType().isAnnotationPresent(PrimaryKey.class))
             .collect(Collectors.toList());
-        try {
-            for (Method m : methods) {
-                Class<?> foreignType = m.getReturnType();
-                var pkName = foreignType.getAnnotation(PrimaryKey.class).value();
-                var namedOption = WithSql.getAnnotation(m,entity.getClass(), Named.class);
-                String columnName = pkName;
-                if ( namedOption.isPresent() ){
-                    columnName = namedOption.get().value();
-                }
-                var pkValue = rs.getLong(columnName);
-                var fkInstance = foreignType.getDeclaredConstructor().newInstance();
-                ((Persistable) fkInstance).setKey(Key.of(pkName, pkValue));
-                Method setterMethod = entity.getClass().getDeclaredMethod(
-                    m.getName().replace("get", "set"), foreignType);
-                setterMethod.invoke(entity, fkInstance);
+        for (Method m : methods) {
+            Class<?> foreignType = m.getReturnType();
+            var pkName = foreignType.getAnnotation(PrimaryKey.class).value();
+            var namedOption = WithSql.getAnnotation(m, entity.getClass(), Named.class);
+            String columnName = pkName;
+            if (namedOption.isPresent()) {
+                columnName = namedOption.get().value();
             }
-        } catch (Exception ex) {
-            throw new SQLException(ex);
+            var pkValue = rs.getLong(columnName);
+            var fkInstance = foreignType.getDeclaredConstructor().newInstance();
+            ((Persistable) fkInstance).setKey(Key.of(pkName, pkValue));
+            Method setterMethod = entity.getClass().getDeclaredMethod(
+                m.getName().replace("get", "set"), foreignType);
+            setterMethod.invoke(entity, fkInstance);
         }
     }
 }

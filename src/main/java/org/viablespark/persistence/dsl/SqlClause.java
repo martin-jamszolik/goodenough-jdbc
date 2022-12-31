@@ -16,8 +16,8 @@ package org.viablespark.persistence.dsl;
 
 public class SqlClause {
 
-    private String clause;
-    private Object[] values;
+    private final String clause;
+    private final Object[] values;
 
     public SqlClause(String clause, Object[] values) {
         this.clause = clause;
@@ -28,16 +28,8 @@ public class SqlClause {
         return clause;
     }
 
-    public void setClause(String clause) {
-        this.clause = clause;
-    }
-
     public Object[] getValues() {
         return values;
-    }
-
-    public void setValues(Object[] values) {
-        this.values = values;
     }
 
 }
