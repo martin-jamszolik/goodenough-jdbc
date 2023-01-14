@@ -13,6 +13,7 @@
 
 package org.viablespark.persistence;
 
+import java.lang.reflect.InvocationHandler;
 import org.springframework.jdbc.core.BeanPropertyRowMapper;
 import org.springframework.jdbc.support.rowset.SqlRowSet;
 import org.viablespark.persistence.dsl.Named;
@@ -21,11 +22,14 @@ import org.viablespark.persistence.dsl.Ref;
 import org.viablespark.persistence.dsl.WithSql;
 
 import java.lang.reflect.Method;
+import java.lang.reflect.Proxy;
 import java.sql.ResultSet;
+import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
+import org.springframework.jdbc.support.rowset.SqlRowSetMetaData;
 
 public class PersistableRowMapper<E extends Persistable> implements PersistableMapper<E> {
     private final BeanPropertyRowMapper<E> propertyMapper;
@@ -52,7 +56,7 @@ public class PersistableRowMapper<E extends Persistable> implements PersistableM
     @Override
     public E mapRow(SqlRowSet rs, int rowNum) {
         try {
-            return mapRow(PersistableMapper.proxy(rs), rowNum);
+            return mapRow(proxy(rs), rowNum);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -117,4 +121,56 @@ public class PersistableRowMapper<E extends Persistable> implements PersistableM
             setterMethod.invoke(entity, fkInstance);
         }
     }
+       
+
+    private static ResultSet proxy(SqlRowSet on) {
+        return (ResultSet) Proxy.newProxyInstance(ClassLoader.getSystemClassLoader(),
+            new Class[]{ResultSet.class}, new SqlRowSetWrapper(on));
+    }
+
+    private static class SqlRowSetWrapper implements InvocationHandler {
+        private final SqlRowSet rows;
+
+        public SqlRowSetWrapper(SqlRowSet rows) {
+            this.rows = rows;
+        }
+
+        @Override
+        public Object invoke(Object o, Method method, Object[] objects) throws Throwable {
+
+            if (method.getName().equals("getMetaData")) {
+                return proxyMetaData(rows.getMetaData());
+            }
+
+            var targetMethod = rows.getClass().getMethod(method.getName(), method.getParameterTypes());
+            return targetMethod.invoke(rows, objects);
+        }
+
+        static ResultSetMetaData proxyMetaData(SqlRowSetMetaData meta) {
+            return (ResultSetMetaData) Proxy.newProxyInstance(ClassLoader.getSystemClassLoader(),
+                new Class[]{ResultSetMetaData.class}, new SqlRowSetMetaDataWrapper(meta));
+        }
+
+    }
+
+    static class SqlRowSetMetaDataWrapper implements InvocationHandler {
+        private final SqlRowSetMetaData meta;
+
+        public SqlRowSetMetaDataWrapper(SqlRowSetMetaData meta) {
+            this.meta = meta;
+        }
+
+        @Override
+        public Object invoke(Object o, Method method, Object[] objects) throws Throwable {
+
+            if (method.getName().contains("getColumnLabel")) {
+                return meta.getColumnLabel((int) objects[0]);
+            }
+
+            return meta.getClass().getMethod(method.getName(), method.getParameterTypes()).invoke(meta, objects);
+        }
+
+    }
+
+
 }

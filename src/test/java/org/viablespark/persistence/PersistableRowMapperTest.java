@@ -14,18 +14,12 @@
 package org.viablespark.persistence;
 
 import org.junit.jupiter.api.*;
-import org.mockito.Mock;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.embedded.EmbeddedDatabase;
 import org.springframework.jdbc.datasource.embedded.EmbeddedDatabaseBuilder;
 import org.springframework.jdbc.support.rowset.SqlRowSet;
 
-import java.sql.ResultSet;
-import java.sql.SQLException;
 import java.util.List;
-import java.util.concurrent.ConcurrentSkipListMap;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -52,15 +46,12 @@ class PersistableRowMapperTest {
     public void testMapRowMappingUsingResultSet() throws Exception {
 
         var jdbc = new JdbcTemplate(db);
-        var f = new PersistableMapper<Contractor>() {
-            @Override
-            public Contractor mapRow(SqlRowSet rs, int rowNum) {
-                Contractor c = new Contractor();
-                c.setKey(Key.of("sc_key",rs.getLong("sc_key")));
-                c.setName(rs.getString("sc_name"));
-                c.setContact(rs.getString("contact"));
-                return c;
-            }
+        PersistableMapper<Contractor> f = (SqlRowSet rs, int rowNum) -> {
+            Contractor c = new Contractor();
+            c.setKey(Key.of("sc_key",rs.getLong("sc_key")));
+            c.setName(rs.getString("sc_name"));
+            c.setContact(rs.getString("contact"));
+            return c;
         };
 
         var sql = "select sc_key, sc_name as name, contact, phone1, fax, email from contractor c order by sc_key asc";
