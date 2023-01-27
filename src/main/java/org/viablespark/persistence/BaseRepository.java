@@ -42,11 +42,11 @@ public abstract class BaseRepository<E extends Persistable> {
             String sql = "INSERT INTO " + deriveEntityName(entity.getClass()) + " " + withInsert.getClause();
             KeyHolder key = execWithKey(sql, withInsert.getValues());
             if ( key.getKeys() != null ) {
-                entity.setKey(Key.of(entity.getClass()
+                entity.setRefs(Key.of(entity.getClass()
                     .getAnnotation(PrimaryKey.class)
                     .value(), key.getKey().longValue()));
             }
-            return Optional.ofNullable(entity.getKey());
+            return Optional.ofNullable(entity.getRefs());
         }
 
         SqlClause withUpdate = WithSql.getSQLUpdateClause(entity);
@@ -54,14 +54,14 @@ public abstract class BaseRepository<E extends Persistable> {
             + withUpdate.getClause();
         jdbc.update(sql, withUpdate.getValues());
 
-        return Optional.ofNullable(entity.getKey());
+        return Optional.ofNullable(entity.getRefs());
     }
 
     public void delete(E entity) {
         String sql = "DELETE FROM " + deriveEntityName(entity.getClass())
-            + " WHERE " + entity.getKey().primaryKey().getKey() + "=? ";
+            + " WHERE " + entity.getRefs().primaryKey().getKey() + "=? ";
 
-        jdbc.update(sql, entity.getKey().primaryKey().getValue());
+        jdbc.update(sql, entity.getRefs().primaryKey().getValue());
     }
 
     public Optional<E> get(Key key, Class<E> cls) throws NoSuchElementException {
@@ -73,7 +73,7 @@ public abstract class BaseRepository<E extends Persistable> {
             key.primaryKey().getValue());
 
         Optional<E> res = list.stream().findFirst();
-        res.ifPresent(e -> e.setKey(key));
+        res.ifPresent(e -> e.setRefs(key));
         return res;
     }
 

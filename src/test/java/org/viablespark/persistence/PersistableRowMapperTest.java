@@ -38,7 +38,7 @@ class PersistableRowMapperTest {
         List<Contractor> resultSet = jdbc.query("select * from contractor order by sc_key asc", f);
         while( rowSet.next() ){
             Contractor contractor = f.mapRow(rowSet, rowSet.getRow());
-            assertEquals(contractor.getKey(),resultSet.get(rowSet.getRow()-1).getKey() );
+            assertEquals(contractor.getRefs(),resultSet.get(rowSet.getRow()-1).getRefs() );
         }
     }
 
@@ -48,7 +48,7 @@ class PersistableRowMapperTest {
         var jdbc = new JdbcTemplate(db);
         PersistableMapper<Contractor> f = (SqlRowSet rs, int rowNum) -> {
             Contractor c = new Contractor();
-            c.setKey(Key.of("sc_key",rs.getLong("sc_key")));
+            c.setRefs(Key.of("sc_key",rs.getLong("sc_key")));
             c.setName(rs.getString("sc_name"));
             c.setContact(rs.getString("contact"));
             return c;
@@ -63,7 +63,7 @@ class PersistableRowMapperTest {
             var rs = statement.executeQuery();
             rs.next();
             Contractor entity = f.mapRow(rs,rs.getRow());
-            assertEquals(entity.getKey(), list.get(rs.getRow()-1).getKey() );
+            assertEquals(entity.getRefs(), list.get(rs.getRow()-1).getRefs() );
         }
     }
 

@@ -90,7 +90,7 @@ public class ProposalRepositoryTest {
     @Test
     public void testDelete() {
         Proposal e = new Proposal();
-        e.setKey(Key.of("pr_key", 1L));
+        e.setRefs(Key.of("pr_key", 1L));
         repository.delete(e);
         logger.info("Entity Deleted");
     }
@@ -99,7 +99,7 @@ public class ProposalRepositoryTest {
     public void testGet() {
         Optional<Proposal> result = repository.get(Key.of("pr_key", 1L), Proposal.class);
         assertTrue(result.isPresent());
-        assertEquals(1L, result.get().getKey().primaryKey().getValue());
+        assertEquals(1L, result.get().getRefs().primaryKey().getValue());
     }
 
     @Test

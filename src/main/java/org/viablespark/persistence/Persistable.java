@@ -15,16 +15,16 @@ package org.viablespark.persistence;
 
 
 public interface Persistable {
-    Key getKey();
+    Key getRefs();
 
-    void setKey(Key key);
+    void setRefs(Key refs);
 
     default Long getId() {
-        return getKey().primaryKey().getValue();
+        return getRefs().primaryKey().getValue();
     }
 
     default boolean isNew() {
-        return getKey() == null;
+        return getRefs() == null;
     }
 
 }

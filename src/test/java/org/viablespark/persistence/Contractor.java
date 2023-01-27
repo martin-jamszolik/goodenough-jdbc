@@ -31,20 +31,20 @@ public class Contractor implements Persistable {
     private String email;
 
     @Override
-    public Key getKey() {
+    public Key getRefs() {
         return key;
     }
 
     @Override
-    public void setKey(Key key) {
-        this.key = key;
+    public void setRefs(Key refs) {
+        this.key = refs;
     }
 
     public Contractor() {
     }
 
     public Contractor(String key, Long id) {
-        setKey(Key.of(key,id));
+        setRefs(Key.of(key,id));
     }
 
     @Named("sc_name")

@@ -66,7 +66,7 @@ public class PersistableRowMapper<E extends Persistable> implements PersistableM
     private void assignPrimaryKey(Persistable e, ResultSet rs) throws Exception {
         if (persistableType.isAnnotationPresent(PrimaryKey.class)) {
             String primaryKeyName = e.getClass().getAnnotation(PrimaryKey.class).value();
-            e.setKey(Key.of(primaryKeyName, rs.getLong(primaryKeyName)));
+            e.setRefs(Key.of(primaryKeyName, rs.getLong(primaryKeyName)));
         }
     }
 
@@ -81,9 +81,9 @@ public class PersistableRowMapper<E extends Persistable> implements PersistableM
             var optionMethod = WithSql.getAnnotation(m, entity.getClass(), Named.class);
 
             var customField = optionMethod.orElseThrow().value();
-
-            if (rs.getObject(customField) != null) {
-                var setterValue = rs.getObject(customField);
+            int index = columnIndex(rs,customField);
+            if (index > 0) {
+                var setterValue = rs.getObject(index);
                 Method setterMethod = entity.getClass().getDeclaredMethod(
                     m.getName().replace("get", "set"), m.getReturnType());
                 setterMethod.invoke(entity, interpolateValue(setterValue,m.getReturnType()));
@@ -92,10 +92,28 @@ public class PersistableRowMapper<E extends Persistable> implements PersistableM
         }
     }
 
+    private int columnIndex(ResultSet rs, String columnName ) throws SQLException{
+        ResultSetMetaData metaData = rs.getMetaData();
+        int columnCount = metaData.getColumnCount();
+        int index = -1;
+        for (int i = 1; i <= columnCount; i++) {
+            if (metaData.getColumnName(i).equalsIgnoreCase(columnName)) {
+                index = i;
+                break;
+            }
+        }
+        return index;
+    }
+
     private static Object interpolateValue(Object value, Class<?> asType) {
         if( value instanceof Long && asType == Integer.class ){
             value = Math.toIntExact((Long) value);
         }
+
+        if( value instanceof Long && asType.isPrimitive() && asType == int.class){
+            value = Math.toIntExact((Long) value);
+        }
+
         return value;
     }
 
@@ -115,7 +133,7 @@ public class PersistableRowMapper<E extends Persistable> implements PersistableM
             }
             var pkValue = rs.getLong(columnName);
             var fkInstance = foreignType.getDeclaredConstructor().newInstance();
-            ((Persistable) fkInstance).setKey(Key.of(pkName, pkValue));
+            ((Persistable) fkInstance).setRefs(Key.of(pkName, pkValue));
             Method setterMethod = entity.getClass().getDeclaredMethod(
                 m.getName().replace("get", "set"), foreignType);
             setterMethod.invoke(entity, fkInstance);

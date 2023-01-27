@@ -61,7 +61,7 @@ public final class WithSql {
                 answers.add(deriveValue(m, entity));
             }
             sql.deleteCharAt(sql.length() - 1); // remove last comma.
-            Pair<String, Long> primaryKey = entity.getKey().primaryKey();
+            Pair<String, Long> primaryKey = entity.getRefs().primaryKey();
             sql.append(" WHERE ").append(primaryKey.getKey()).append("=?");
             answers.add(primaryKey.getValue());
 
@@ -108,7 +108,7 @@ public final class WithSql {
         Optional<Ref> refOption = getAnnotation(m, entity.getClass(), Ref.class);
         if (refOption.isPresent()) {
             Persistable refObj = (Persistable) m.invoke(entity);
-            return refObj.getKey().primaryKey().getKey();
+            return refObj.getRefs().primaryKey().getKey();
         }
 
         String name = m.getName().substring(3);
@@ -120,7 +120,7 @@ public final class WithSql {
         Optional<Ref> refOption = getAnnotation(m, entity.getClass(), Ref.class);
         if (refOption.isPresent()) {
             Persistable refObj = (Persistable) m.invoke(entity);
-            return refObj.getKey().primaryKey().getValue();
+            return refObj.getRefs().primaryKey().getValue();
         }
         return m.invoke(entity);
     }
@@ -134,7 +134,7 @@ public final class WithSql {
                 return namedOption.get().value();
             } else {
                 return namedOption.get().value()
-                    + " as " + camelToSnake(m.getName().substring(3));
+                    + " as \""+camelToSnake(m.getName().substring(3))+"\"";
             }
         }
 
@@ -189,5 +189,6 @@ public final class WithSql {
 
         return str;
     }
+
 
 }

@@ -16,15 +16,15 @@ package org.viablespark.persistence;
 import java.io.Serializable;
 
 public abstract class Model implements Persistable, Serializable {
-    private Key key;
+    private Key refs;
 
     @Override
-    public Key getKey() {
-        return key;
+    public Key getRefs() {
+        return refs;
     }
 
     @Override
-    public void setKey(Key key) {
-        this.key = key;
+    public void setRefs(Key refs) {
+        this.refs = refs;
     }
 }
