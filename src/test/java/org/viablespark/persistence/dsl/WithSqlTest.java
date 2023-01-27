@@ -13,7 +13,6 @@
 
 package org.viablespark.persistence.dsl;
 
-import org.springframework.jdbc.support.rowset.SqlRowSet;
 import org.viablespark.persistence.Contractor;
 import org.viablespark.persistence.Key;
 import java.util.Date;
@@ -37,17 +36,17 @@ public class WithSqlTest {
     @Test
     public void testGetSQLSelectClause() {
         String select = WithSql.getSQLSelectClause(Proposal.class);
-        assertEquals("sc_key,dist as distance,prop_date,prop_id,proposal_name as prop_name,submit_deadline", select);
+        assertEquals("sc_key,dist as \"distance\",prop_date,prop_id,proposal_name as \"prop_name\",submit_deadline", select);
 
         String notesSelect  = WithSql.getSQLSelectClause(Note.class,"n_key");
-        assertEquals("n_key,additional as extra,note as note_content,progress_id", notesSelect);
+        assertEquals("n_key,additional as \"extra\",note as \"note_content\",progress_id", notesSelect);
 
     }
 
     @Test
     public void testGetSQLUpdateClause() throws Exception {
         Proposal e = new Proposal();
-        e.setKey( Key.of("pri_key",233L) );
+        e.setRefs( Key.of("pri_key",233L) );
         e.setDistance(344);
         e.setPropDate(new Date());
         e.setPropId("propId");
@@ -76,7 +75,7 @@ public class WithSqlTest {
     @Test
     public void testGetSQLInsertClause() throws Exception {
         Proposal e = new Proposal();
-        e.setKey(Key.of("pri_key",233L));
+        e.setRefs(Key.of("pri_key",233L));
         e.setDistance(344);
         e.setPropDate(new Date());
         e.setPropId("propId");

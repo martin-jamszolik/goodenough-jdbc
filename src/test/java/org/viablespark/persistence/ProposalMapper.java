@@ -13,11 +13,8 @@
 
 package org.viablespark.persistence;
 
-import org.springframework.jdbc.support.rowset.ResultSetWrappingSqlRowSet;
 import org.springframework.jdbc.support.rowset.SqlRowSet;
 
-import java.sql.ResultSet;
-import java.sql.SQLException;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -28,7 +25,7 @@ public class ProposalMapper implements PersistableMapper<Proposal> {
     @Override
     public Proposal mapRow(SqlRowSet rs, int rowNum) {
         var pr = new Proposal();
-        pr.setKey(Key.of("pr_key", rs.getLong("pr_key")));
+        pr.setRefs(Key.of("pr_key", rs.getLong("pr_key")));
         pr.setDistance(rs.getInt("dist"));
         pr.setPropName(rs.getString("proposal_name"));
         if (rs.getObject("sc_key") != null) {

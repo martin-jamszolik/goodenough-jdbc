@@ -49,7 +49,7 @@ public class ProposalTaskRepositoryTest {
         repository.getProposal(1L).ifPresent(entity::setProposal);
 
         var keyOption = repository.save(entity);
-        entity.setKey( entity.getTask().getKey() ); //composite pk - Not auto-generated
+        entity.setRefs( entity.getTask().getRefs() ); //composite pk - Not auto-generated
         keyOption.ifPresent( key -> assertEquals(1L, key.primaryKey().getValue()));
     }
 

@@ -44,7 +44,7 @@ public class Proposal extends Model {
     }
 
     public Proposal(String key, Long id) {
-        super.setKey(Key.of(key, id));
+        super.setRefs(Key.of(key, id));
     }
 
     @Named("proposal_name")
@@ -53,7 +53,7 @@ public class Proposal extends Model {
     }
 
     public void setPr_key(Long id) {
-        setKey(Key.of("pr_key", id));
+        setRefs(Key.of("pr_key", id));
     }
 
     public void setPropName(String propName) {
