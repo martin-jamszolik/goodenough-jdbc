@@ -69,7 +69,7 @@ public abstract class BaseRepository<E extends Persistable> {
             "SELECT " + WithSql.getSQLSelectClause(cls, key.primaryKey().getKey())
                 + " FROM " + deriveEntityName(cls)
                 + " WHERE " + key.primaryKey().getKey() + "=?",
-            new PersistableRowMapper<>(cls),
+            PersistableRowMapper.of(cls),
             key.primaryKey().getValue());
 
         Optional<E> res = list.stream().findFirst();
@@ -81,7 +81,7 @@ public abstract class BaseRepository<E extends Persistable> {
         return jdbc.query(
             "SELECT " + WithSql.getSQLSelectClause(cls, query.getPrimaryKeyName())
                 + " FROM " + deriveEntityName(cls) + " "
-                + query.sql(), new PersistableRowMapper<>(cls), query.values());
+                + query.sql(), PersistableRowMapper.of(cls), query.values());
     }
     public List<E> query(SqlQuery query, PersistableMapper<E> mapper) {
         SqlRowSet rs = jdbc.queryForRowSet(query.sql(), query.values());

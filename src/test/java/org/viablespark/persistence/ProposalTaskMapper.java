@@ -26,17 +26,17 @@ public class ProposalTaskMapper implements PersistableMapper<ProposalTask> {
 
     @Override
     public ProposalTask mapRow(SqlRowSet rs, int rowNum) {
-        var proposalTask = new PersistableRowMapper<>(ProposalTask.class).mapRow(rs, rowNum);
+        var proposalTask = PersistableRowMapper.of(ProposalTask.class).mapRow(rs, rowNum);
         if (rs.getObject("pr_key") != null) {
             var prop = proposals.computeIfAbsent(Key.of("pr_key", rs.getLong("pr_key")),
-                pr_key -> new PersistableRowMapper<>(Proposal.class).mapRow(rs, rowNum)
+                pr_key -> PersistableRowMapper.of(Proposal.class).mapRow(rs, rowNum)
             );
             proposalTask.setProposal(prop);
             prop.addTask(proposalTask);
         }
         if (rs.getObject("t_key") != null) {
             var task = tasks.computeIfAbsent(Key.of("t_key", rs.getLong("t_key")),
-                t_key -> new PersistableRowMapper<>(Task.class).mapRow(rs, rowNum)
+                t_key -> PersistableRowMapper.of(Task.class).mapRow(rs, rowNum)
             );
             proposalTask.setTask(task);
         }

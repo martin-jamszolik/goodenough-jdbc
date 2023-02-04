@@ -27,17 +27,32 @@ import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 import org.springframework.jdbc.support.rowset.SqlRowSetMetaData;
 
 public class PersistableRowMapper<E extends Persistable> implements PersistableMapper<E> {
     private final BeanPropertyRowMapper<E> propertyMapper;
     private final Class<E> persistableType;
+    private static Map<Class<? extends Persistable>,PersistableRowMapper<? extends Persistable>>
+        cachedMappers = new HashMap<>();
 
-    public PersistableRowMapper(Class<E> cls) {
+    /**
+     * To take advantage of a cached instance of RowMapper use the
+     *static method of() instead to create an instance.
+     */
+    private PersistableRowMapper(Class<E> cls) {
         this.propertyMapper = new BeanPropertyRowMapper<>(cls);
         this.persistableType = cls;
+    }
+
+
+    @SuppressWarnings("unchecked")
+    public static <E extends Persistable> PersistableRowMapper<E> of(Class<E> cls ){
+        return (PersistableRowMapper<E>) cachedMappers.computeIfAbsent(cls,
+            (target) -> new PersistableRowMapper<>((Class<E>) target) );
     }
 
     @Override
