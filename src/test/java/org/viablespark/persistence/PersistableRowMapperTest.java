@@ -32,7 +32,7 @@ class PersistableRowMapperTest {
     private EmbeddedDatabase db;
     @Test
     public void testRowSetMapping(){
-        var f = new PersistableRowMapper<>(Contractor.class);
+        var f = PersistableRowMapper.of(Contractor.class);
         var jdbc = new JdbcTemplate(db);
         var rowSet = jdbc.queryForRowSet("select * from contractor order by sc_key asc");
         List<Contractor> resultSet = jdbc.query("select * from contractor order by sc_key asc", f);
@@ -69,7 +69,7 @@ class PersistableRowMapperTest {
 
     @Test
     public void testException(){
-        var f = new PersistableRowMapper<>(Contractor.class);
+        var f = PersistableRowMapper.of(Contractor.class);
 
         Exception thrown = assertThrows(
             Exception.class,
