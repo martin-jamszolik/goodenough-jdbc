@@ -15,14 +15,12 @@ package org.viablespark.persistence.dsl;
 
 import org.viablespark.persistence.Pair;
 
-import java.util.ArrayList;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 import java.util.stream.Collectors;
 
 public class SqlQuery {
 
+    private final List<SqlClause> clauses = new ArrayList<>();
     private final List<Pair<String,Object>> where = new ArrayList<>();
 
     private final List<Pair<String,Object>> conditions = new ArrayList<>();
@@ -32,6 +30,10 @@ public class SqlQuery {
     private Pair<String,Object> limit;
     
     private String primaryKeyName;
+
+    private String select;
+
+    private SqlClause pagination;
     
     private String rawSql;
     private Object[] rawValues;
@@ -44,6 +46,21 @@ public class SqlQuery {
         rawSql = _raw;
         rawValues = vals;
     }
+
+    public SqlQuery clause(String clause, Object[] values ){
+        clauses.add(new SqlClause(clause,values));
+        return this;
+    }
+
+    public SqlQuery paginate(int limit, int offset){
+        pagination = new SqlClause(" LIMIT "+limit+" OFFSET "+offset+"",null );
+        return this;
+    }
+
+    public SqlQuery select(String select){
+        this.select = select;
+        return this;
+    }
     
     @SafeVarargs
     public static SqlQuery where(Pair<String,Object>... _where) {
@@ -52,6 +69,18 @@ public class SqlQuery {
     
     public static SqlQuery asRawSql(String sql, Object... vals){
         return new SqlQuery(sql, vals);
+    }
+
+    public static SqlQuery withClause(String clause, Object[] values) {
+        var q = new SqlQuery();
+        q.clause(clause,values);
+        return q;
+    }
+
+    public static SqlQuery withSelect(String select) {
+        var q = new SqlQuery();
+        q.select(select);
+        return q;
     }
 
     public SqlQuery condition(String key, Object value) {
@@ -79,6 +108,8 @@ public class SqlQuery {
         if ( rawSql != null ){
             return rawSql;
         }
+
+        String selectStr = select != null ? select+" " : "";
         
         Optional<String> whereResult = where.stream()
                 .map(Pair::getKey)
@@ -90,13 +121,21 @@ public class SqlQuery {
                 .map(Pair::getKey)
                 .reduce((acc, a) -> "" + acc + " " + a);
 
+        Optional<String> clausesResult = clauses.stream()
+            .map(SqlClause::getClause)
+            .reduce((acc, a) -> "" + acc + " " + a);
+
+        String clauseStr = clausesResult.orElse("");
+
         String condStr = condResult.orElse("");
 
         String orderStr = orderBy != null ? " ORDER BY " +orderBy.getKey() + " " + orderBy.getValue().toString() : "";
 
         String limitStr = limit != null ? " LIMIT "+limit.getKey() : "";
 
-        return whereStr + condStr + orderStr + limitStr;
+        String paginateStr = pagination != null ? pagination.getClause() : "";
+
+        return selectStr + clauseStr + whereStr + condStr + orderStr + limitStr + paginateStr;
     }
 
     public Object[] values() {
