@@ -41,7 +41,7 @@ public class PersistableRowMapper<E extends Persistable> implements PersistableM
 
     /**
      * To take advantage of a cached instance of RowMapper use the
-     *static method of() instead to create an instance.
+     * static method of() instead to create an instance.
      */
     private PersistableRowMapper(Class<E> cls) {
         this.propertyMapper = new BeanPropertyRowMapper<>(cls);

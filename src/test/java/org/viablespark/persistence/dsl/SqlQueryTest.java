@@ -61,4 +61,27 @@ public class SqlQueryTest {
         assertEquals("WHERE pri_key=? AND sec_date >=? LIMIT 5", result);
     }
 
+    @Test
+    public void testDynamicQuery() {
+        String name = "123 main";
+
+        var query = SqlQuery.withSelect("SELECT COUNT(*)");
+        query.clause("FROM 1_proposalproject p "
+            +"INNER JOIN company c using(c_key) "
+            +"INNER JOIN 1_estlocation el using(el_key) "
+            +"INNER JOIN estimator e using(e_key) WHERE",null);
+
+        query.condition("pp_name like ? ","%"+name+"%");
+
+        assertTrue(query.sql().contains("SELECT COUNT(*) FROM 1_proposalproject p") );
+        assertTrue(query.values().length == 1);
+        assertTrue(query.sql().contains("WHERE pp_name like ?") );
+
+        query.select( "SELECT p.pp_key, pp_name, tax, pp_status, pp_date, pp_owner");
+        query.paginate(20,0);
+
+        assertTrue(query.sql().contains("SELECT p.pp_key, pp_name, tax, pp_status, pp_date, pp_owner FROM 1_proposalproject p") );
+        assertTrue(query.values().length == 1);
+    }
+
 }
