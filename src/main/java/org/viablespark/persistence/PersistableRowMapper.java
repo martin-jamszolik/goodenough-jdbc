@@ -36,7 +36,7 @@ import org.springframework.jdbc.support.rowset.SqlRowSetMetaData;
 public class PersistableRowMapper<E extends Persistable> implements PersistableMapper<E> {
     private final BeanPropertyRowMapper<E> propertyMapper;
     private final Class<E> persistableType;
-    private static Map<Class<? extends Persistable>,PersistableRowMapper<? extends Persistable>>
+    private static final Map<Class<? extends Persistable>,PersistableRowMapper<? extends Persistable>>
         cachedMappers = new HashMap<>();
 
     /**
