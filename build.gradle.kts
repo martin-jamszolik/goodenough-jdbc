@@ -17,8 +17,10 @@ plugins {
     id("maven-publish")
 }
 
+var libReleaseVersion = "1.6.0"
+
 group = "org.viablespark"
-version = "1.6.0"
+version = libReleaseVersion
 
 repositories {
     mavenCentral()
@@ -75,7 +77,7 @@ publishing {
         create<MavenPublication>("maven") {
             groupId = "org.viablespark"
             artifactId = "goodenough-jdbc"
-            version = "1.5.0"
+            version = libReleaseVersion
 
             from(components["java"])
             pom {
