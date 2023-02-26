@@ -60,7 +60,7 @@ public class NoteRepositoryTest {
     @Test
     public void testQueryNote() throws Exception {
         var found = repository.queryEntity(SqlQuery
-            .where(Pair.of("progress_id = ?", 1))
+            .withClause("WHERE progress_id = ?", 1)
             .primaryKey("n_key"),Note.class);
 
        assertTrue( found.size() > 1);

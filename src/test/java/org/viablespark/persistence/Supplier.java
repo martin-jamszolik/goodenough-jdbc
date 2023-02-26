@@ -11,25 +11,27 @@
  * See the License for the specific language governing permissions and limitations under the License.
  */
 
-package org.viablespark.persistence.dsl;
+package org.viablespark.persistence;
 
+public class Supplier extends Model {
 
-public class SqlClause {
+    private String supName;
 
-    private final String clause;
-    private final Object[] values;
+    private String contact;
 
-    public SqlClause(String clause, Object[] values) {
-        this.clause = clause;
-        this.values = values != null ? values : new Object[]{};
+    public String getSupName() {
+        return supName;
     }
 
-    public String getClause() {
-        return clause;
+    public void setSupName(String supName) {
+        this.supName = supName;
     }
 
-    public Object[] getValues() {
-        return values;
+    public String getContact() {
+        return contact;
     }
 
+    public void setContact(String contact) {
+        this.contact = contact;
+    }
 }

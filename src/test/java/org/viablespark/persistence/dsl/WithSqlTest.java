@@ -13,12 +13,10 @@
 
 package org.viablespark.persistence.dsl;
 
-import org.viablespark.persistence.Contractor;
-import org.viablespark.persistence.Key;
+import org.viablespark.persistence.*;
+
 import java.util.Date;
 import org.junit.jupiter.api.Test;
-import org.viablespark.persistence.Note;
-import org.viablespark.persistence.Proposal;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.springframework.test.util.AssertionErrors.assertTrue;
@@ -40,6 +38,9 @@ public class WithSqlTest {
 
         String notesSelect  = WithSql.getSQLSelectClause(Note.class,"n_key");
         assertEquals("n_key,additional as \"extra\",note as \"note_content\",progress_id", notesSelect);
+
+        String poSelect  = WithSql.getSQLSelectClause(PurchaseOrder.class);
+        assertEquals("some_fake_field as \"fake_field\",long_id as \"long_id\",n_key,po_number_id as \"po_number_id\",primitive_id as \"primitive_example_id\",requester as \"requester\",supplier_id", poSelect);
 
     }
 
@@ -71,6 +72,35 @@ public class WithSqlTest {
             thrown != null);
         
     }
+
+    @Test
+    public void testGetSQLUpdateClauseForPurchaseOrder() throws Exception {
+        PurchaseOrder order = new PurchaseOrder();
+        order.setRefs( Key.of("id",233L) );
+        order.setNote(new Note());
+        SqlClause update = WithSql.getSQLUpdateClause(order);
+        assertNotNull(update);
+
+        assertEquals(
+            "SET some_fake_field=?,long_id=?,po_number_id=?,primitive_id=?,requester=? WHERE id=?",
+            update.getClause());
+
+    }
+
+    @Test
+    public void testGetSQLInsertClauseForPurchaseOrder() throws Exception {
+        PurchaseOrder order = new PurchaseOrder();
+        order.setRefs( Key.of("id",233L) );
+        order.setRequester("Requester Name");
+
+        SqlClause insert = WithSql.getSQLInsertClause(order);
+        assertNotNull(insert);
+
+        assertEquals(
+            "(some_fake_field,long_id,po_number_id,primitive_id,requester) VALUES (?,?,?,?,?)",
+            insert.getClause());
+    }
+
 
     @Test
     public void testGetSQLInsertClause() throws Exception {

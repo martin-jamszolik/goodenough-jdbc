@@ -57,8 +57,11 @@ public final class WithSql {
             StringBuilder sql = new StringBuilder("SET ");
             List<Object> answers = new ArrayList<>(methods.size());
             for (Method m : methods) {
-                sql.append(deriveName(m, entity)).append("=?,");
-                answers.add(deriveValue(m, entity));
+                var derivedName = deriveName(m, entity);
+                if( derivedName.isPresent() ) {
+                    sql.append(derivedName.get()).append("=?,");
+                    answers.add(deriveValue(m, entity));
+                }
             }
             sql.deleteCharAt(sql.length() - 1); // remove last comma.
             Pair<String, Long> primaryKey = entity.getRefs().primaryKey();
@@ -84,9 +87,13 @@ public final class WithSql {
             StringBuilder values = new StringBuilder("VALUES (");
             List<Object> answers = new ArrayList<>(methods.size());
             for (Method m : methods) {
-                columns.append(deriveName(m, entity)).append(",");
-                values.append("?,");
-                answers.add(deriveValue(m, entity));
+                var derivedNamed = deriveName(m, entity);
+                if(derivedNamed.isPresent()){
+                    columns.append(derivedNamed.get()).append(",");
+                    values.append("?,");
+                    answers.add(deriveValue(m, entity));
+                }
+
             }
             columns = new StringBuilder(columns.toString().replaceAll(".$", "") + ")");
             values = new StringBuilder(values.toString().replaceAll(".$", "") + ")");
@@ -95,25 +102,28 @@ public final class WithSql {
 
             return new SqlClause(sql, answers.toArray());
         } catch (Exception ex) {
-            throw new SQLException("Failed to Create a SQL Clause", ex);
+            throw new SQLException(ex.getMessage(), ex);
         }
     }
 
-    private static String deriveName(Method m, Persistable entity) throws Exception {
+    private static Optional<String> deriveName(Method m, Persistable entity) throws Exception {
         Optional<Named> namedOption = getAnnotation(m, entity.getClass(), Named.class);
         if (namedOption.isPresent()) {
-            return namedOption.get().value();
+            return Optional.of(namedOption.get().value());
         }
 
         Optional<Ref> refOption = getAnnotation(m, entity.getClass(), Ref.class);
         if (refOption.isPresent()) {
             Persistable refObj = (Persistable) m.invoke(entity);
-            return refObj.getRefs().primaryKey().getKey();
+            if( refObj != null && refObj.getRefs() != null) {
+                return Optional.of(refObj.getRefs().primaryKey().getKey());
+            }else{
+                return Optional.empty();
+            }
         }
 
         String name = m.getName().substring(3);
-        name = camelToSnake(name);
-        return name;
+        return Optional.ofNullable( camelToSnake(name));
     }
 
     private static Object deriveValue(Method m, Persistable entity) throws Exception {
@@ -137,12 +147,12 @@ public final class WithSql {
                     + " as \""+camelToSnake(m.getName().substring(3))+"\"";
             }
         }
-
-
         if (refOption.isPresent()) {
-            Class<?> foreignType = m.getReturnType();
-            if (foreignType.isAnnotationPresent(PrimaryKey.class)) {
-                return foreignType.getAnnotation(PrimaryKey.class).value();
+            Optional<String> result = getPrimaryKey(m.getReturnType());
+            if(result.isPresent() ){
+                return result.get();
+            }else{
+                return camelToSnake(m.getName().substring(3))+"_id";
             }
         }
 
@@ -158,6 +168,12 @@ public final class WithSql {
         } catch (NoSuchFieldException e) {
             return Optional.empty();
         }
+    }
+
+    public static Optional<String> getPrimaryKey(Class<?> cls ){
+        return Arrays.asList(cls, cls.getSuperclass())
+            .stream().filter(tp -> tp.isAnnotationPresent(PrimaryKey.class))
+            .map(tp -> tp.getAnnotation(PrimaryKey.class).value()).findFirst();
     }
 
     public static <T extends Annotation> Optional<T> getAnnotation(
