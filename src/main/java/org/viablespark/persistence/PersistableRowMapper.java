@@ -13,30 +13,27 @@
 
 package org.viablespark.persistence;
 
-import java.lang.reflect.InvocationHandler;
 import org.springframework.jdbc.core.BeanPropertyRowMapper;
 import org.springframework.jdbc.support.rowset.SqlRowSet;
+import org.springframework.jdbc.support.rowset.SqlRowSetMetaData;
 import org.viablespark.persistence.dsl.Named;
 import org.viablespark.persistence.dsl.PrimaryKey;
 import org.viablespark.persistence.dsl.Ref;
 import org.viablespark.persistence.dsl.WithSql;
 
+import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
-import org.springframework.jdbc.support.rowset.SqlRowSetMetaData;
 
 public class PersistableRowMapper<E extends Persistable> implements PersistableMapper<E> {
     private final BeanPropertyRowMapper<E> propertyMapper;
     private final Class<E> persistableType;
-    private static final Map<Class<? extends Persistable>,PersistableRowMapper<? extends Persistable>>
+    private static final Map<Class<? extends Persistable>, PersistableRowMapper<? extends Persistable>>
         cachedMappers = new HashMap<>();
 
     /**
@@ -50,21 +47,21 @@ public class PersistableRowMapper<E extends Persistable> implements PersistableM
 
 
     @SuppressWarnings("unchecked")
-    public static <E extends Persistable> PersistableRowMapper<E> of(Class<E> cls ){
+    public static <E extends Persistable> PersistableRowMapper<E> of(Class<E> cls) {
         return (PersistableRowMapper<E>) cachedMappers.computeIfAbsent(cls,
-            (target) -> new PersistableRowMapper<>((Class<E>) target) );
+            (target) -> new PersistableRowMapper<>((Class<E>) target));
     }
 
     @Override
     public E mapRow(ResultSet rs, int rowNum) throws SQLException {
-        var bean = propertyMapper.mapRow(rs, rowNum);
         try {
+            var bean = propertyMapper.mapRow(rs, rowNum);
             assignPrimaryKey(bean, rs);
             assignForeignRefs(bean, rs);
             assignNamedFields(bean, rs);
             return bean;
         } catch (Exception ex) {
-            throw new SQLException(ex);
+            throw new SQLException(ex.getMessage(),ex);
         }
     }
 
@@ -79,9 +76,12 @@ public class PersistableRowMapper<E extends Persistable> implements PersistableM
 
 
     private void assignPrimaryKey(Persistable e, ResultSet rs) throws Exception {
-        if (persistableType.isAnnotationPresent(PrimaryKey.class)) {
-            String primaryKeyName = e.getClass().getAnnotation(PrimaryKey.class).value();
-            e.setRefs(Key.of(primaryKeyName, rs.getLong(primaryKeyName)));
+        Optional<String> found = Arrays.asList(e.getClass(), e.getClass().getSuperclass())
+            .stream().filter(tp -> tp.isAnnotationPresent(PrimaryKey.class))
+            .map(tp -> tp.getAnnotation(PrimaryKey.class).value()).findFirst();
+
+        if (found.isPresent()) {
+            e.setRefs(Key.of(found.get(), rs.getLong(found.get())));
         }
     }
 
@@ -96,18 +96,18 @@ public class PersistableRowMapper<E extends Persistable> implements PersistableM
             var optionMethod = WithSql.getAnnotation(m, entity.getClass(), Named.class);
 
             var customField = optionMethod.orElseThrow().value();
-            int index = columnIndex(rs,customField);
+            int index = columnIndex(rs, customField);
             if (index > 0) {
                 var setterValue = rs.getObject(index);
                 Method setterMethod = entity.getClass().getDeclaredMethod(
                     m.getName().replace("get", "set"), m.getReturnType());
-                setterMethod.invoke(entity, interpolateValue(setterValue,m.getReturnType()));
+                setterMethod.invoke(entity, interpolateValue(setterValue, m.getReturnType()));
             }
 
         }
     }
 
-    private int columnIndex(ResultSet rs, String columnName ) throws SQLException{
+    private int columnIndex(ResultSet rs, String columnName) throws SQLException {
         ResultSetMetaData metaData = rs.getMetaData();
         int columnCount = metaData.getColumnCount();
         int index = -1;
@@ -121,14 +121,9 @@ public class PersistableRowMapper<E extends Persistable> implements PersistableM
     }
 
     private static Object interpolateValue(Object value, Class<?> asType) {
-        if( value instanceof Long && asType == Integer.class ){
+        if (value instanceof Long && (asType == int.class || asType == Integer.class)) {
             value = Math.toIntExact((Long) value);
         }
-
-        if( value instanceof Long && asType.isPrimitive() && asType == int.class){
-            value = Math.toIntExact((Long) value);
-        }
-
         return value;
     }
 
@@ -154,7 +149,7 @@ public class PersistableRowMapper<E extends Persistable> implements PersistableM
             setterMethod.invoke(entity, fkInstance);
         }
     }
-       
+
 
     private static ResultSet proxy(SqlRowSet on) {
         return (ResultSet) Proxy.newProxyInstance(ClassLoader.getSystemClassLoader(),

@@ -21,8 +21,7 @@ import org.springframework.jdbc.support.rowset.SqlRowSet;
 
 import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.springframework.test.util.AssertionErrors.assertTrue;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
@@ -79,6 +78,18 @@ class PersistableRowMapperTest {
 
         assertTrue("Should throw",
             thrown != null);
+    }
+
+    @Test
+    public void testPurchaseOrderMappings() throws Exception {
+        var mapper = PersistableRowMapper.of(PurchaseOrder.class);
+        var jdbc = new JdbcTemplate(db);
+        var rowSet = jdbc.queryForRowSet("select purchase_order.*, 'fake' as fake_col from purchase_order");
+        while( rowSet.next() ){
+           PurchaseOrder po = mapper.mapRow(rowSet,rowSet.getRow());
+           assertNotNull(po);
+        }
+
     }
 
 

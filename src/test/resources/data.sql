@@ -29,3 +29,7 @@ INSERT INTO proposal_task (t_key,pr_key,price ) VALUES (2,1,300);
 INSERT INTO progress(percent) VALUES (50);
 INSERT INTO note (note,note_date,additional,progress_id) VALUES('note1', curdate(),'additional',1);
 INSERT INTO note (note,note_date,additional,progress_id) VALUES('note2', curdate(),'additional2',1);
+
+INSERT INTO supplier(sup_name,contact) VALUES ('Test Supplier','Mr.Contact');
+
+INSERT INTO purchase_order(requester,po_number_id,primitive_id,long_id,n_key,supplier_id) VALUES ('Mr. Requester',123456789,987654321,9999999999,1,1);

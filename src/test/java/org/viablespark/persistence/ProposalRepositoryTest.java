@@ -106,7 +106,7 @@ public class ProposalRepositoryTest {
     public void testQuery() {
 
         List<Proposal> results = repository.queryEntity(SqlQuery
-                .where(Pair.of("dist >= ?", 10))
+                .withClause("WHERE dist >= ?", 10)
                 .primaryKey("pr_key"),
                 Proposal.class);
 

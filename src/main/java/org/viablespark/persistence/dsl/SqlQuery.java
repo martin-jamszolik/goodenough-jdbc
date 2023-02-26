@@ -62,16 +62,12 @@ public class SqlQuery {
         return this;
     }
     
-    @SafeVarargs
-    public static SqlQuery where(Pair<String,Object>... _where) {
-        return new SqlQuery(_where);
-    }
-    
-    public static SqlQuery asRawSql(String sql, Object... vals){
-        return new SqlQuery(sql, vals);
+
+    public static SqlQuery asRawSql(String sql, Object... values){
+        return new SqlQuery(sql, values);
     }
 
-    public static SqlQuery withClause(String clause, Object[] values) {
+    public static SqlQuery withClause(String clause, Object... values) {
         var q = new SqlQuery();
         q.clause(clause,values);
         return q;
@@ -110,20 +106,14 @@ public class SqlQuery {
         }
 
         String selectStr = select != null ? select+" " : "";
-        
-        Optional<String> whereResult = where.stream()
-                .map(Pair::getKey)
-                .reduce((acc, a) -> "" + acc + " AND " + a);
 
-        String whereStr = whereResult.map(s -> "WHERE " + s).orElse(" ");
 
         Optional<String> condResult = conditions.stream()
                 .map(Pair::getKey)
                 .reduce((acc, a) -> "" + acc + " " + a);
 
         Optional<String> clausesResult = clauses.stream()
-            .map(SqlClause::getClause)
-            .reduce((acc, a) -> "" + acc + " " + a);
+            .map(SqlClause::getClause).reduce((acc, a) -> "" + acc + " " + a);
 
         String clauseStr = clausesResult.orElse("");
 
@@ -135,7 +125,7 @@ public class SqlQuery {
 
         String paginateStr = pagination != null ? pagination.getClause() : "";
 
-        return selectStr + clauseStr + whereStr + condStr + orderStr + limitStr + paginateStr;
+        return selectStr + clauseStr + condStr + orderStr + limitStr + paginateStr;
     }
 
     public Object[] values() {
@@ -143,7 +133,7 @@ public class SqlQuery {
             return rawValues;
         }
         List<Object> list = new LinkedList<>();
-        list.addAll(where.stream().map(Pair::getValue).collect(Collectors.toList()));
+        list.addAll(clauses.stream().flatMap( clause -> Arrays.stream(clause.getValues())).collect(Collectors.toList()));
         list.addAll(conditions.stream().map(Pair::getValue).collect(Collectors.toList()));
         return list.toArray();
     }
