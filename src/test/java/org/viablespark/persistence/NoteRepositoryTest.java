@@ -22,6 +22,7 @@ import org.springframework.jdbc.datasource.embedded.EmbeddedDatabaseBuilder;
 import org.viablespark.persistence.dsl.SqlQuery;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -37,6 +38,7 @@ public class NoteRepositoryTest {
         var entity = new Note();
         entity.setNoteContent("test");
         entity.setExtra("extra");
+        entity.setDateTaken(LocalDate.now());
         entity.setProgress(new Progress());
         entity.getProgress().setPercent(new BigDecimal("50"));
 
@@ -54,6 +56,7 @@ public class NoteRepositoryTest {
 
         found.ifPresent( n -> assertEquals(1L, n.getRefs().primaryKey().getValue()));
         found.ifPresent( n -> assertNotNull( n.getProgress().getRefs()));
+        found.ifPresent( n -> assertNotNull( n.getDateTaken()));
     }
 
 

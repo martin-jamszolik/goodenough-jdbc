@@ -12,7 +12,6 @@
  */
 
 package org.viablespark.persistence;
-
 import org.springframework.jdbc.core.BeanPropertyRowMapper;
 import org.springframework.jdbc.support.rowset.SqlRowSet;
 import org.springframework.jdbc.support.rowset.SqlRowSetMetaData;
@@ -69,8 +68,8 @@ public class PersistableRowMapper<E extends Persistable> implements PersistableM
     public E mapRow(SqlRowSet rs, int rowNum) {
         try {
             return mapRow(proxy(rs), rowNum);
-        } catch (Exception e) {
-            throw new RuntimeException(e);
+        } catch (Exception ex) {
+            throw new RuntimeException(ex.getMessage(),ex);
         }
     }
 
@@ -124,6 +123,11 @@ public class PersistableRowMapper<E extends Persistable> implements PersistableM
         if (value instanceof Long && (asType == int.class || asType == Integer.class)) {
             value = Math.toIntExact((Long) value);
         }
+
+        if( value instanceof java.sql.Date && asType == java.time.LocalDate.class ){
+            value = ((java.sql.Date)value).toLocalDate();
+        }
+
         return value;
     }
 
@@ -165,13 +169,15 @@ public class PersistableRowMapper<E extends Persistable> implements PersistableM
 
         @Override
         public Object invoke(Object o, Method method, Object[] objects) throws Throwable {
-
             if (method.getName().equals("getMetaData")) {
                 return proxyMetaData(rows.getMetaData());
             }
-
             var targetMethod = rows.getClass().getMethod(method.getName(), method.getParameterTypes());
-            return targetMethod.invoke(rows, objects);
+            try {
+                return targetMethod.invoke(rows, objects);
+            } catch (Exception ex) {
+                throw new SQLException(ex.getMessage(),ex);
+            }
         }
 
         static ResultSetMetaData proxyMetaData(SqlRowSetMetaData meta) {

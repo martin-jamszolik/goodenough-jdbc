@@ -15,6 +15,7 @@ package org.viablespark.persistence;
 
 import org.viablespark.persistence.dsl.SqlQuery;
 
+import java.time.LocalDate;
 import java.util.Date;
 import java.util.List;
 import java.util.Optional;
@@ -61,6 +62,7 @@ public class ProposalRepositoryTest {
         proposal.setPropDate(new Date());
         proposal.setPropName("Name1");
         proposal.setPropId("ID2");
+        proposal.setSubmitDeadline(LocalDate.now());
 
         proposal.setContractor(new Contractor("sc_key",1L)); //foreign-key
 
@@ -140,6 +142,7 @@ public class ProposalRepositoryTest {
                     e.setDistance(rowSet.getInt("dist"));
                     e.setPropId(rowSet.getString("prop_id"));
                     e.setPropName(rowSet.getString("proposal_name"));
+                    e.setSubmitDeadline(rowSet.getDate("submit_deadline").toLocalDate());
                     e.setContractor(
                         new Contractor("sc_key",rowSet.getLong("sc_key")));
                     return e;

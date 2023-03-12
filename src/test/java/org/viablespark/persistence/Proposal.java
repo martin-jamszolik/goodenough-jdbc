@@ -19,6 +19,7 @@ import org.viablespark.persistence.dsl.PrimaryKey;
 import org.viablespark.persistence.dsl.Ref;
 import org.viablespark.persistence.dsl.Skip;
 
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
@@ -32,7 +33,7 @@ public class Proposal extends Model {
     private Date propDate;
     private Integer distanceToFollow;
 
-    private Date submitDeadline;
+    private LocalDate submitDeadline;
     private String propId;
     private String skipMeIamWorthless;
 
@@ -77,11 +78,11 @@ public class Proposal extends Model {
         this.distanceToFollow = distanceToFollow;
     }
 
-    public Date getSubmitDeadline() {
+    public LocalDate getSubmitDeadline() {
         return submitDeadline;
     }
 
-    public void setSubmitDeadline(Date submitDeadline) {
+    public void setSubmitDeadline(LocalDate submitDeadline) {
         this.submitDeadline = submitDeadline;
     }
 
