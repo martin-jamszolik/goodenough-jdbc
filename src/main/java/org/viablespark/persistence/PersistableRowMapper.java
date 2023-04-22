@@ -28,10 +28,10 @@ import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.util.*;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public class PersistableRowMapper<E extends Persistable> implements PersistableMapper<E> {
     private final BeanPropertyRowMapper<E> propertyMapper;
-    private final Class<E> persistableType;
     private static final Map<Class<? extends Persistable>, PersistableRowMapper<? extends Persistable>>
         cachedMappers = new HashMap<>();
 
@@ -41,7 +41,6 @@ public class PersistableRowMapper<E extends Persistable> implements PersistableM
      */
     private PersistableRowMapper(Class<E> cls) {
         this.propertyMapper = new BeanPropertyRowMapper<>(cls);
-        this.persistableType = cls;
     }
 
 
@@ -75,8 +74,8 @@ public class PersistableRowMapper<E extends Persistable> implements PersistableM
 
 
     private void assignPrimaryKey(Persistable e, ResultSet rs) throws Exception {
-        Optional<String> found = Arrays.asList(e.getClass(), e.getClass().getSuperclass())
-            .stream().filter(tp -> tp.isAnnotationPresent(PrimaryKey.class))
+        Optional<String> found = Stream.of(e.getClass(), e.getClass().getSuperclass())
+            .filter(tp -> tp.isAnnotationPresent(PrimaryKey.class))
             .map(tp -> tp.getAnnotation(PrimaryKey.class).value()).findFirst();
 
         if (found.isPresent()) {
@@ -124,7 +123,7 @@ public class PersistableRowMapper<E extends Persistable> implements PersistableM
             value = Math.toIntExact((Long) value);
         }
 
-        if( value instanceof java.sql.Date && asType == java.time.LocalDate.class ){
+        if( asType == java.time.LocalDate.class ){
             value = ((java.sql.Date)value).toLocalDate();
         }
 

@@ -13,11 +13,11 @@
 
 package org.viablespark.persistence.dsl;
 
+import org.junit.jupiter.api.Test;
 import org.viablespark.persistence.*;
 
 import java.time.LocalDate;
 import java.util.Date;
-import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.springframework.test.util.AssertionErrors.assertTrue;
