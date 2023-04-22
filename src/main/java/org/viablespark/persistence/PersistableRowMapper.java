@@ -12,7 +12,6 @@
  */
 
 package org.viablespark.persistence;
-
 import org.springframework.jdbc.core.BeanPropertyRowMapper;
 import org.springframework.jdbc.support.rowset.SqlRowSet;
 import org.springframework.jdbc.support.rowset.SqlRowSetMetaData;
@@ -29,10 +28,10 @@ import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.util.*;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public class PersistableRowMapper<E extends Persistable> implements PersistableMapper<E> {
     private final BeanPropertyRowMapper<E> propertyMapper;
-    private final Class<E> persistableType;
     private static final Map<Class<? extends Persistable>, PersistableRowMapper<? extends Persistable>>
         cachedMappers = new HashMap<>();
 
@@ -42,7 +41,6 @@ public class PersistableRowMapper<E extends Persistable> implements PersistableM
      */
     private PersistableRowMapper(Class<E> cls) {
         this.propertyMapper = new BeanPropertyRowMapper<>(cls);
-        this.persistableType = cls;
     }
 
 
@@ -69,15 +67,15 @@ public class PersistableRowMapper<E extends Persistable> implements PersistableM
     public E mapRow(SqlRowSet rs, int rowNum) {
         try {
             return mapRow(proxy(rs), rowNum);
-        } catch (Exception e) {
-            throw new RuntimeException(e);
+        } catch (Exception ex) {
+            throw new RuntimeException(ex.getMessage(),ex);
         }
     }
 
 
     private void assignPrimaryKey(Persistable e, ResultSet rs) throws Exception {
-        Optional<String> found = Arrays.asList(e.getClass(), e.getClass().getSuperclass())
-            .stream().filter(tp -> tp.isAnnotationPresent(PrimaryKey.class))
+        Optional<String> found = Stream.of(e.getClass(), e.getClass().getSuperclass())
+            .filter(tp -> tp.isAnnotationPresent(PrimaryKey.class))
             .map(tp -> tp.getAnnotation(PrimaryKey.class).value()).findFirst();
 
         if (found.isPresent()) {
@@ -124,6 +122,11 @@ public class PersistableRowMapper<E extends Persistable> implements PersistableM
         if (value instanceof Long && (asType == int.class || asType == Integer.class)) {
             value = Math.toIntExact((Long) value);
         }
+
+        if( asType == java.time.LocalDate.class ){
+            value = ((java.sql.Date)value).toLocalDate();
+        }
+
         return value;
     }
 
@@ -165,13 +168,15 @@ public class PersistableRowMapper<E extends Persistable> implements PersistableM
 
         @Override
         public Object invoke(Object o, Method method, Object[] objects) throws Throwable {
-
             if (method.getName().equals("getMetaData")) {
                 return proxyMetaData(rows.getMetaData());
             }
-
             var targetMethod = rows.getClass().getMethod(method.getName(), method.getParameterTypes());
-            return targetMethod.invoke(rows, objects);
+            try {
+                return targetMethod.invoke(rows, objects);
+            } catch (Exception ex) {
+                throw new SQLException(ex.getMessage(),ex);
+            }
         }
 
         static ResultSetMetaData proxyMetaData(SqlRowSetMetaData meta) {

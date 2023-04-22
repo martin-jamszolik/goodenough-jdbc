@@ -19,11 +19,17 @@ import org.viablespark.persistence.dsl.PrimaryKey;
 import org.viablespark.persistence.dsl.Ref;
 import org.viablespark.persistence.dsl.Skip;
 
+import java.time.LocalDate;
+import java.util.Date;
+
 @PrimaryKey("n_key")
 public class Note extends Model {
 
     @Named("note") private String noteContent;
     @Named("additional") private String extra;
+
+    @Named("note_date") private LocalDate dateTaken;
+
 
     @Ref
     @Named("progress_id")
@@ -62,5 +68,14 @@ public class Note extends Model {
     public void setNoGood(String noGood) {
         this.noGood = noGood;
     }
+
+    public LocalDate getDateTaken() {
+        return dateTaken;
+    }
+
+    public void setDateTaken(LocalDate dateTaken) {
+        this.dateTaken = dateTaken;
+    }
+
 }
 

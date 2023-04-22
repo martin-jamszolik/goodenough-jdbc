@@ -13,10 +13,11 @@
 
 package org.viablespark.persistence.dsl;
 
+import org.junit.jupiter.api.Test;
 import org.viablespark.persistence.*;
 
+import java.time.LocalDate;
 import java.util.Date;
-import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.springframework.test.util.AssertionErrors.assertTrue;
@@ -37,7 +38,7 @@ public class WithSqlTest {
         assertEquals("sc_key,dist as \"distance\",prop_date,prop_id,proposal_name as \"prop_name\",submit_deadline", select);
 
         String notesSelect  = WithSql.getSQLSelectClause(Note.class,"n_key");
-        assertEquals("n_key,additional as \"extra\",note as \"note_content\",progress_id", notesSelect);
+        assertEquals("n_key,note_date as \"date_taken\",additional as \"extra\",note as \"note_content\",progress_id", notesSelect);
 
         String poSelect  = WithSql.getSQLSelectClause(PurchaseOrder.class);
         assertEquals("some_fake_field as \"fake_field\",long_id as \"long_id\",n_key,po_number_id as \"po_number_id\",primitive_id as \"primitive_example_id\",requester as \"requester\",supplier_id", poSelect);
@@ -51,7 +52,7 @@ public class WithSqlTest {
         e.setDistance(344);
         e.setPropDate(new Date());
         e.setPropId("propId");
-        e.setSubmitDeadline(new Date());
+        e.setSubmitDeadline(LocalDate.now());
         e.setPropName("TestingName");
         e.setContractor(new Contractor("sc_key",1L));
         
@@ -109,7 +110,7 @@ public class WithSqlTest {
         e.setDistance(344);
         e.setPropDate(new Date());
         e.setPropId("propId");
-        e.setSubmitDeadline(new Date());
+        e.setSubmitDeadline(LocalDate.now());
         e.setPropName("TestingName");
         e.setContractor(new Contractor("sc_key",1L));
         
