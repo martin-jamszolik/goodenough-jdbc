@@ -45,6 +45,13 @@ public class Key implements Serializable {
         return add(name,key.longValue());
     }
 
+    public Key addIfValid(String name, Long key){
+        if( key != null ){
+            add(name,key);
+        }
+        return this;
+    }
+
     public Key add(String name, Long key) {
         keys.put(name,Pair.of(name, key));
         return this;

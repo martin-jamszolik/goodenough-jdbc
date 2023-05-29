@@ -164,5 +164,12 @@ public class KeyTest {
         assertNotEquals(Pair.of("one", 1L), Pair.of("one", 2L));
     }
 
+    @Test
+    public void testInvalidKeyAdd(){
+        assertEquals(key, key.addIfValid("third",null));
+        Long third = key.getKey("third");
+        assertNotEquals(key.addIfValid("third",34443L).getKey("third"),third);
+    }
+
 
 }
