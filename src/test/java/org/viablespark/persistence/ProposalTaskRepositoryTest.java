@@ -32,7 +32,7 @@ public class ProposalTaskRepositoryTest {
     @Test
     public void testGetProposalWithTasks(){
         var mapper = new ProposalTaskMapper(); // multi relationship mapping
-        var res = repository.query(SqlQuery.asRawSql(
+        repository.query(SqlQuery.asRawSql(
             "select * from proposal_task pt " +
                 "INNER JOIN est_proposal p on ( pt.pr_key = p.pr_key ) "+
                 "INNER JOIN task tsk on (pt.t_key = tsk.t_key) "),
