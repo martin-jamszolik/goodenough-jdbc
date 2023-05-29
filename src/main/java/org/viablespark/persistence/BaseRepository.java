@@ -92,7 +92,7 @@ public abstract class BaseRepository<E extends Persistable> {
         return list;
     }
 
-    private KeyHolder execWithKey(final String sql, final Object... args) {
+    protected KeyHolder execWithKey(final String sql, final Object... args) {
         KeyHolder keyHolder = new GeneratedKeyHolder();
         jdbc.update(
             connection -> {
