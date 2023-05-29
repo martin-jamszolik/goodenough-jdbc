@@ -20,7 +20,6 @@ import org.viablespark.persistence.dsl.Ref;
 import org.viablespark.persistence.dsl.Skip;
 
 import java.time.LocalDate;
-import java.util.Date;
 
 @PrimaryKey("n_key")
 public class Note extends Model {
