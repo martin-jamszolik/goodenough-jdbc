@@ -24,7 +24,7 @@ public interface Persistable {
     }
 
     default boolean isNew() {
-        return getRefs() == null;
+        return getRefs() == Key.None;
     }
 
 }

@@ -23,7 +23,7 @@ import org.viablespark.persistence.dsl.PrimaryKey;
  */
 @PrimaryKey("sc_key")
 public class Contractor implements Persistable {
-    private Key key=null;
+    private Key key = Key.None;
     private String name;
     private String contact;
     private String phone1;

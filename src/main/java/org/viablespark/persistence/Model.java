@@ -16,9 +16,7 @@ package org.viablespark.persistence;
 import java.io.Serializable;
 
 public abstract class Model implements Persistable, Serializable {
-    private Key refs;
-
-
+    private Key refs = Key.None;
 
     @Override
     public Key getRefs() {

@@ -43,6 +43,7 @@ CREATE TABLE note (
   note_date DATE,
   additional VARCHAR(100),
   progress_id INTEGER,
+  note_created TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (progress_id) REFERENCES progress(id) ON DELETE CASCADE
 );
 

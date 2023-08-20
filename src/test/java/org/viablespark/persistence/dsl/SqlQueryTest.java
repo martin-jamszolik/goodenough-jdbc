@@ -75,14 +75,14 @@ public class SqlQueryTest {
         query.condition("AND pp_name like ? ","%"+name+"%");
 
         assertTrue(query.sql().contains("SELECT COUNT(*) FROM 1_proposalproject p") );
-        assertTrue(query.values().length == 1);
+        assertEquals(1, query.values().length);
         assertTrue(query.sql().contains("INNER JOIN estimator e using(e_key) WHERE pp_key IS NOT NULL AND pp_name like ?") );
 
         query.select( "SELECT p.pp_key, pp_name, tax, pp_status, pp_date, pp_owner");
         query.paginate(20,0);
 
         assertTrue(query.sql().contains("SELECT p.pp_key, pp_name, tax, pp_status, pp_date, pp_owner FROM 1_proposalproject p") );
-        assertTrue(query.values().length == 1);
+        assertEquals(1, query.values().length);
     }
 
 }

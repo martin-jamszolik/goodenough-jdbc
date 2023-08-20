@@ -75,12 +75,13 @@ public class KeyTest {
 
     @Test
     public void testAdd_String_Number() {
-        key.add("Test",234L);
-        key.add("Failed",null);
-        key.add("ThirdDecimal",new BigDecimal("23345.23"));
+        Key mutableKey = key.add("Test",234L)
+        .add("Failed",null)
+        .add("ThirdDecimal",new BigDecimal("23345.23"));
 
-        assertEquals( Long.valueOf("234"),key.getKey("Test"));
-        assertNull( key.getKey("Failed"));
+        assertEquals( Long.valueOf("234"),mutableKey.getKey("Test"));
+        assertNull( mutableKey.getKey("Failed"));
+        assertEquals(Long.valueOf(23345),mutableKey.getKey("ThirdDecimal"));
     }
 
     @Test

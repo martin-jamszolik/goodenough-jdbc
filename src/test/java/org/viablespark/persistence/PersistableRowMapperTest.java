@@ -92,6 +92,19 @@ class PersistableRowMapperTest {
 
     }
 
+    @Test
+    public void testNoteMappings() throws Exception {
+        var mapper = PersistableRowMapper.of(PurchaseOrder.class);
+        var jdbc = new JdbcTemplate(db);
+        var rowSet = jdbc.queryForRowSet("select purchase_order.*, 'fake' as fake_col from purchase_order");
+        while( rowSet.next() ){
+            PurchaseOrder po = mapper.mapRow(rowSet,rowSet.getRow());
+            assertNotNull(po);
+        }
+
+    }
+
+
 
     @BeforeEach
     public void setUp() {

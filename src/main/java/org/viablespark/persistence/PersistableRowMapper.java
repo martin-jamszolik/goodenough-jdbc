@@ -54,7 +54,7 @@ public class PersistableRowMapper<E extends Persistable> implements PersistableM
     public E mapRow(ResultSet rs, int rowNum) throws SQLException {
         try {
             var bean = propertyMapper.mapRow(rs, rowNum);
-            assignPrimaryKey(bean, rs);
+            assignPrimaryKey(Objects.requireNonNull(bean), rs);
             assignForeignRefs(bean, rs);
             assignNamedFields(bean, rs);
             return bean;
@@ -126,7 +126,6 @@ public class PersistableRowMapper<E extends Persistable> implements PersistableM
         if( asType == java.time.LocalDate.class ){
             value = ((java.sql.Date)value).toLocalDate();
         }
-
         return value;
     }
 
