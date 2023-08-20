@@ -18,8 +18,6 @@ import org.viablespark.persistence.dsl.Named;
 import org.viablespark.persistence.dsl.PrimaryKey;
 import org.viablespark.persistence.dsl.Ref;
 import org.viablespark.persistence.dsl.Skip;
-
-import java.sql.Timestamp;
 import java.time.LocalDate;
 
 @PrimaryKey("n_key")

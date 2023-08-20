@@ -38,7 +38,7 @@ public class ProposalTaskRepositoryTest {
                 "INNER JOIN task tsk on (pt.t_key = tsk.t_key) "),
                 mapper );
         mapper.getProposals().forEach(
-            p -> assertTrue(p.getTasks().size()>0)
+            p -> assertTrue(!p.getTasks().isEmpty())
         );
     }
 
