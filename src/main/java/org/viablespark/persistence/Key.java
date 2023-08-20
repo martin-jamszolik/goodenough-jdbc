@@ -22,6 +22,7 @@ import java.util.Optional;
 
 public class Key implements Serializable {
 
+    public static final Key None = new Key();
     private final Map<String,Pair<String, Long>> keys = new LinkedHashMap<>();
 
     public Key() {

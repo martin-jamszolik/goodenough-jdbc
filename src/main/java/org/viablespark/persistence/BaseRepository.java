@@ -43,10 +43,11 @@ public abstract class BaseRepository<E extends Persistable> {
             KeyHolder key = execWithKey(sql, withInsert.getValues());
             if ( key.getKeys() != null ) {
                 entity.setRefs(Key.of(entity.getClass()
-                    .getAnnotation(PrimaryKey.class)
-                    .value(), key.getKey().longValue()));
+                        .getAnnotation(PrimaryKey.class)
+                        .value(),
+                    key.getKey().longValue()));
             }
-            return Optional.ofNullable(entity.getRefs());
+            return Optional.of(entity.getRefs());
         }
 
         SqlClause withUpdate = WithSql.getSQLUpdateClause(entity);

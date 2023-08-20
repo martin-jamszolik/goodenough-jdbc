@@ -16,6 +16,7 @@ package org.viablespark.persistence;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.support.rowset.ResultSetWrappingSqlRowSet;
 import org.springframework.jdbc.support.rowset.SqlRowSet;
+import org.springframework.lang.NonNullApi;
 import org.springframework.lang.Nullable;
 
 import java.sql.ResultSet;
@@ -26,6 +27,7 @@ public interface PersistableMapper<E extends Persistable> extends RowMapper<E> {
 
 
     @Override
+    @Nullable
     default E mapRow(ResultSet rs, int rowNum) throws SQLException {
         return mapRow(new ResultSetWrappingSqlRowSet(rs), rowNum);
     }

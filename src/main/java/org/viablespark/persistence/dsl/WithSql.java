@@ -23,6 +23,7 @@ import java.lang.reflect.Method;
 import java.sql.SQLException;
 import java.util.*;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public final class WithSql {
 
@@ -115,7 +116,7 @@ public final class WithSql {
         Optional<Ref> refOption = getAnnotation(m, entity.getClass(), Ref.class);
         if (refOption.isPresent()) {
             Persistable refObj = (Persistable) m.invoke(entity);
-            if( refObj != null && refObj.getRefs() != null) {
+            if( refObj != null && refObj.getRefs() != Key.None) {
                 return Optional.of(refObj.getRefs().primaryKey().getKey());
             }else{
                 return Optional.empty();
@@ -123,7 +124,7 @@ public final class WithSql {
         }
 
         String name = m.getName().substring(3);
-        return Optional.ofNullable( camelToSnake(name));
+        return Optional.of( camelToSnake(name));
     }
 
     private static Object deriveValue(Method m, Persistable entity) throws Exception {
@@ -149,11 +150,7 @@ public final class WithSql {
         }
         if (refOption.isPresent()) {
             Optional<String> result = getPrimaryKey(m.getReturnType());
-            if(result.isPresent() ){
-                return result.get();
-            }else{
-                return camelToSnake(m.getName().substring(3))+"_id";
-            }
+            return result.orElseGet(() -> camelToSnake(m.getName().substring(3)) + "_id");
         }
 
         String name = m.getName().substring(3);
@@ -171,8 +168,8 @@ public final class WithSql {
     }
 
     public static Optional<String> getPrimaryKey(Class<?> cls ){
-        return Arrays.asList(cls, cls.getSuperclass())
-            .stream().filter(tp -> tp.isAnnotationPresent(PrimaryKey.class))
+        return Stream.of(cls, cls.getSuperclass())
+            .filter(tp -> tp.isAnnotationPresent(PrimaryKey.class))
             .map(tp -> tp.getAnnotation(PrimaryKey.class).value()).findFirst();
     }
 

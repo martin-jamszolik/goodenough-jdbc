@@ -19,6 +19,7 @@ import org.viablespark.persistence.dsl.PrimaryKey;
 import org.viablespark.persistence.dsl.Ref;
 import org.viablespark.persistence.dsl.Skip;
 
+import java.sql.Timestamp;
 import java.time.LocalDate;
 
 @PrimaryKey("n_key")
@@ -29,6 +30,7 @@ public class Note extends Model {
 
     @Named("note_date") private LocalDate dateTaken;
 
+    //@Named("note_created") private LocalDate customNoteDateCreated;
 
     @Ref
     @Named("progress_id")
@@ -75,6 +77,7 @@ public class Note extends Model {
     public void setDateTaken(LocalDate dateTaken) {
         this.dateTaken = dateTaken;
     }
+
 
 }
 

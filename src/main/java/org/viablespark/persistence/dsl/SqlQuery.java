@@ -21,7 +21,6 @@ import java.util.stream.Collectors;
 public class SqlQuery {
 
     private final List<SqlClause> clauses = new ArrayList<>();
-    private final List<Pair<String,Object>> where = new ArrayList<>();
 
     private final List<Pair<String,Object>> conditions = new ArrayList<>();
 
@@ -38,9 +37,7 @@ public class SqlQuery {
     private String rawSql;
     private Object[] rawValues;
 
-    @SafeVarargs
-    public SqlQuery(Pair<String,Object>... _where) {
-        where.addAll(List.of(_where));
+    public SqlQuery() {
     }
     public SqlQuery(String _raw,Object... vals){
         rawSql = _raw;
@@ -53,7 +50,7 @@ public class SqlQuery {
     }
 
     public SqlQuery paginate(int limit, int offset){
-        pagination = new SqlClause(" LIMIT "+limit+" OFFSET "+offset+"",null );
+        pagination = new SqlClause(" LIMIT "+limit+" OFFSET "+offset,null );
         return this;
     }
 
@@ -110,10 +107,10 @@ public class SqlQuery {
 
         Optional<String> condResult = conditions.stream()
                 .map(Pair::getKey)
-                .reduce((acc, a) -> "" + acc + " " + a);
+                .reduce((acc, a) -> acc + " " + a);
 
         Optional<String> clausesResult = clauses.stream()
-            .map(SqlClause::getClause).reduce((acc, a) -> "" + acc + " " + a);
+            .map(SqlClause::getClause).reduce((acc, a) -> acc + " " + a);
 
         String clauseStr = clausesResult.orElse("");
 
