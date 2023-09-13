@@ -23,6 +23,8 @@ import org.viablespark.persistence.dsl.SqlQuery;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.HashMap;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -67,6 +69,15 @@ public class NoteRepositoryTest {
             .primaryKey("n_key"),Note.class);
 
        assertTrue( found.size() > 1);
+    }
+
+    @Test
+    public void testUsingPersistableInAMap() throws Exception {
+        Map<Persistable,Key> map = new HashMap<>();
+        Note note = new Note();
+        map.put(note,Key.of("blah",1L) );
+        assertTrue(map.containsKey(note));
+
     }
 
 

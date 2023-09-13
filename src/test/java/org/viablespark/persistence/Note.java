@@ -19,6 +19,7 @@ import org.viablespark.persistence.dsl.PrimaryKey;
 import org.viablespark.persistence.dsl.Ref;
 import org.viablespark.persistence.dsl.Skip;
 import java.time.LocalDate;
+import java.util.Objects;
 
 @PrimaryKey("n_key")
 public class Note extends Model {
@@ -76,6 +77,22 @@ public class Note extends Model {
         this.dateTaken = dateTaken;
     }
 
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        Note note = (Note) o;
+        return Objects.equals(getNoteContent(), note.getNoteContent()) && Objects.equals(getExtra(), note.getExtra()) && Objects.equals(getDateTaken(), note.getDateTaken());
+    }
 
+    @Override
+    public int hashCode() {
+        int hash = Objects.hash(getNoteContent(), getDateTaken());
+
+        if (this.getId() != null) {
+            hash = 53 * hash + this.getId().intValue();
+        }
+        return hash;
+    }
 }
 
