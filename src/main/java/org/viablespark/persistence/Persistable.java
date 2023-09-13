@@ -20,6 +20,9 @@ public interface Persistable {
     void setRefs(Key refs);
 
     default Long getId() {
+        if( getRefs() == Key.None ){
+            return null;
+        }
         return getRefs().primaryKey().getValue();
     }
 
