@@ -17,7 +17,7 @@ plugins {
     id("maven-publish")
 }
 
-var libReleaseVersion = "1.6.2"
+var libReleaseVersion = "1.6.3"
 
 group = "org.viablespark"
 version = libReleaseVersion
@@ -61,13 +61,22 @@ tasks.jacocoTestReport {
     }
 }
 
-
+val privateRegistryURL: String = System.getenv("PRIVATE_REGISTRY_URL")  ?: "private"
 
 publishing {
     repositories {
         maven {
             name = "GitHubPackages"
             url = uri("https://maven.pkg.github.com/martin-jamszolik/goodenough-jdbc")
+            credentials {
+                username = project.findProperty("gpr.user") as String? ?: System.getenv("USERNAME")
+                password = project.findProperty("gpr.key") as String? ?: System.getenv("TOKEN")
+            }
+        }
+        // Private Repository
+        maven {
+            name = "Private"
+            url = uri("https://$privateRegistryURL/m2/maven-releases")
             credentials {
                 username = project.findProperty("gpr.user") as String? ?: System.getenv("USERNAME")
                 password = project.findProperty("gpr.key") as String? ?: System.getenv("TOKEN")
