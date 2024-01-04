@@ -88,6 +88,7 @@ public class PersistableRowMapper<E extends Persistable> implements PersistableM
             .filter(m -> m.getName().startsWith("get"))
             .filter(m -> WithSql.getAnnotation(m, entity.getClass(), Named.class).isPresent())
             .filter(m -> WithSql.getAnnotation(m, entity.getClass(), Ref.class).isEmpty())
+            .filter(m -> !m.getReturnType().equals(RefValue.class))
             .collect(Collectors.toList());
 
         for (Method m : methods) {
@@ -133,12 +134,28 @@ public class PersistableRowMapper<E extends Persistable> implements PersistableM
         List<Method> methods = Arrays.stream(entity.getClass().getDeclaredMethods())
             .filter(m -> m.getName().startsWith("get"))
             .filter(m -> WithSql.getAnnotation(m, entity.getClass(), Ref.class).isPresent())
-            .filter(m -> m.getReturnType().isAnnotationPresent(PrimaryKey.class))
+            .filter(m -> m.getReturnType().isAnnotationPresent(PrimaryKey.class) || m.getReturnType().equals(RefValue.class))
             .collect(Collectors.toList());
         for (Method m : methods) {
             Class<?> foreignType = m.getReturnType();
-            var pkName = foreignType.getAnnotation(PrimaryKey.class).value();
             var namedOption = WithSql.getAnnotation(m, entity.getClass(), Named.class);
+            var ref = WithSql.getAnnotation(m, entity.getClass(), Ref.class);
+
+            if ( foreignType.equals(RefValue.class) ){
+                if(namedOption.isPresent() && ref.isPresent() ){
+                    Method setterMethod = entity.getClass().getDeclaredMethod(
+                        m.getName().replace("get", "set"), foreignType);
+                    var fkValue = new RefValue(
+                        rs.getString(namedOption.get().value()),
+                        Pair.of(ref.get().value(), rs.getLong(ref.get().value()))
+                    );
+                    setterMethod.invoke(entity, fkValue);
+                }
+                //In case of RefValue, continue over to the next method.
+                continue;
+            }
+
+            var pkName = foreignType.getAnnotation(PrimaryKey.class).value();
             String columnName = pkName;
             if (namedOption.isPresent()) {
                 columnName = namedOption.get().value();

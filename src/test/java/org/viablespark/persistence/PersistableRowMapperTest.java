@@ -84,7 +84,8 @@ class PersistableRowMapperTest {
     public void testPurchaseOrderMappings() throws Exception {
         var mapper = PersistableRowMapper.of(PurchaseOrder.class);
         var jdbc = new JdbcTemplate(db);
-        var rowSet = jdbc.queryForRowSet("select purchase_order.*, 'fake' as fake_col from purchase_order");
+        var rowSet = jdbc.queryForRowSet("select purchase_order.*, supplier.*, 'fake' as fake_col " +
+            "from purchase_order left join supplier on ( supplier.id = purchase_order.supplier_id ) ");
         while( rowSet.next() ){
            PurchaseOrder po = mapper.mapRow(rowSet,rowSet.getRow());
            assertNotNull(po);
@@ -96,7 +97,8 @@ class PersistableRowMapperTest {
     public void testNoteMappings() throws Exception {
         var mapper = PersistableRowMapper.of(PurchaseOrder.class);
         var jdbc = new JdbcTemplate(db);
-        var rowSet = jdbc.queryForRowSet("select purchase_order.*, 'fake' as fake_col from purchase_order");
+        var rowSet = jdbc.queryForRowSet("select purchase_order.*, supplier.*, 'fake' as fake_col " +
+            "from purchase_order left join supplier on ( supplier.id = purchase_order.supplier_id ) ");
         while( rowSet.next() ){
             PurchaseOrder po = mapper.mapRow(rowSet,rowSet.getRow());
             assertNotNull(po);
