@@ -12,6 +12,7 @@
  */
 
 package org.viablespark.persistence;
+
 import org.springframework.jdbc.core.BeanPropertyRowMapper;
 import org.springframework.jdbc.support.rowset.SqlRowSet;
 import org.springframework.jdbc.support.rowset.SqlRowSetMetaData;
@@ -59,7 +60,7 @@ public class PersistableRowMapper<E extends Persistable> implements PersistableM
             assignNamedFields(bean, rs);
             return bean;
         } catch (Exception ex) {
-            throw new SQLException(ex.getMessage(),ex);
+            throw new SQLException(ex.getMessage(), ex);
         }
     }
 
@@ -68,7 +69,7 @@ public class PersistableRowMapper<E extends Persistable> implements PersistableM
         try {
             return mapRow(proxy(rs), rowNum);
         } catch (Exception ex) {
-            throw new RuntimeException(ex.getMessage(),ex);
+            throw new RuntimeException(ex.getMessage(), ex);
         }
     }
 
@@ -88,6 +89,7 @@ public class PersistableRowMapper<E extends Persistable> implements PersistableM
             .filter(m -> m.getName().startsWith("get"))
             .filter(m -> WithSql.getAnnotation(m, entity.getClass(), Named.class).isPresent())
             .filter(m -> WithSql.getAnnotation(m, entity.getClass(), Ref.class).isEmpty())
+            .filter(m -> !m.getReturnType().equals(RefValue.class))
             .collect(Collectors.toList());
 
         for (Method m : methods) {
@@ -123,8 +125,8 @@ public class PersistableRowMapper<E extends Persistable> implements PersistableM
             value = Math.toIntExact((Long) value);
         }
 
-        if( asType == java.time.LocalDate.class ){
-            value = ((java.sql.Date)value).toLocalDate();
+        if (asType == java.time.LocalDate.class) {
+            value = ((java.sql.Date) value).toLocalDate();
         }
         return value;
     }
@@ -133,12 +135,28 @@ public class PersistableRowMapper<E extends Persistable> implements PersistableM
         List<Method> methods = Arrays.stream(entity.getClass().getDeclaredMethods())
             .filter(m -> m.getName().startsWith("get"))
             .filter(m -> WithSql.getAnnotation(m, entity.getClass(), Ref.class).isPresent())
-            .filter(m -> m.getReturnType().isAnnotationPresent(PrimaryKey.class))
+            .filter(m -> m.getReturnType().isAnnotationPresent(PrimaryKey.class) || m.getReturnType().equals(RefValue.class))
             .collect(Collectors.toList());
         for (Method m : methods) {
             Class<?> foreignType = m.getReturnType();
-            var pkName = foreignType.getAnnotation(PrimaryKey.class).value();
             var namedOption = WithSql.getAnnotation(m, entity.getClass(), Named.class);
+            var ref = WithSql.getAnnotation(m, entity.getClass(), Ref.class).orElseThrow();
+
+            if (foreignType.equals(RefValue.class)) {
+
+                Method setterMethod = entity.getClass().getDeclaredMethod(
+                    m.getName().replace("get", "set"), foreignType);
+                var fkValue = new RefValue(
+                    rs.getString(ref.label()),
+                    Pair.of(ref.value(), rs.getLong(ref.value()))
+                );
+                setterMethod.invoke(entity, fkValue);
+
+                //In case of RefValue, continue over to the next method.
+                continue;
+            }
+
+            var pkName = foreignType.getAnnotation(PrimaryKey.class).value();
             String columnName = pkName;
             if (namedOption.isPresent()) {
                 columnName = namedOption.get().value();
@@ -174,7 +192,7 @@ public class PersistableRowMapper<E extends Persistable> implements PersistableM
             try {
                 return targetMethod.invoke(rows, objects);
             } catch (Exception ex) {
-                throw new SQLException(ex.getMessage(),ex);
+                throw new SQLException(ex.getMessage(), ex);
             }
         }
 

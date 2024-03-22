@@ -37,6 +37,14 @@ public class PurchaseOrder extends Model {
     @Ref
     private Supplier supplier;
 
+    @Ref(value="supplier_id",label="sup_name")
+    private RefValue supplierRef; // valid case. Expect SQL data
+
+    private RefValue supplierRefInvalid; //Invalid case, skip
+
+    @Named("supplier_id")
+    private RefValue supplierRefInvalidAgain; //Invalid case, skip
+
     public String getRequester() {
         return requester;
     }
@@ -91,5 +99,29 @@ public class PurchaseOrder extends Model {
 
     public void setFakeField(int fakeField) {
         this.fakeField = fakeField;
+    }
+
+    public RefValue getSupplierRef() {
+        return supplierRef;
+    }
+
+    public void setSupplierRef(RefValue supplierRef) {
+        this.supplierRef = supplierRef;
+    }
+
+    public RefValue getSupplierRefInvalid() {
+        return supplierRefInvalid;
+    }
+
+    public void setSupplierRefInvalid(RefValue supplierRefInvalid) {
+        this.supplierRefInvalid = supplierRefInvalid;
+    }
+
+    public RefValue getSupplierRefInvalidAgain() {
+        return supplierRefInvalidAgain;
+    }
+
+    public void setSupplierRefInvalidAgain(RefValue supplierRefInvalidAgain) {
+        this.supplierRefInvalidAgain = supplierRefInvalidAgain;
     }
 }

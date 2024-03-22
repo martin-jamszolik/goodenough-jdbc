@@ -16,6 +16,7 @@ package org.viablespark.persistence.dsl;
 import org.viablespark.persistence.Key;
 import org.viablespark.persistence.Pair;
 import org.viablespark.persistence.Persistable;
+import org.viablespark.persistence.RefValue;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
@@ -32,6 +33,7 @@ public final class WithSql {
             .filter(m -> m.getName().startsWith("get"))
             .filter(m -> getAnnotation(m, cls, Skip.class).isEmpty())
             .filter(m -> !m.getReturnType().equals(Key.class))
+            .filter(m -> !m.getReturnType().equals(RefValue.class))
             .sorted(Comparator.comparing(Method::getName)).collect(Collectors.toList());
 
         StringBuilder sql = new StringBuilder();
@@ -52,6 +54,7 @@ public final class WithSql {
             List<Method> methods = Arrays.stream(entity.getClass().getDeclaredMethods())
                 .filter(m -> m.getName().startsWith("get"))
                 .filter(m -> getAnnotation(m, entity.getClass(), Skip.class).isEmpty())
+                .filter(m -> !m.getReturnType().equals(RefValue.class))
                 .sorted(Comparator.comparing(Method::getName))
                 .collect(Collectors.toList());
 
@@ -81,6 +84,7 @@ public final class WithSql {
             List<Method> methods = Arrays.stream(entity.getClass().getDeclaredMethods())
                 .filter(m -> m.getName().startsWith("get"))
                 .filter(m -> getAnnotation(m, entity.getClass(), Skip.class).isEmpty())
+                .filter(m -> !m.getReturnType().equals(RefValue.class))
                 .sorted(Comparator.comparing(Method::getName))
                 .collect(Collectors.toList());
 
