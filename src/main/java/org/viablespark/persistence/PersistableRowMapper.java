@@ -12,6 +12,7 @@
  */
 
 package org.viablespark.persistence;
+
 import org.springframework.jdbc.core.BeanPropertyRowMapper;
 import org.springframework.jdbc.support.rowset.SqlRowSet;
 import org.springframework.jdbc.support.rowset.SqlRowSetMetaData;
@@ -59,7 +60,7 @@ public class PersistableRowMapper<E extends Persistable> implements PersistableM
             assignNamedFields(bean, rs);
             return bean;
         } catch (Exception ex) {
-            throw new SQLException(ex.getMessage(),ex);
+            throw new SQLException(ex.getMessage(), ex);
         }
     }
 
@@ -68,7 +69,7 @@ public class PersistableRowMapper<E extends Persistable> implements PersistableM
         try {
             return mapRow(proxy(rs), rowNum);
         } catch (Exception ex) {
-            throw new RuntimeException(ex.getMessage(),ex);
+            throw new RuntimeException(ex.getMessage(), ex);
         }
     }
 
@@ -124,8 +125,8 @@ public class PersistableRowMapper<E extends Persistable> implements PersistableM
             value = Math.toIntExact((Long) value);
         }
 
-        if( asType == java.time.LocalDate.class ){
-            value = ((java.sql.Date)value).toLocalDate();
+        if (asType == java.time.LocalDate.class) {
+            value = ((java.sql.Date) value).toLocalDate();
         }
         return value;
     }
@@ -139,18 +140,18 @@ public class PersistableRowMapper<E extends Persistable> implements PersistableM
         for (Method m : methods) {
             Class<?> foreignType = m.getReturnType();
             var namedOption = WithSql.getAnnotation(m, entity.getClass(), Named.class);
-            var ref = WithSql.getAnnotation(m, entity.getClass(), Ref.class);
+            var ref = WithSql.getAnnotation(m, entity.getClass(), Ref.class).orElseThrow();
 
-            if ( foreignType.equals(RefValue.class) ){
-                if(namedOption.isPresent() && ref.isPresent() ){
-                    Method setterMethod = entity.getClass().getDeclaredMethod(
-                        m.getName().replace("get", "set"), foreignType);
-                    var fkValue = new RefValue(
-                        rs.getString(namedOption.get().value()),
-                        Pair.of(ref.get().value(), rs.getLong(ref.get().value()))
-                    );
-                    setterMethod.invoke(entity, fkValue);
-                }
+            if (foreignType.equals(RefValue.class)) {
+
+                Method setterMethod = entity.getClass().getDeclaredMethod(
+                    m.getName().replace("get", "set"), foreignType);
+                var fkValue = new RefValue(
+                    rs.getString(ref.label()),
+                    Pair.of(ref.value(), rs.getLong(ref.value()))
+                );
+                setterMethod.invoke(entity, fkValue);
+
                 //In case of RefValue, continue over to the next method.
                 continue;
             }
@@ -191,7 +192,7 @@ public class PersistableRowMapper<E extends Persistable> implements PersistableM
             try {
                 return targetMethod.invoke(rows, objects);
             } catch (Exception ex) {
-                throw new SQLException(ex.getMessage(),ex);
+                throw new SQLException(ex.getMessage(), ex);
             }
         }
 

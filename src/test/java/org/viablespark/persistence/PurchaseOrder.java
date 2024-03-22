@@ -37,11 +37,9 @@ public class PurchaseOrder extends Model {
     @Ref
     private Supplier supplier;
 
-    @Ref("supplier_id")
-    @Named("sup_name")
+    @Ref(value="supplier_id",label="sup_name")
     private RefValue supplierRef; // valid case. Expect SQL data
 
-    @Ref("supplier_id")
     private RefValue supplierRefInvalid; //Invalid case, skip
 
     @Named("supplier_id")

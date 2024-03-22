@@ -13,15 +13,50 @@
 
 package org.viablespark.persistence;
 
-public class RefValue {
-    String value;
-    Pair<String,Long> ref;
+import java.util.Objects;
 
-    public RefValue(){
+public class RefValue {
+    private String value;
+    private Pair<String, Long> ref;
+
+    public RefValue() {
 
     }
+
     public RefValue(String value, Pair<String, Long> ref) {
         this.value = value;
         this.ref = ref;
+    }
+
+    public String getValue() {
+        return value;
+    }
+
+    public void setValue(String value) {
+        this.value = value;
+    }
+
+    public Pair<String, Long> getRef() {
+        return ref;
+    }
+
+    public void setRef(Pair<String, Long> ref) {
+        this.ref = ref;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        RefValue refValue = (RefValue) o;
+        if (!Objects.equals(value, refValue.value)) {
+            return false;
+        }
+        return Objects.equals(ref, refValue.ref);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(value, ref);
     }
 }

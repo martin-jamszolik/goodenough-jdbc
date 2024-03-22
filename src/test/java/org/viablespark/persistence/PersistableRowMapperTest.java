@@ -89,6 +89,8 @@ class PersistableRowMapperTest {
         while( rowSet.next() ){
            PurchaseOrder po = mapper.mapRow(rowSet,rowSet.getRow());
            assertNotNull(po);
+           assertEquals(po.getSupplierRef().getRef().getValue(),1L);
+           assertEquals(po.getSupplierRef().getValue(), "Test Supplier");
         }
 
     }

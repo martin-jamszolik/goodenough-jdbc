@@ -22,4 +22,5 @@ import java.lang.annotation.Target;
 @Target({ElementType.METHOD,ElementType.FIELD})
 public @interface Ref {
     String value() default "";
+    String label() default "";
 }
