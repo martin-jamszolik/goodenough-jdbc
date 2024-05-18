@@ -5,36 +5,27 @@
 [![branches](.github/badges/branches.svg)](branches.svg)
 
 ## Why?
-Have you tried the latest/greatest ORM frameworks out there yet? 
+Have you tried the latest ORM frameworks? They abstract the RDBMS layer extensively, using meta-programming to generate models at runtime or requiring schemas defined in the application layer for a rich DSL. Examples include:
+* [KTorm](https://www.ktorm.org/) (Schema-driven with Kotlin DSL)
+* [Django](https://docs.djangoproject.com/en/5.0/topics/db/) (Migrations, models, Python DSL)
+* [Spring Data JPA](https://spring.io/projects/spring-data-jpa) (JPA, boilerplate galore)
+* [Rails Active Record](https://guides.rubyonrails.org/active_record_basics.html) (Meta-programming, Active Record as an ORM)
 
-Most of them want to remove you from the RDBMS layer as much as possible. Some use meta-programming
-to generate the model in runtime, some are statically typed and require us to define the schema 
-in the application layer so that a rich DSL layer can be used.
-
-Reflecting on this, you may find yourself needing to stay close to SQL and all that
-it has to offer in flexibility and transparency. Tailor each query for optimal retrieval, using
-your knowledge to put together a performant query. At the same time, have a good enough api to
-help you with the boring stuff.  Just enough to help with the needed 
-insert, update and simple select statements. Find that middle ground of convention and flexibility.
-How low level can we stay and still be productive with RDBMS? This little library was created as a 
-reflection on other frameworks I worked with `spring-data`, `rails` and the likes, among others.
+`goodenough-jdbc` stems from my experience with **schema-first** designed databases. Rich ORM frameworks are hard to adopt for old databases designed **without** application frameworks in mind. This library balances low-level flexibility and abstraction.
 
 ## How?
 
-Starting of with the fact that we are on the JVM and using Java. Taking advantage of one of the most
-prolific frameworks out there, which is `spring-jdbc`. An already slim, low level library. 
-Between `spring-jdbc` and Springs next flagship library `spring-data`,
-this little project sits right in between. We don't do any meta-programming (autogenerate interfaces),
-we don't generate any clever queries. Instead, we help with the most boring parts and leave the power
-and flexibility and a level of complexity to you. With some good guidelines, best practices and test cases, 
-you may find this library useful.
+Inspired by other language communities, this JVM-based project leverages the `spring-jdbc` framework.
+It sits above `spring-jdbc` but below `spring-data`, avoiding meta-programming and clever query generation.
+Instead, it helps with the most tedious parts while providing flexibility and complexity control. 
+With good guidelines, best practices, and test cases, this library might be useful to you.
 
 
-## Details
+## Implementation Details
 
-### 1) The Entity
+### The Entity
 
-First major component is the Entity:
+Like with most ORMs, there is a notion of an Entity to help you decorate your object:
 ```java
 @PrimaryKey("t_key")
 public class Task extends Model {
@@ -48,26 +39,51 @@ public class Task extends Model {
     public Proposal getProposal(){
         return proposal;
     }
+    @Ref(value="supplier_id",label="sup_name")
+    private RefValue supplierRef;
 }
 ```
+* `@PrimaryKey("t_key")` - assist in CRUD and Queries
+* `@Named("sc_name")` - mapping between columns and fields
+* `@Ref(value="supplier_id",label="sup_name")` - assist with foreign references.
+*  `RefValue` object is especially convenient for lookup queries. You want the foreign value not the entire Data Reference.
 
-By convention, if your entity matches snake case names, `@Named` is not necessary. But in the real world
-that is rarely true. Extending `Model` makes it convenient, but your entity might already be inheriting
-from another class, so use `implements Persistable` instead.
+Extending `Model` makes it convenient, but if unable, use `implements Persistable` instead.
 
-### 2) The Repository
+### The Repository
 
-`BaseRepository` does most of the work to help you `create`, `remove`, `update`, `delete`, `list`. 
-Beyond that, extend the class and define your desired helper methods for additional queries and composites.
+`BaseRepository` assist with `create`, `remove`, `update`, `delete`, `list`. 
+Otherwise, extend the class and define your desired helper methods for additional queries and composites for full flexibility.
 
-### 3) The Mapper
+### The Mapper
 
+The best stuff is here:
+
+```java
+//So may goodies added here on top of Spring's RowMapper class.
+var mapper = PersistableRowMapper.of(PurchaseOrder.class);
+
+//Fetching unique Entity, easy!
+var res = repository.get(Key.of("sc_key",1L),Contractor.class);
+
+//Fetching a set with a query 
+List<Proposal> results = repository.queryEntity(SqlQuery
+        .withClause("WHERE dist >= ?", 10)
+        .primaryKey("pr_key"), Proposal.class);
+
+//Need a bit more control over rich composites?
+var mapper = new ProposalMapper();
+var results = repository.query(
+    SqlQuery.asRawSql("select * from est_proposal p " +
+        "INNER JOIN contractor c on (c.sc_key = p.sc_key) "+
+        "where dist > 0"), mapper);
+```
 Most mapping needs can be delegated over to `PersistableRowMapper`. Only if you want to take full control of
 how every column, field and foreign relationships is mapped, you will want to implement 
 `PersistableMapper` and go from there. For an advanced example of this, see 
 [ProposalMapper](src/test/java/org/viablespark/persistence/ProposalMapper.java) This is the most laborious 
 part of the library, queries will need to match entities fields, so often you will have to spell out
-the select statement with `column as renamed`.  A tradeoff I can live with to retain fine control.
+the select statement with `column as renamed`.  A tradeoff I found `good-enough` to retain fine control.
 
 
 ### Test Cases
