@@ -11,7 +11,7 @@ Have you tried the latest ORM frameworks? They abstract the RDBMS layer extensiv
 * [Spring Data JPA](https://spring.io/projects/spring-data-jpa) (JPA, boilerplate galore)
 * [Rails Active Record](https://guides.rubyonrails.org/active_record_basics.html) (Meta-programming, Active Record as an ORM)
 
-`goodenough-jdbc` stems from my experience with **schema-first** designed databases. Rich ORM frameworks are hard to adopt for old databases designed **without** application frameworks in mind. This library balances low-level flexibility and abstraction.
+`goodenough-jdbc` stems from my experience with **schema-first** designed databases. Rich ORM frameworks are hard to adopt for older databases, designed **without** application frameworks in mind. This library balances low-level flexibility and abstraction.
 
 ## How?
 
