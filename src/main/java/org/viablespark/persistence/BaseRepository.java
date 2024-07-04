@@ -38,7 +38,7 @@ public abstract class BaseRepository<E extends Persistable> {
     public Optional<Key> save(E entity) throws SQLException {
 
         if (entity.isNew()) {
-            SqlClause withInsert = WithSql.getSQLInsertClause(entity);
+            SqlClause withInsert = WithSql.getInsertClause(entity);
             String sql = "INSERT INTO " + deriveEntityName(entity.getClass()) + " " + withInsert.getClause();
             KeyHolder key = execWithKey(sql, withInsert.getValues());
             if ( key.getKeys() != null ) {
@@ -50,7 +50,7 @@ public abstract class BaseRepository<E extends Persistable> {
             return Optional.of(entity.getRefs());
         }
 
-        SqlClause withUpdate = WithSql.getSQLUpdateClause(entity);
+        SqlClause withUpdate = WithSql.getUpdateClause(entity);
         String sql = "UPDATE " + deriveEntityName(entity.getClass()) + " "
             + withUpdate.getClause();
         jdbc.update(sql, withUpdate.getValues());
@@ -67,7 +67,7 @@ public abstract class BaseRepository<E extends Persistable> {
 
     public Optional<E> get(Key key, Class<E> cls) throws NoSuchElementException {
         List<E> list = jdbc.query(
-            "SELECT " + WithSql.getSQLSelectClause(cls, key.primaryKey().getKey())
+            "SELECT " + WithSql.getSelectClause(cls, key.primaryKey().getKey())
                 + " FROM " + deriveEntityName(cls)
                 + " WHERE " + key.primaryKey().getKey() + "=?",
             PersistableRowMapper.of(cls),
@@ -80,7 +80,7 @@ public abstract class BaseRepository<E extends Persistable> {
 
     public List<E> queryEntity(SqlQuery query, Class<E> cls) {
         return jdbc.query(
-            "SELECT " + WithSql.getSQLSelectClause(cls, query.getPrimaryKeyName())
+            "SELECT " + WithSql.getSelectClause(cls, query.getPrimaryKeyName())
                 + " FROM " + deriveEntityName(cls) + " "
                 + query.sql(), PersistableRowMapper.of(cls), query.values());
     }

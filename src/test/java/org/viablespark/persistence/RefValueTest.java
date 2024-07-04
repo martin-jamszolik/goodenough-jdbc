@@ -49,48 +49,48 @@ class RefValueTest {
     @Test
     void testEqualsWithSameInstance() {
         var value = new RefValue("SetTest", Pair.of("t_key", 1L));
-        assertTrue(value.equals(value));
+        assertEquals(value, value);
     }
 
     @Test
     void testEqualsWithNull() {
         var value = new RefValue("SetTest", Pair.of("t_key", 1L));
-        assertFalse(value.equals(null));
+        assertNotEquals(null, value);
     }
 
     @Test
     void testEqualsWithDifferentClass() {
         var value = new RefValue("SetTest", Pair.of("t_key", 1L));
-        assertFalse(value.equals("SomeStringObject"));
-        assertFalse(value.equals(new Object()));
+        assertNotEquals("SomeStringObject", value);
+        assertNotEquals(value, new Object());
     }
 
     @Test
     void testEqualsWithSameValues() {
         var value1 = new RefValue("SetTest", Pair.of("t_key", 1L));
         var value2 = new RefValue("SetTest", Pair.of("t_key", 1L));
-        assertTrue(value1.equals(value2));
+        assertEquals(value1, value2);
     }
 
     @Test
     void testEqualsWithDifferentValues() {
         var value1 = new RefValue("SetTest", Pair.of("t_key", 1L));
         var value3 = new RefValue("SetTestValue3", Pair.of("t_key", 3L));
-        assertFalse(value1.equals(value3));
+        assertNotEquals(value1, value3);
     }
 
     @Test
     void testEqualsWithDifferentValueButSameRef() {
         var value1 = new RefValue("SetTest", Pair.of("t_key", 1L));
         var value4 = new RefValue("DifferentValue", Pair.of("t_key", 1L));
-        assertFalse(value1.equals(value4));
+        assertNotEquals(value1, value4);
     }
 
     @Test
     void testEqualsWithDifferentRefButSameValue() {
         var value1 = new RefValue("SetTest", Pair.of("t_key", 1L));
         var value5 = new RefValue("SetTest", Pair.of("different_key", 2L));
-        assertFalse(value1.equals(value5));
+        assertNotEquals(value1, value5);
     }
 
     @Test
