@@ -5,4 +5,5 @@ module org.viablespark.persistence {
     requires transitive spring.jdbc;
     requires spring.core;
     requires transitive java.sql;
+    requires transitive org.slf4j;
 }
