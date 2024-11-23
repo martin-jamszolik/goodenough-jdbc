@@ -20,11 +20,9 @@ import org.springframework.jdbc.support.rowset.SqlRowSet;
 import org.viablespark.persistence.dsl.*;
 
 import java.sql.PreparedStatement;
-import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.NoSuchElementException;
 import java.util.Optional;
 
 public abstract class BaseRepository<E extends Persistable> {
@@ -32,62 +30,69 @@ public abstract class BaseRepository<E extends Persistable> {
     protected final JdbcTemplate jdbc;
 
     public BaseRepository(JdbcTemplate db) {
-        jdbc = db;
+        this.jdbc = db;
     }
 
-    public Optional<Key> save(E entity) throws SQLException {
-
-        if (entity.isNew()) {
-            SqlClause withInsert = WithSql.getSQLInsertClause(entity);
-            String sql = "INSERT INTO " + deriveEntityName(entity.getClass()) + " " + withInsert.getClause();
-            KeyHolder key = execWithKey(sql, withInsert.getValues());
-            if ( key.getKeys() != null ) {
-                entity.setRefs(Key.of(entity.getClass()
-                        .getAnnotation(PrimaryKey.class)
-                        .value(),
-                    key.getKey().longValue()));
+    public Optional<Key> save(E entity) {
+        try {
+            if (entity.isNew()) {
+                return insertEntity(entity);
+            } else {
+                return updateEntity(entity);
             }
-            return Optional.of(entity.getRefs());
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to save entity: " + entity, e);
+        }
+    }
+
+    private Optional<Key> insertEntity(E entity) throws Exception {
+        SqlClause insertClause = WithSql.getInsertClause(entity);
+        String sql = String.format("INSERT INTO %s %s", deriveEntityName(entity.getClass()), insertClause.getClause());
+        KeyHolder keyHolder = execWithKey(sql, insertClause.getValues());
+        
+        if (keyHolder.getKeys() != null) {
+            entity.setRefs(Key.of(entity.getClass().getAnnotation(PrimaryKey.class).value(), keyHolder.getKey().longValue()));
         }
 
-        SqlClause withUpdate = WithSql.getSQLUpdateClause(entity);
-        String sql = "UPDATE " + deriveEntityName(entity.getClass()) + " "
-            + withUpdate.getClause();
-        jdbc.update(sql, withUpdate.getValues());
+        return Optional.of(entity.getRefs());
+    }
+
+    private Optional<Key> updateEntity(E entity) throws Exception {
+        SqlClause updateClause = WithSql.getUpdateClause(entity);
+        String sql = String.format("UPDATE %s %s", deriveEntityName(entity.getClass()), updateClause.getClause());
+        jdbc.update(sql, updateClause.getValues());
 
         return Optional.ofNullable(entity.getRefs());
     }
 
     public void delete(E entity) {
-        String sql = "DELETE FROM " + deriveEntityName(entity.getClass())
-            + " WHERE " + entity.getRefs().primaryKey().getKey() + "=? ";
-
+        String sql = String.format("DELETE FROM %s WHERE %s = ?", 
+                                    deriveEntityName(entity.getClass()), 
+                                    entity.getRefs().primaryKey().getKey());
         jdbc.update(sql, entity.getRefs().primaryKey().getValue());
     }
 
-    public Optional<E> get(Key key, Class<E> cls) throws NoSuchElementException {
-        List<E> list = jdbc.query(
-            "SELECT " + WithSql.getSQLSelectClause(cls, key.primaryKey().getKey())
-                + " FROM " + deriveEntityName(cls)
-                + " WHERE " + key.primaryKey().getKey() + "=?",
-            PersistableRowMapper.of(cls),
-            key.primaryKey().getValue());
+    public Optional<E> get(Key key, Class<E> cls) {
+        String sql = String.format("SELECT %s FROM %s WHERE %s = ?", 
+                                    WithSql.getSelectClause(cls, key.primaryKey().getKey()),
+                                    deriveEntityName(cls),
+                                    key.primaryKey().getKey());
+        List<E> list = jdbc.query(sql, PersistableRowMapper.of(cls), key.primaryKey().getValue());
 
-        Optional<E> res = list.stream().findFirst();
-        res.ifPresent(e -> e.setRefs(key));
-        return res;
+        return list.stream().findFirst().map(entity -> {
+            entity.setRefs(key);
+            return entity;
+        });
     }
 
     public List<E> queryEntity(SqlQuery query, Class<E> cls) {
-       var primaryKeyName =  cls.isAnnotationPresent(PrimaryKey.class)
-            ? cls.getAnnotation(PrimaryKey.class).value()
-            : query.getPrimaryKeyName();
-
-        return jdbc.query(
-            "SELECT " + WithSql.getSQLSelectClause(cls, primaryKeyName )
-                + " FROM " + deriveEntityName(cls) + " "
-                + query.sql(), PersistableRowMapper.of(cls), query.values());
+        String sql = String.format("SELECT %s FROM %s %s", 
+                                    WithSql.getSelectClause(cls, query.getPrimaryKeyName()),
+                                    deriveEntityName(cls),
+                                    query.sql());
+        return jdbc.query(sql, PersistableRowMapper.of(cls), query.values());
     }
+
     public List<E> query(SqlQuery query, PersistableMapper<E> mapper) {
         SqlRowSet rs = jdbc.queryForRowSet(query.sql(), query.values());
         List<E> list = new ArrayList<>();
@@ -99,14 +104,13 @@ public abstract class BaseRepository<E extends Persistable> {
 
     protected KeyHolder execWithKey(final String sql, final Object... args) {
         KeyHolder keyHolder = new GeneratedKeyHolder();
-        jdbc.update(
-            connection -> {
-                PreparedStatement stmt = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);
-                for (int i = 0; i < args.length; i++) {
-                    stmt.setObject(i + 1, args[i]);
-                }
-                return stmt;
-            }, keyHolder);
+        jdbc.update(connection -> {
+            PreparedStatement stmt = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);
+            for (int i = 0; i < args.length; i++) {
+                stmt.setObject(i + 1, args[i]);
+            }
+            return stmt;
+        }, keyHolder);
 
         return keyHolder;
     }
@@ -116,9 +120,10 @@ public abstract class BaseRepository<E extends Persistable> {
             return cls.getAnnotation(Named.class).value();
         }
 
-        String name = cls.getSimpleName();
-        //camelToSnake
-        return name.replaceAll("([a-z])([A-Z]+)", "$1_$2").toLowerCase();
+        return camelToSnake(cls.getSimpleName());
     }
 
+    private String camelToSnake(String name) {
+        return name.replaceAll("([a-z])([A-Z]+)", "$1_$2").toLowerCase();
+    }
 }

@@ -28,7 +28,7 @@ import java.util.stream.Stream;
 
 public final class WithSql {
 
-    public static String getSQLSelectClause(Class<?> cls, String... customFields) {
+    public static String getSelectClause(Class<?> cls, String... customFields) {
         List<Method> methods = Arrays.stream(cls.getDeclaredMethods())
             .filter(m -> m.getName().startsWith("get"))
             .filter(m -> getAnnotation(m, cls, Skip.class).isEmpty())
@@ -49,12 +49,13 @@ public final class WithSql {
         return sql.toString();
     }
 
-    public static SqlClause getSQLUpdateClause(Persistable entity) throws SQLException {
+    public static SqlClause getUpdateClause(Persistable entity) throws SQLException {
         try {
             List<Method> methods = Arrays.stream(entity.getClass().getDeclaredMethods())
                 .filter(m -> m.getName().startsWith("get"))
                 .filter(m -> getAnnotation(m, entity.getClass(), Skip.class).isEmpty())
                 .filter(m -> !m.getReturnType().equals(RefValue.class))
+                .filter(m -> !m.getReturnType().equals(Key.class))
                 .sorted(Comparator.comparing(Method::getName))
                 .collect(Collectors.toList());
 
@@ -79,12 +80,13 @@ public final class WithSql {
         }
     }
 
-    public static SqlClause getSQLInsertClause(Persistable entity) throws SQLException {
+    public static SqlClause getInsertClause(Persistable entity) throws SQLException {
         try {
             List<Method> methods = Arrays.stream(entity.getClass().getDeclaredMethods())
                 .filter(m -> m.getName().startsWith("get"))
                 .filter(m -> getAnnotation(m, entity.getClass(), Skip.class).isEmpty())
                 .filter(m -> !m.getReturnType().equals(RefValue.class))
+                .filter(m -> !m.getReturnType().equals(Key.class))
                 .sorted(Comparator.comparing(Method::getName))
                 .collect(Collectors.toList());
 

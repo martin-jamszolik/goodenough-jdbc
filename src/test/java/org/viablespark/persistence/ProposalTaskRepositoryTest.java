@@ -23,8 +23,7 @@ import org.viablespark.persistence.dsl.SqlQuery;
 
 import java.util.Optional;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class ProposalTaskRepositoryTest {
     private EmbeddedDatabase db;
@@ -32,13 +31,13 @@ public class ProposalTaskRepositoryTest {
     @Test
     public void testGetProposalWithTasks(){
         var mapper = new ProposalTaskMapper(); // multi relationship mapping
-        repository.query(SqlQuery.asRawSql(
+        repository.query(SqlQuery.asRaw(
             "select * from proposal_task pt " +
                 "INNER JOIN est_proposal p on ( pt.pr_key = p.pr_key ) "+
                 "INNER JOIN task tsk on (pt.t_key = tsk.t_key) "),
                 mapper );
         mapper.getProposals().forEach(
-            p -> assertTrue(!p.getTasks().isEmpty())
+            p -> assertFalse(p.getTasks().isEmpty())
         );
     }
 

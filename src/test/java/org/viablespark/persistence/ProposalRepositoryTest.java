@@ -121,7 +121,7 @@ public class ProposalRepositoryTest {
     public void testRowQuery(){
         var mapper = new ProposalMapper();
         var results = repository.query(
-            SqlQuery.asRawSql("select * from est_proposal p " +
+            SqlQuery.asRaw("select * from est_proposal p " +
                 "INNER JOIN contractor c on (c.sc_key = p.sc_key) "+
                 "where dist > 0"),
             mapper);
@@ -134,7 +134,7 @@ public class ProposalRepositoryTest {
     public void testRowSetQuery() {
         
         List<Proposal> results = repository.query(SqlQuery
-                .asRawSql("select * from est_proposal"),
+                .asRaw("select * from est_proposal"),
                 (rowSet,row) -> {
                     Proposal e = new Proposal();
                     e.setPr_key(rowSet.getLong("pr_key"));
