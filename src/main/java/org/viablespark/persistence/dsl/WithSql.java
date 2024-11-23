@@ -55,6 +55,7 @@ public final class WithSql {
                 .filter(m -> m.getName().startsWith("get"))
                 .filter(m -> getAnnotation(m, entity.getClass(), Skip.class).isEmpty())
                 .filter(m -> !m.getReturnType().equals(RefValue.class))
+                .filter(m -> !m.getReturnType().equals(Key.class))
                 .sorted(Comparator.comparing(Method::getName))
                 .collect(Collectors.toList());
 
@@ -85,6 +86,7 @@ public final class WithSql {
                 .filter(m -> m.getName().startsWith("get"))
                 .filter(m -> getAnnotation(m, entity.getClass(), Skip.class).isEmpty())
                 .filter(m -> !m.getReturnType().equals(RefValue.class))
+                .filter(m -> !m.getReturnType().equals(Key.class))
                 .sorted(Comparator.comparing(Method::getName))
                 .collect(Collectors.toList());
 

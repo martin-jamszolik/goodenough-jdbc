@@ -20,7 +20,6 @@ import org.springframework.jdbc.support.rowset.SqlRowSet;
 import org.viablespark.persistence.dsl.*;
 
 import java.sql.PreparedStatement;
-import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
@@ -41,12 +40,12 @@ public abstract class BaseRepository<E extends Persistable> {
             } else {
                 return updateEntity(entity);
             }
-        } catch (SQLException e) {
+        } catch (Exception e) {
             throw new RuntimeException("Failed to save entity: " + entity, e);
         }
     }
 
-    private Optional<Key> insertEntity(E entity) throws SQLException {
+    private Optional<Key> insertEntity(E entity) throws Exception {
         SqlClause insertClause = WithSql.getInsertClause(entity);
         String sql = String.format("INSERT INTO %s %s", deriveEntityName(entity.getClass()), insertClause.getClause());
         KeyHolder keyHolder = execWithKey(sql, insertClause.getValues());
@@ -58,7 +57,7 @@ public abstract class BaseRepository<E extends Persistable> {
         return Optional.of(entity.getRefs());
     }
 
-    private Optional<Key> updateEntity(E entity) throws SQLException {
+    private Optional<Key> updateEntity(E entity) throws Exception {
         SqlClause updateClause = WithSql.getUpdateClause(entity);
         String sql = String.format("UPDATE %s %s", deriveEntityName(entity.getClass()), updateClause.getClause());
         jdbc.update(sql, updateClause.getValues());
