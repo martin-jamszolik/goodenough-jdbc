@@ -27,15 +27,15 @@ repositories {
 }
 
 dependencies {
-    compileOnly("org.springframework:spring-jdbc:5.3.33")
+    compileOnly("org.springframework:spring-jdbc:5.3.39")
     compileOnly("org.slf4j:slf4j-api:2.0.5")
 
 
     compileOnly ("com.google.code.findbugs:jsr305:3.0.2")
     testImplementation("org.junit.jupiter:junit-jupiter-api:5.9.1")
     testImplementation("org.hsqldb:hsqldb:2.7.3")
-    testImplementation("org.springframework:spring-jdbc:5.3.33")
-    testImplementation("org.springframework:spring-test:5.3.33")
+    testImplementation("org.springframework:spring-jdbc:5.3.39")
+    testImplementation("org.springframework:spring-test:5.3.39")
     testImplementation("ch.qos.logback:logback-classic:1.5.6")
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.9.1")
     testImplementation("org.mockito:mockito-core:4.10.0")

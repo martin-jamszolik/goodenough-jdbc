@@ -25,7 +25,6 @@ import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.sql.*;
-import java.sql.Date;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
@@ -120,8 +119,12 @@ public class PersistableRowMapper<E extends Persistable> implements PersistableM
         return index;
     }
 
+    protected static boolean isIntegerType(Class<?> parameterType) {
+        return parameterType == int.class || parameterType == Integer.class;
+    }
+
     private static Object interpolateValue(Object value, Class<?> asType) {
-        if (value instanceof Long && (asType == int.class || asType == Integer.class)) {
+        if (value instanceof Long && isIntegerType(asType)) {
             value = Math.toIntExact((Long) value);
         }
 
@@ -208,9 +211,7 @@ public class PersistableRowMapper<E extends Persistable> implements PersistableM
                 new Class[]{ResultSetMetaData.class}, new SqlRowSetMetaDataWrapper(meta));
         }
 
-        private static boolean isIntegerType(Class<?> parameterType) {
-            return parameterType == int.class || parameterType == Integer.class;
-        }
+
 
     }
 
