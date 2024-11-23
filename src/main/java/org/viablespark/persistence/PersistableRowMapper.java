@@ -24,17 +24,16 @@ import org.viablespark.persistence.dsl.WithSql;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
-import java.sql.ResultSet;
-import java.sql.ResultSetMetaData;
-import java.sql.SQLException;
+import java.sql.*;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public class PersistableRowMapper<E extends Persistable> implements PersistableMapper<E> {
     private final BeanPropertyRowMapper<E> propertyMapper;
     private static final Map<Class<? extends Persistable>, PersistableRowMapper<? extends Persistable>>
-        cachedMappers = new HashMap<>();
+        cachedMappers = new ConcurrentHashMap<>();
 
     /**
      * To take advantage of a cached instance of RowMapper use the
@@ -120,8 +119,12 @@ public class PersistableRowMapper<E extends Persistable> implements PersistableM
         return index;
     }
 
+    protected static boolean isIntegerType(Class<?> parameterType) {
+        return parameterType == int.class || parameterType == Integer.class;
+    }
+
     private static Object interpolateValue(Object value, Class<?> asType) {
-        if (value instanceof Long && (asType == int.class || asType == Integer.class)) {
+        if (value instanceof Long && isIntegerType(asType)) {
             value = Math.toIntExact((Long) value);
         }
 
@@ -184,15 +187,22 @@ public class PersistableRowMapper<E extends Persistable> implements PersistableM
         }
 
         @Override
-        public Object invoke(Object o, Method method, Object[] objects) throws Throwable {
+        public Object invoke(Object o, Method method, Object[] args) throws Throwable {
             if (method.getName().equals("getMetaData")) {
                 return proxyMetaData(rows.getMetaData());
             }
+
+            if ( "getObject".equals(method.getName())
+                && args.length == 2
+                && isIntegerType(method.getParameterTypes()[0])
+                && args[1].equals(java.time.LocalDate.class) ){
+                return rows.getDate((Integer)args[0]);
+            }
             var targetMethod = rows.getClass().getMethod(method.getName(), method.getParameterTypes());
             try {
-                return targetMethod.invoke(rows, objects);
+                return targetMethod.invoke(rows, args);
             } catch (Exception ex) {
-                throw new SQLException(ex.getMessage(), ex);
+                throw new SQLException(ex.getMessage(),ex.getCause());
             }
         }
 
@@ -200,6 +210,8 @@ public class PersistableRowMapper<E extends Persistable> implements PersistableM
             return (ResultSetMetaData) Proxy.newProxyInstance(ClassLoader.getSystemClassLoader(),
                 new Class[]{ResultSetMetaData.class}, new SqlRowSetMetaDataWrapper(meta));
         }
+
+
 
     }
 
@@ -211,13 +223,13 @@ public class PersistableRowMapper<E extends Persistable> implements PersistableM
         }
 
         @Override
-        public Object invoke(Object o, Method method, Object[] objects) throws Throwable {
+        public Object invoke(Object o, Method method, Object[] args) throws Throwable {
 
             if (method.getName().contains("getColumnLabel")) {
-                return meta.getColumnLabel((int) objects[0]);
+                return meta.getColumnLabel((int) args[0]);
             }
 
-            return meta.getClass().getMethod(method.getName(), method.getParameterTypes()).invoke(meta, objects);
+            return meta.getClass().getMethod(method.getName(), method.getParameterTypes()).invoke(meta, args);
         }
 
     }

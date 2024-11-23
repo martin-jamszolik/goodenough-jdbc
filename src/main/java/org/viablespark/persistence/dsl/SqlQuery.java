@@ -60,7 +60,7 @@ public class SqlQuery {
     }
     
 
-    public static SqlQuery asRawSql(String sql, Object... values){
+    public static SqlQuery asRaw(String sql, Object... values){
         return new SqlQuery(sql, values);
     }
 

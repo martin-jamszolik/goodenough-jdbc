@@ -34,19 +34,19 @@ public class WithSqlTest {
 
     @Test
     public void testGetSQLSelectClause() {
-        String select = WithSql.getSQLSelectClause(Proposal.class);
+        String select = WithSql.getSelectClause(Proposal.class);
         assertEquals("sc_key,dist as \"distance\",prop_date,prop_id,proposal_name as \"prop_name\",submit_deadline", select);
 
-        String notesSelect  = WithSql.getSQLSelectClause(Note.class,"n_key");
+        String notesSelect  = WithSql.getSelectClause(Note.class,"n_key");
         assertEquals("n_key,note_date as \"date_taken\",additional as \"extra\",note as \"note_content\",progress_id", notesSelect);
 
-        String poSelect  = WithSql.getSQLSelectClause(PurchaseOrder.class);
+        String poSelect  = WithSql.getSelectClause(PurchaseOrder.class);
         assertEquals("some_fake_field as \"fake_field\",long_id as \"long_id\",n_key,po_number_id as \"po_number_id\",primitive_id as \"primitive_example_id\",requester as \"requester\",supplier_id", poSelect);
 
     }
 
     @Test
-    public void testGetSQLUpdateClause() throws Exception {
+    public void testGetUpdateClause() throws Exception {
         Proposal e = new Proposal();
         e.setRefs( Key.of("pri_key",233L) );
         e.setDistance(344);
@@ -56,7 +56,7 @@ public class WithSqlTest {
         e.setPropName("TestingName");
         e.setContractor(new Contractor("sc_key",1L));
         
-        SqlClause update = WithSql.getSQLUpdateClause(e);
+        SqlClause update = WithSql.getUpdateClause(e);
         assertNotNull(update);
         
         assertEquals(
@@ -65,7 +65,7 @@ public class WithSqlTest {
 
         Exception thrown = assertThrows(
             Exception.class,
-            () -> WithSql.getSQLUpdateClause(null),
+            () -> WithSql.getUpdateClause(null),
             "Should throw Exception"
         );
 
@@ -75,11 +75,11 @@ public class WithSqlTest {
     }
 
     @Test
-    public void testGetSQLUpdateClauseForPurchaseOrder() throws Exception {
+    public void testGetUpdateClauseForPurchaseOrder() throws Exception {
         PurchaseOrder order = new PurchaseOrder();
         order.setRefs( Key.of("id",233L) );
         order.setNote(new Note());
-        SqlClause update = WithSql.getSQLUpdateClause(order);
+        SqlClause update = WithSql.getUpdateClause(order);
         assertNotNull(update);
 
         assertEquals(
@@ -89,12 +89,12 @@ public class WithSqlTest {
     }
 
     @Test
-    public void testGetSQLInsertClauseForPurchaseOrder() throws Exception {
+    public void testGetInsertClauseForPurchaseOrder() throws Exception {
         PurchaseOrder order = new PurchaseOrder();
         order.setRefs( Key.of("id",233L) );
         order.setRequester("Requester Name");
 
-        SqlClause insert = WithSql.getSQLInsertClause(order);
+        SqlClause insert = WithSql.getInsertClause(order);
         assertNotNull(insert);
 
         assertEquals(
@@ -104,7 +104,7 @@ public class WithSqlTest {
 
 
     @Test
-    public void testGetSQLInsertClause() throws Exception {
+    public void testGetInsertClause() throws Exception {
         Proposal e = new Proposal();
         e.setRefs(Key.of("pri_key",233L));
         e.setDistance(344);
@@ -114,7 +114,7 @@ public class WithSqlTest {
         e.setPropName("TestingName");
         e.setContractor(new Contractor("sc_key",1L));
         
-        SqlClause insert = WithSql.getSQLInsertClause(e);
+        SqlClause insert = WithSql.getInsertClause(e);
         assertNotNull(insert);
         
         assertEquals(
@@ -123,7 +123,7 @@ public class WithSqlTest {
 
         Exception thrown = assertThrows(
             Exception.class,
-            () -> WithSql.getSQLInsertClause(null),
+            () -> WithSql.getInsertClause(null),
             "Should throw Exception"
         );
 

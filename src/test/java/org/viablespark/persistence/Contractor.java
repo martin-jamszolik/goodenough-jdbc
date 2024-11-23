@@ -17,9 +17,9 @@ import org.viablespark.persistence.dsl.Named;
 import org.viablespark.persistence.dsl.PrimaryKey;
 
 /*
-* Contractor entity demonstrates that you don't have to expend from Model.
-* There are situations where you cannot extend your object as it has already been extended.
-* No worries, just use the interface and provide an instance of Data object to hold keys.
+* Contractor entity demonstrates that you don't have to extend from Model.
+* There are situations where you cannot extend your object.
+* Use the interface and provide an instance of Data object to hold keys.
  */
 @PrimaryKey("sc_key")
 public class Contractor implements Persistable {
