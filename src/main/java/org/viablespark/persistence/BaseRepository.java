@@ -86,8 +86,11 @@ public abstract class BaseRepository<E extends Persistable> {
     }
 
     public List<E> queryEntity(SqlQuery query, Class<E> cls) {
+        var primaryKeyName =  cls.isAnnotationPresent(PrimaryKey.class)
+            ? cls.getAnnotation(PrimaryKey.class).value()
+            : query.getPrimaryKeyName();
         String sql = String.format("SELECT %s FROM %s %s", 
-                                    WithSql.getSelectClause(cls, query.getPrimaryKeyName()),
+                                    WithSql.getSelectClause(cls, primaryKeyName),
                                     deriveEntityName(cls),
                                     query.sql());
         return jdbc.query(sql, PersistableRowMapper.of(cls), query.values());
