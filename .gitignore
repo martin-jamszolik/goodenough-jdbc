@@ -4,6 +4,7 @@ bin/
 !**/src/main/**/target/
 !**/src/test/**/target/
 .gradle
+*.orig
 
 ### IntelliJ IDEA ###
 .idea

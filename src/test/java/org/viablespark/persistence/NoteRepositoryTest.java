@@ -67,9 +67,22 @@ public class NoteRepositoryTest {
         var found = repository.queryEntity(SqlQuery
             .withClause("WHERE progress_id = ?", 1)
             .primaryKey("n_key"),Note.class);
-
        assertTrue( found.size() > 1);
+
     }
+
+    @Test
+    public void testQueryOnNotePersistable() throws Exception {
+        var repo = new BaseRepository<NotePersistable>(new JdbcTemplate(db)){};
+
+        var plainFound = repo.queryEntity(SqlQuery
+            .withClause("WHERE progress_id = ?", 1)
+            .primaryKey("n_key"), NotePersistable.class);
+
+        assertTrue( plainFound.size() > 1);
+    }
+
+
 
     @Test
     public void testUsingPersistableInAMap() throws Exception {
