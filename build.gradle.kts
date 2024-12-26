@@ -17,7 +17,7 @@ plugins {
     id("maven-publish")
 }
 
-var libReleaseVersion = "1.7.1"
+var libReleaseVersion = "1.7.2"
 
 group = "org.viablespark"
 version = libReleaseVersion
