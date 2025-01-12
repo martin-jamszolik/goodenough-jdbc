@@ -1,4 +1,4 @@
-# Contributing  to the Vivid Web Application
+# Contributing
 
 First off, thank you for taking the time to contribute! :+1:
 
@@ -23,7 +23,7 @@ Please report unacceptable behavior to the owner of the project
 #### Discuss
 
 If you believe there is an issue, search through
-[existing issues](https://github.com/martin-jamszolik/vidid-web-app/issues) trying a
+[existing issues](https://github.com/martin-jamszolik/goodenough-jdbc/issues) trying a
 few different ways to find discussions, past or current, that are related to the issue.
 Reading those discussions helps you to learn about the issue, and helps us to make a
 decision.
@@ -35,7 +35,7 @@ Reporting an issue or making a feature request is a great way to contribute. You
 and the conversations that result from it provide a continuous flow of ideas.
 
 Once you're ready, create an issue on
-[GitHub](https://github.com/martin-jamszolik/vidid-web-app/issues).
+[GitHub](https://github.com/martin-jamszolik/goodenough-jdbc/issues).
 
 #### Issue Lifecycle
 
@@ -58,7 +58,7 @@ follow-up reports will need to be created as new issues with a fresh description
    created, we will close the issue as superseded by the pull request, and the discussion
    about the issue will continue under the pull request.
 
-1. Always check out the `master` branch and submit pull requests against it
+1. Always check out the `main` branch and submit pull requests against it
    (for target version see [settings.gradle.kts](settings.gradle.kts)).
    Backports to prior versions will be considered on a case-by-case basis and reflected as
    the fix version in the issue tracker.
@@ -93,6 +93,4 @@ committer for the Project.
 
 ### Build from Source
 
-See the [HELP.md](https://github.com/martin-jamszolik/vidid-web-app/HELP.md) 
-for instructions on how to check out, build, and import the web application project
-source code into your IDE.
+See build.gradle.kts
