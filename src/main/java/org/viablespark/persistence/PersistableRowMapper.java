@@ -32,8 +32,9 @@ import java.util.stream.Stream;
 
 public class PersistableRowMapper<E extends Persistable> implements PersistableMapper<E> {
     private final BeanPropertyRowMapper<E> propertyMapper;
+    private static final Map<SqlRowSet, ResultSet> proxyCache = new WeakHashMap<>();
     private static final Map<Class<? extends Persistable>, PersistableRowMapper<? extends Persistable>>
-        cachedMappers = new ConcurrentHashMap<>();
+        cachedMappers = new ConcurrentHashMap<>(100, 0.75f, 16);
 
     /**
      * To take advantage of a cached instance of RowMapper use the
@@ -85,10 +86,10 @@ public class PersistableRowMapper<E extends Persistable> implements PersistableM
 
     private void assignNamedFields(Persistable entity, ResultSet rs) throws Exception {
         List<Method> methods = Arrays.stream(entity.getClass().getDeclaredMethods())
-            .filter(m -> m.getName().startsWith("get"))
-            .filter(m -> WithSql.getAnnotation(m, entity.getClass(), Named.class).isPresent())
-            .filter(m -> WithSql.getAnnotation(m, entity.getClass(), Ref.class).isEmpty())
-            .filter(m -> !m.getReturnType().equals(RefValue.class))
+            .filter(m -> m.getName().startsWith("get")
+                && WithSql.getAnnotation(m, entity.getClass(), Named.class).isPresent()
+                && WithSql.getAnnotation(m, entity.getClass(), Ref.class).isEmpty()
+                && !m.getReturnType().equals(RefValue.class))
             .collect(Collectors.toList());
 
         for (Method m : methods) {
@@ -140,10 +141,22 @@ public class PersistableRowMapper<E extends Persistable> implements PersistableM
             .filter(m -> WithSql.getAnnotation(m, entity.getClass(), Ref.class).isPresent())
             .filter(m -> m.getReturnType().isAnnotationPresent(PrimaryKey.class) || m.getReturnType().equals(RefValue.class))
             .collect(Collectors.toList());
+
+        // Cache reflection results
+        Map<Method, Class<?>> foreignTypes = new HashMap<>();
+        Map<Method, Optional<Named>> namedOptions = new HashMap<>();
+        Map<Method, Ref> refs = new HashMap<>();
+
         for (Method m : methods) {
-            Class<?> foreignType = m.getReturnType();
-            var namedOption = WithSql.getAnnotation(m, entity.getClass(), Named.class);
-            var ref = WithSql.getAnnotation(m, entity.getClass(), Ref.class).orElseThrow();
+            foreignTypes.put(m, m.getReturnType());
+            namedOptions.put(m, WithSql.getAnnotation(m, entity.getClass(), Named.class));
+            refs.put(m, WithSql.getAnnotation(m, entity.getClass(), Ref.class).orElseThrow());
+        }
+
+        for (Method m : methods) {
+            Class<?> foreignType = foreignTypes.get(m);
+            var namedOption = namedOptions.get(m);
+            var ref = refs.get(m);
 
             if (foreignType.equals(RefValue.class)) {
 
@@ -175,8 +188,10 @@ public class PersistableRowMapper<E extends Persistable> implements PersistableM
 
 
     private static ResultSet proxy(SqlRowSet on) {
-        return (ResultSet) Proxy.newProxyInstance(ClassLoader.getSystemClassLoader(),
-            new Class[]{ResultSet.class}, new SqlRowSetWrapper(on));
+        return proxyCache.computeIfAbsent(on, key ->
+            (ResultSet) Proxy.newProxyInstance(ClassLoader.getSystemClassLoader(),
+                new Class[]{ResultSet.class}, new SqlRowSetWrapper(key))
+        );
     }
 
     private static class SqlRowSetWrapper implements InvocationHandler {
@@ -187,7 +202,7 @@ public class PersistableRowMapper<E extends Persistable> implements PersistableM
         }
 
         @Override
-        public Object invoke(Object o, Method method, Object[] args) throws Throwable {
+        public Object invoke(Object target, Method method, Object[] args) throws Throwable {
             if (method.getName().equals("getMetaData")) {
                 return proxyMetaData(rows.getMetaData());
             }
@@ -202,7 +217,7 @@ public class PersistableRowMapper<E extends Persistable> implements PersistableM
             try {
                 return targetMethod.invoke(rows, args);
             } catch (Exception ex) {
-                throw new SQLException(ex.getMessage(),ex.getCause());
+                throw new SQLException(ex.getMessage(), ex);
             }
         }
 
@@ -224,11 +239,9 @@ public class PersistableRowMapper<E extends Persistable> implements PersistableM
 
         @Override
         public Object invoke(Object o, Method method, Object[] args) throws Throwable {
-
-            if (method.getName().contains("getColumnLabel")) {
+            if (method.getName().equals("getColumnLabel")) {
                 return meta.getColumnLabel((int) args[0]);
             }
-
             return meta.getClass().getMethod(method.getName(), method.getParameterTypes()).invoke(meta, args);
         }
 
