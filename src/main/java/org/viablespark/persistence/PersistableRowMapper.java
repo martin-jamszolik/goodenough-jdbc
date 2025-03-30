@@ -32,7 +32,6 @@ import java.util.stream.Stream;
 
 public class PersistableRowMapper<E extends Persistable> implements PersistableMapper<E> {
     private final BeanPropertyRowMapper<E> propertyMapper;
-    private final Map<String, Integer> columnIndexCache = new HashMap<>();
     private static final Map<SqlRowSet, ResultSet> proxyCache = new WeakHashMap<>();
     private static final Map<Class<? extends Persistable>, PersistableRowMapper<? extends Persistable>>
         cachedMappers = new ConcurrentHashMap<>(100, 0.75f, 16);
@@ -109,20 +108,16 @@ public class PersistableRowMapper<E extends Persistable> implements PersistableM
     }
 
     private int columnIndex(ResultSet rs, String columnName) throws SQLException {
-        if (columnIndexCache.containsKey(columnName)) {
-            return columnIndexCache.get(columnName);
-        }
-
         ResultSetMetaData metaData = rs.getMetaData();
         int columnCount = metaData.getColumnCount();
+        int index = -1;
         for (int i = 1; i <= columnCount; i++) {
-            String currentColumnName = metaData.getColumnName(i);
-            columnIndexCache.put(currentColumnName.toLowerCase(), i);
-            if (currentColumnName.equalsIgnoreCase(columnName)) {
-                return i;
+            if (metaData.getColumnName(i).equalsIgnoreCase(columnName)) {
+                index = i;
+                break;
             }
         }
-        return -1;
+        return index;
     }
 
     protected static boolean isIntegerType(Class<?> parameterType) {
