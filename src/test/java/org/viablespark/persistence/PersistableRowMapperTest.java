@@ -19,6 +19,7 @@ import org.springframework.jdbc.datasource.embedded.EmbeddedDatabase;
 import org.springframework.jdbc.datasource.embedded.EmbeddedDatabaseBuilder;
 import org.springframework.jdbc.support.rowset.SqlRowSet;
 
+import java.sql.SQLException;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -106,6 +107,31 @@ class PersistableRowMapperTest {
             assertNotNull(po);
         }
 
+    }
+
+    @Test
+    public void testMissingLabelColumnForRefValueThrowsException() throws Exception {
+        var mapper = PersistableRowMapper.of(PurchaseOrder.class);
+        String sql = "select id, n_key, supplier_id from purchase_order";
+        try (var conn = db.getConnection(); var stmt = conn.prepareStatement(sql)) {
+            var rs = stmt.executeQuery();
+            rs.next();
+            SQLException ex = assertThrows(SQLException.class, () -> mapper.mapRow(rs, rs.getRow()));
+            org.junit.jupiter.api.Assertions.assertTrue(ex.getMessage().contains("sup_name"));
+        }
+    }
+
+    @Test
+    public void testMissingForeignKeyColumnForRefThrowsException() throws Exception {
+        var mapper = PersistableRowMapper.of(PurchaseOrder.class);
+        String sql = "select purchase_order.id, purchase_order.supplier_id, supplier.sup_name " +
+            "from purchase_order join supplier on (supplier.id = purchase_order.supplier_id)";
+        try (var conn = db.getConnection(); var stmt = conn.prepareStatement(sql)) {
+            var rs = stmt.executeQuery();
+            rs.next();
+            SQLException ex = assertThrows(SQLException.class, () -> mapper.mapRow(rs, rs.getRow()));
+            org.junit.jupiter.api.Assertions.assertTrue(ex.getMessage().contains("n_key"));
+        }
     }
 
 

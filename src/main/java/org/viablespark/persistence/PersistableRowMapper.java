@@ -159,6 +159,25 @@ public class PersistableRowMapper<E extends Persistable> implements PersistableM
             var ref = refs.get(m);
 
             if (foreignType.equals(RefValue.class)) {
+                if (ref.value().isBlank() || ref.label().isBlank()) {
+                    throw new IllegalArgumentException(String.format(
+                        "@Ref on %s.%s requires both value and label when used with RefValue",
+                        entity.getClass().getSimpleName(), m.getName()));
+                }
+
+                int valueIdx = columnIndex(rs, ref.value());
+                if (valueIdx < 0) {
+                    throw new SQLException(String.format(
+                        "Column '%s' required for @Ref on %s.%s not found in result set",
+                        ref.value(), entity.getClass().getSimpleName(), m.getName()));
+                }
+
+                int labelIdx = columnIndex(rs, ref.label());
+                if (labelIdx < 0) {
+                    throw new SQLException(String.format(
+                        "Column '%s' required for @Ref label on %s.%s not found in result set",
+                        ref.label(), entity.getClass().getSimpleName(), m.getName()));
+                }
 
                 Method setterMethod = entity.getClass().getDeclaredMethod(
                     m.getName().replace("get", "set"), foreignType);
@@ -177,7 +196,13 @@ public class PersistableRowMapper<E extends Persistable> implements PersistableM
             if (namedOption.isPresent()) {
                 columnName = namedOption.get().value();
             }
-            var pkValue = rs.getLong(columnName);
+            int columnIdx = columnIndex(rs, columnName);
+            if (columnIdx < 0) {
+                throw new SQLException(String.format(
+                    "Column '%s' required for @Ref on %s.%s not found in result set",
+                    columnName, entity.getClass().getSimpleName(), m.getName()));
+            }
+            var pkValue = rs.getLong(columnIdx);
             var fkInstance = foreignType.getDeclaredConstructor().newInstance();
             ((Persistable) fkInstance).setRefs(Key.of(pkName, pkValue));
             Method setterMethod = entity.getClass().getDeclaredMethod(
