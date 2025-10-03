@@ -13,6 +13,24 @@
 
 package org.viablespark.persistence;
 
+import java.lang.reflect.InvocationHandler;
+import java.lang.reflect.Method;
+import java.lang.reflect.Proxy;
+import java.sql.ResultSet;
+import java.sql.ResultSetMetaData;
+import java.sql.SQLException;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.WeakHashMap;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
 import org.springframework.jdbc.core.BeanPropertyRowMapper;
 import org.springframework.jdbc.support.rowset.SqlRowSet;
 import org.springframework.jdbc.support.rowset.SqlRowSetMetaData;
@@ -21,18 +39,9 @@ import org.viablespark.persistence.dsl.PrimaryKey;
 import org.viablespark.persistence.dsl.Ref;
 import org.viablespark.persistence.dsl.WithSql;
 
-import java.lang.reflect.InvocationHandler;
-import java.lang.reflect.Method;
-import java.lang.reflect.Proxy;
-import java.sql.*;
-import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
-
 public class PersistableRowMapper<E extends Persistable> implements PersistableMapper<E> {
     private final BeanPropertyRowMapper<E> propertyMapper;
-    private static final Map<SqlRowSet, ResultSet> proxyCache = new WeakHashMap<>();
+    private static final Map<SqlRowSet, ResultSet> proxyCache = Collections.synchronizedMap(new WeakHashMap<>());
     private static final Map<Class<? extends Persistable>, PersistableRowMapper<? extends Persistable>>
         cachedMappers = new ConcurrentHashMap<>(100, 0.75f, 16);
 
@@ -68,7 +77,7 @@ public class PersistableRowMapper<E extends Persistable> implements PersistableM
     public E mapRow(SqlRowSet rs, int rowNum) {
         try {
             return mapRow(proxy(rs), rowNum);
-        } catch (Exception ex) {
+        } catch (SQLException ex) {
             throw new RuntimeException(ex.getMessage(), ex);
         }
     }
@@ -125,13 +134,26 @@ public class PersistableRowMapper<E extends Persistable> implements PersistableM
     }
 
     private static Object interpolateValue(Object value, Class<?> asType) {
+        if (value == null) {
+            return null;
+        }
+
         if (value instanceof Long && isIntegerType(asType)) {
-            value = Math.toIntExact((Long) value);
+            return Math.toIntExact((Long) value);
         }
 
         if (asType == java.time.LocalDate.class) {
-            value = ((java.sql.Date) value).toLocalDate();
+            if (value instanceof java.sql.Date date) {
+                return date.toLocalDate();
+            }
+            if (value instanceof java.sql.Timestamp timestamp) {
+                return timestamp.toLocalDateTime().toLocalDate();
+            }
+            if (value instanceof java.time.LocalDate) {
+                return value;
+            }
         }
+
         return value;
     }
 
@@ -214,7 +236,7 @@ public class PersistableRowMapper<E extends Persistable> implements PersistableM
 
     private static ResultSet proxy(SqlRowSet on) {
         return proxyCache.computeIfAbsent(on, key ->
-            (ResultSet) Proxy.newProxyInstance(ClassLoader.getSystemClassLoader(),
+            (ResultSet) Proxy.newProxyInstance(key.getClass().getClassLoader(),
                 new Class[]{ResultSet.class}, new SqlRowSetWrapper(key))
         );
     }
@@ -227,6 +249,7 @@ public class PersistableRowMapper<E extends Persistable> implements PersistableM
         }
 
         @Override
+        @SuppressWarnings("UseSpecificCatch")
         public Object invoke(Object target, Method method, Object[] args) throws Throwable {
             if (method.getName().equals("getMetaData")) {
                 return proxyMetaData(rows.getMetaData());
@@ -247,7 +270,7 @@ public class PersistableRowMapper<E extends Persistable> implements PersistableM
         }
 
         static ResultSetMetaData proxyMetaData(SqlRowSetMetaData meta) {
-            return (ResultSetMetaData) Proxy.newProxyInstance(ClassLoader.getSystemClassLoader(),
+            return (ResultSetMetaData) Proxy.newProxyInstance(meta.getClass().getClassLoader(),
                 new Class[]{ResultSetMetaData.class}, new SqlRowSetMetaDataWrapper(meta));
         }
 
