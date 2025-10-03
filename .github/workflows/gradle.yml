@@ -40,10 +40,12 @@ jobs:
             ${{ runner.os }}-gradle-
 
     - name: Build with Gradle
-      uses: gradle/gradle-build-action@v3
+      uses: gradle/actions/setup-gradle@v4
       with:
-         gradle-version: current
-         arguments: build
+         gradle-version: '8'
+  
+    - name: Execute Gradle build
+      run: ./gradlew build
 
     - name: Run Test Coverage
       run: ./gradlew jacocoTestReport
