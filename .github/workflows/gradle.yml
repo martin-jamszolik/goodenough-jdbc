@@ -42,7 +42,7 @@ jobs:
     - name: Build with Gradle
       uses: gradle/actions/setup-gradle@v4
       with:
-         gradle-version: '8'
+         gradle-version: '8.14.3'
   
     - name: Execute Gradle build
       run: ./gradlew build
