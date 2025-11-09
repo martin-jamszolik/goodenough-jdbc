@@ -6,6 +6,14 @@
 
 `goodenough-jdbc` is a lightweight, flexible library designed for **schema-first** databases, offering a middle ground between raw SQL and heavy ORM frameworks. It enhances and simplifies the `spring-jdbc` framework, simplifying common database operations without introducing unnecessary complexity.
 
+### ⚠️ Java 11 Compatibility Notice
+
+**This branch (1.x line) is frozen for Java 11 compatibility.** The 1.x version line will receive feature backports and bug fixes for as long as they can be maintained while:
+- Remaining compatible with Java 11
+- Maintaining compatibility with Spring Framework versions that support Java 11
+
+**The main branch has moved forward with the 2.x release line,** which tracks the latest Java LTS versions starting with **Java 21**. Future releases will continue to follow Java LTS versions as they become available.
+
 ## Why Use Good Enough JDBC?
 
 Modern ORM frameworks like [KTorm](https://www.ktorm.org/), [Django](https://docs.djangoproject.com/en/5.0/topics/db/), [Spring Data JPA](https://spring.io/projects/spring-data-jpa), and [Rails Active Record](https://guides.rubyonrails.org/active_record_basics.html) often:
