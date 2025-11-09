@@ -25,9 +25,15 @@ public interface Persistable {
         }
         return getRefs().primaryKey().getValue();
     }
+    default void setId(Long value) {
+        if( getRefs()==null || getRefs() == Key.None ){
+           return;
+        }
+        getRefs().primaryKey().setValue(value);
+    }
 
     default boolean isNew() {
-        return getRefs() == Key.None;
+        return (getRefs() == Key.None || getRefs() == null);
     }
 
 }
