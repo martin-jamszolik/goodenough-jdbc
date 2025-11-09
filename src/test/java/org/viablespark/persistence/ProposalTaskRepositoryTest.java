@@ -13,7 +13,11 @@
 
 package org.viablespark.persistence;
 
+import java.util.Optional;
+
 import org.junit.jupiter.api.AfterEach;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -21,17 +25,13 @@ import org.springframework.jdbc.datasource.embedded.EmbeddedDatabase;
 import org.springframework.jdbc.datasource.embedded.EmbeddedDatabaseBuilder;
 import org.viablespark.persistence.dsl.SqlQuery;
 
-import java.util.Optional;
-
-import static org.junit.jupiter.api.Assertions.*;
-
 public class ProposalTaskRepositoryTest {
     private EmbeddedDatabase db;
     private ProposalTaskRepository repository;
     @Test
     public void testGetProposalWithTasks(){
         var mapper = new ProposalTaskMapper(); // multi relationship mapping
-        repository.query(SqlQuery.asRaw(
+        repository.query(SqlQuery.raw(
             "select * from proposal_task pt " +
                 "INNER JOIN est_proposal p on ( pt.pr_key = p.pr_key ) "+
                 "INNER JOIN task tsk on (pt.t_key = tsk.t_key) "),

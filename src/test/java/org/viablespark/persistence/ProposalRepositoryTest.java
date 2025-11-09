@@ -13,7 +13,15 @@
 
 package org.viablespark.persistence;
 
+import java.time.LocalDate;
+import java.util.Date;
+import java.util.List;
+import java.util.Optional;
+
 import org.junit.jupiter.api.AfterEach;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
@@ -24,13 +32,6 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.embedded.EmbeddedDatabase;
 import org.springframework.jdbc.datasource.embedded.EmbeddedDatabaseBuilder;
 import org.viablespark.persistence.dsl.SqlQuery;
-
-import java.time.LocalDate;
-import java.util.Date;
-import java.util.List;
-import java.util.Optional;
-
-import static org.junit.jupiter.api.Assertions.*;
 
 @TestInstance(Lifecycle.PER_CLASS)
 public class ProposalRepositoryTest {
@@ -108,8 +109,8 @@ public class ProposalRepositoryTest {
     @Test
     public void testQuery() {
 
-        List<Proposal> results = repository.queryEntity(SqlQuery
-                .withClause("WHERE dist >= ?", 10),Proposal.class);
+    List<Proposal> results = repository.queryEntity(new SqlQuery()
+        .where("dist >= ?", 10), Proposal.class);
 
         assertEquals(3, results.size());
         
@@ -121,7 +122,7 @@ public class ProposalRepositoryTest {
     public void testRowQuery(){
         var mapper = new ProposalMapper();
         var results = repository.query(
-            SqlQuery.asRaw("select * from est_proposal p " +
+            SqlQuery.raw("select * from est_proposal p " +
                 "INNER JOIN contractor c on (c.sc_key = p.sc_key) "+
                 "where dist > 0"),
             mapper);
@@ -133,8 +134,8 @@ public class ProposalRepositoryTest {
     @Test
     public void testRowSetQuery() {
         
-        List<Proposal> results = repository.query(SqlQuery
-                .asRaw("select * from est_proposal"),
+    List<Proposal> results = repository.query(SqlQuery
+        .raw("select * from est_proposal"),
                 (rowSet,row) -> {
                     Proposal e = new Proposal();
                     e.setPr_key(rowSet.getLong("pr_key"));

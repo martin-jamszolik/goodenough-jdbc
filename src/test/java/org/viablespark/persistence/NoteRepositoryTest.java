@@ -13,20 +13,21 @@
 
 package org.viablespark.persistence;
 
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.util.HashMap;
+import java.util.Map;
+
 import org.junit.jupiter.api.AfterEach;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.embedded.EmbeddedDatabase;
 import org.springframework.jdbc.datasource.embedded.EmbeddedDatabaseBuilder;
 import org.viablespark.persistence.dsl.SqlQuery;
-
-import java.math.BigDecimal;
-import java.time.LocalDate;
-import java.util.HashMap;
-import java.util.Map;
-
-import static org.junit.jupiter.api.Assertions.*;
 
 public class NoteRepositoryTest {
 
@@ -64,9 +65,9 @@ public class NoteRepositoryTest {
 
     @Test
     public void testQueryNote() throws Exception {
-        var found = repository.queryEntity(SqlQuery
-            .withClause("WHERE progress_id = ?", 1)
-            .primaryKey("n_key"),Note.class);
+        var found = repository.queryEntity(new SqlQuery()
+            .where("progress_id = ?", 1)
+            .primaryKey("n_key"), Note.class);
        assertTrue( found.size() > 1);
 
     }
@@ -75,8 +76,8 @@ public class NoteRepositoryTest {
     public void testQueryOnNotePersistable() throws Exception {
         var repo = new BaseRepository<NotePersistable>(new JdbcTemplate(db)){};
 
-        var plainFound = repo.queryEntity(SqlQuery
-            .withClause("WHERE progress_id = ?", 1)
+        var plainFound = repo.queryEntity(new SqlQuery()
+            .where("progress_id = ?", 1)
             .primaryKey("n_key"), NotePersistable.class);
 
         assertTrue( plainFound.size() > 1);

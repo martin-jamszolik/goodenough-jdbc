@@ -14,10 +14,10 @@
 package org.viablespark.persistence.dsl;
 
 import java.util.Date;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.Test;
-
-
-import static org.junit.jupiter.api.Assertions.*;
 
 /**
  *
@@ -29,8 +29,8 @@ public class SqlQueryTest {
     }
 
     @Test
-    public void testWithClause() {
-        SqlQuery q = SqlQuery.withClause("WHERE pri_key=? AND sec_date >=?", 233L,new Date());
+    public void testClause() {
+        SqlQuery q = new SqlQuery().clause("WHERE pri_key=? AND sec_date >=?", 233L, new Date());
 
         String result = q.sql();
         assertEquals("WHERE pri_key=? AND sec_date >=?", result);
@@ -38,9 +38,11 @@ public class SqlQueryTest {
 
     @Test
     public void testCondition() {
-        SqlQuery q = SqlQuery.withClause("WHERE pri_key=? AND sec_date >=?", 233L,new Date());
-        q.condition(" OR (other_key =?", 23L)
-                .condition("AND something !=?)", "elseHere");
+        SqlQuery q = new SqlQuery()
+            .where("pri_key=?", 233L)
+            .andWhere("sec_date >=?", new Date())
+            .orWhere("(other_key =?", 23L)
+            .andWhere("something !=?)", "elseHere");
 
         String result = q.sql();
         assertEquals("WHERE pri_key=? AND sec_date >=? OR (other_key =? AND something !=?)", result);
@@ -48,15 +50,19 @@ public class SqlQueryTest {
 
     @Test
     public void testOrderBy() {
-        SqlQuery q = SqlQuery.withClause("WHERE pri_key=? AND sec_date >=?", 233L, new Date());
-        String result = q.orderBy("testColumn", "desc").sql();
+        SqlQuery q = new SqlQuery()
+            .where("pri_key=?", 233L)
+            .andWhere("sec_date >=?", new Date());
+        String result = q.orderBy("testColumn", SqlQuery.Direction.DESC).sql();
         assertEquals("WHERE pri_key=? AND sec_date >=? ORDER BY testColumn desc", result);
     }
 
     @Test
     public void testLimit() {
-        SqlQuery q = SqlQuery.withClause("WHERE pri_key=? AND sec_date >=?", 233L,new Date());
-        String result = q.limit("5", "").sql();
+        SqlQuery q = new SqlQuery()
+            .where("pri_key=?", 233L)
+            .andWhere("sec_date >=?", new Date());
+        String result = q.limit(5).sql();
         assertEquals("WHERE pri_key=? AND sec_date >=? LIMIT 5", result);
     }
 
@@ -64,21 +70,20 @@ public class SqlQueryTest {
     public void testDynamicQuery() {
         String name = "123 main";
 
-        var query = SqlQuery.withSelect("SELECT COUNT(*)");
-        query.clause("FROM 1_proposalproject p "
-            +"INNER JOIN company c using(c_key) "
-            +"INNER JOIN 1_estlocation el using(el_key) "
-            +"INNER JOIN estimator e using(e_key)",null);
-
-        query.clause("WHERE pp_key IS NOT NULL ",null);
-
-        query.condition("AND pp_name like ? ","%"+name+"%");
+        var query = new SqlQuery()
+            .select("SELECT COUNT(*)")
+            .from("1_proposalproject p")
+            .join("INNER JOIN company c using(c_key)")
+            .join("INNER JOIN 1_estlocation el using(el_key)")
+            .join("INNER JOIN estimator e using(e_key)")
+            .where("pp_key IS NOT NULL")
+            .andWhere("pp_name like ?", "%" + name + "%");
 
         assertTrue(query.sql().contains("SELECT COUNT(*) FROM 1_proposalproject p") );
         assertEquals(1, query.values().length);
         assertTrue(query.sql().contains("INNER JOIN estimator e using(e_key) WHERE pp_key IS NOT NULL AND pp_name like ?") );
 
-        query.select( "SELECT p.pp_key, pp_name, tax, pp_status, pp_date, pp_owner");
+        query.select("SELECT p.pp_key, pp_name, tax, pp_status, pp_date, pp_owner");
         query.paginate(20,0);
 
         assertTrue(query.sql().contains("SELECT p.pp_key, pp_name, tax, pp_status, pp_date, pp_owner FROM 1_proposalproject p") );
