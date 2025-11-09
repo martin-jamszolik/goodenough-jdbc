@@ -13,18 +13,23 @@
 
 package org.viablespark.persistence.dsl;
 
-import org.viablespark.persistence.Key;
-import org.viablespark.persistence.Pair;
-import org.viablespark.persistence.Persistable;
-import org.viablespark.persistence.RefValue;
-
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.sql.SQLException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+
+import org.viablespark.persistence.Key;
+import org.viablespark.persistence.Pair;
+import org.viablespark.persistence.Persistable;
+import org.viablespark.persistence.RefValue;
 
 public final class WithSql {
 
@@ -175,6 +180,7 @@ public final class WithSql {
 
     public static Optional<String> getPrimaryKey(Class<?> cls ){
         return Stream.of(cls, cls.getSuperclass())
+            .filter(Objects::nonNull)
             .filter(tp -> tp.isAnnotationPresent(PrimaryKey.class))
             .map(tp -> tp.getAnnotation(PrimaryKey.class).value()).findFirst();
     }

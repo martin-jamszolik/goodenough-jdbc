@@ -14,6 +14,7 @@
 package org.viablespark.persistence;
 
 import java.lang.reflect.InvocationHandler;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.sql.ResultSet;
@@ -31,6 +32,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.jdbc.core.BeanPropertyRowMapper;
 import org.springframework.jdbc.support.rowset.SqlRowSet;
 import org.springframework.jdbc.support.rowset.SqlRowSetMetaData;
@@ -41,6 +44,8 @@ import org.viablespark.persistence.dsl.WithSql;
 
 public class PersistableRowMapper<E extends Persistable> implements PersistableMapper<E> {
     private final BeanPropertyRowMapper<E> propertyMapper;
+    private final Class<E> mappedType;
+    private static final Logger log = LoggerFactory.getLogger(PersistableRowMapper.class);
     private static final Map<SqlRowSet, ResultSet> proxyCache = Collections.synchronizedMap(new WeakHashMap<>());
     private static final Map<Class<? extends Persistable>, PersistableRowMapper<? extends Persistable>>
         cachedMappers = new ConcurrentHashMap<>(100, 0.75f, 16);
@@ -50,6 +55,7 @@ public class PersistableRowMapper<E extends Persistable> implements PersistableM
      * static method of() instead to create an instance.
      */
     private PersistableRowMapper(Class<E> cls) {
+        this.mappedType = cls;
         this.propertyMapper = new BeanPropertyRowMapper<>(cls);
     }
 
@@ -69,16 +75,23 @@ public class PersistableRowMapper<E extends Persistable> implements PersistableM
             assignNamedFields(bean, rs);
             return bean;
         } catch (Exception ex) {
-            throw new SQLException(ex.getMessage(), ex);
+            String message = String.format("Failed to map result set row %d to %s: %s",
+                rowNum, mappedType.getName(), ex.getMessage());
+            log.error(message, ex);
+            throw new SQLException(message, ex);
         }
     }
 
     @Override
+    @SuppressWarnings("exports")
     public E mapRow(SqlRowSet rs, int rowNum) {
         try {
             return mapRow(proxy(rs), rowNum);
         } catch (SQLException ex) {
-            throw new RuntimeException(ex.getMessage(), ex);
+            String message = String.format("Failed to map row %d for %s: %s",
+                rowNum, mappedType.getName(), ex.getMessage());
+            log.error(message, ex);
+            throw new RuntimeException(message, ex);
         }
     }
 
@@ -89,7 +102,11 @@ public class PersistableRowMapper<E extends Persistable> implements PersistableM
             .map(tp -> tp.getAnnotation(PrimaryKey.class).value()).findFirst();
 
         if (found.isPresent()) {
-            e.setRefs(Key.of(found.get(), rs.getLong(found.get())));
+            var columnName = found.get();
+            int columnIdx = requireColumnIndex(rs, columnName,
+                String.format("Primary key mapping for %s", mappedType.getName()));
+            long pkValue = rs.getLong(columnIdx);
+            e.setRefs(Key.of(columnName, pkValue));
         }
     }
 
@@ -108,9 +125,10 @@ public class PersistableRowMapper<E extends Persistable> implements PersistableM
             int index = columnIndex(rs, customField);
             if (index > 0) {
                 var setterValue = rs.getObject(index);
-                Method setterMethod = entity.getClass().getDeclaredMethod(
-                    m.getName().replace("get", "set"), m.getReturnType());
-                setterMethod.invoke(entity, interpolateValue(setterValue, m.getReturnType()));
+                invokeSetter(entity, m, interpolateValue(setterValue, m.getReturnType()));
+            } else {
+                log.debug("Result set for {} is missing column '{}' required by @Named on {}.{}",
+                    mappedType.getSimpleName(), customField, entity.getClass().getSimpleName(), m.getName());
             }
 
         }
@@ -187,27 +205,16 @@ public class PersistableRowMapper<E extends Persistable> implements PersistableM
                         entity.getClass().getSimpleName(), m.getName()));
                 }
 
-                int valueIdx = columnIndex(rs, ref.value());
-                if (valueIdx < 0) {
-                    throw new SQLException(String.format(
-                        "Column '%s' required for @Ref on %s.%s not found in result set",
-                        ref.value(), entity.getClass().getSimpleName(), m.getName()));
-                }
-
-                int labelIdx = columnIndex(rs, ref.label());
-                if (labelIdx < 0) {
-                    throw new SQLException(String.format(
-                        "Column '%s' required for @Ref label on %s.%s not found in result set",
-                        ref.label(), entity.getClass().getSimpleName(), m.getName()));
-                }
-
-                Method setterMethod = entity.getClass().getDeclaredMethod(
-                    m.getName().replace("get", "set"), foreignType);
+                int valueIdx = requireColumnIndex(rs, ref.value(),
+                    String.format("@Ref mapping for %s.%s", entity.getClass().getSimpleName(), m.getName()));
+                int labelIdx = requireColumnIndex(rs, ref.label(),
+                    String.format("@Ref label mapping for %s.%s", entity.getClass().getSimpleName(), m.getName()));
+                String labelValue = rs.getString(labelIdx);
                 var fkValue = new RefValue(
-                    rs.getString(ref.label()),
-                    Pair.of(ref.value(), rs.getLong(ref.value()))
+                    labelValue,
+                    Pair.of(ref.value(), rs.getLong(valueIdx))
                 );
-                setterMethod.invoke(entity, fkValue);
+                invokeSetter(entity, m, fkValue);
 
                 //In case of RefValue, continue over to the next method.
                 continue;
@@ -218,18 +225,35 @@ public class PersistableRowMapper<E extends Persistable> implements PersistableM
             if (namedOption.isPresent()) {
                 columnName = namedOption.get().value();
             }
-            int columnIdx = columnIndex(rs, columnName);
-            if (columnIdx < 0) {
-                throw new SQLException(String.format(
-                    "Column '%s' required for @Ref on %s.%s not found in result set",
-                    columnName, entity.getClass().getSimpleName(), m.getName()));
-            }
+            int columnIdx = requireColumnIndex(rs, columnName,
+                String.format("@Ref mapping for %s.%s", entity.getClass().getSimpleName(), m.getName()));
             var pkValue = rs.getLong(columnIdx);
             var fkInstance = foreignType.getDeclaredConstructor().newInstance();
             ((Persistable) fkInstance).setRefs(Key.of(pkName, pkValue));
-            Method setterMethod = entity.getClass().getDeclaredMethod(
-                m.getName().replace("get", "set"), foreignType);
-            setterMethod.invoke(entity, fkInstance);
+            invokeSetter(entity, m, fkInstance);
+        }
+    }
+
+    private int requireColumnIndex(ResultSet rs, String columnName, String context) throws SQLException {
+        int columnIdx = columnIndex(rs, columnName);
+        if (columnIdx < 0) {
+            throw new SQLException(String.format("%s: column '%s' not present in result set",
+                context, columnName));
+        }
+        return columnIdx;
+    }
+
+    private void invokeSetter(Persistable entity, Method accessor, Object value) throws SQLException {
+        String setterName = accessor.getName().replace("get", "set");
+        try {
+            Method setter = entity.getClass().getDeclaredMethod(setterName, accessor.getReturnType());
+            setter.invoke(entity, value);
+        } catch (NoSuchMethodException ex) {
+            throw new SQLException(String.format("Setter '%s' for %s.%s not found",
+                setterName, entity.getClass().getSimpleName(), accessor.getName()), ex);
+        } catch (IllegalAccessException | InvocationTargetException ex) {
+            throw new SQLException(String.format("Failed to invoke setter '%s' for %s.%s: %s",
+                setterName, entity.getClass().getSimpleName(), accessor.getName(), ex.getMessage()), ex);
         }
     }
 
