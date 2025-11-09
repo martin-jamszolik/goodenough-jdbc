@@ -17,58 +17,53 @@ import java.util.Objects;
 
 public class Pair<T, Y> {
 
-    private T key;
-    private Y value;
+  private T key;
+  private Y value;
 
-    public Pair(T key, Y value) {
-        this.key = key;
-        this.value = value;
-    }
+  public Pair(T key, Y value) {
+    this.key = key;
+    this.value = value;
+  }
 
-    public Pair() {
-    }
+  public Pair() {}
 
-    public T getKey() {
-        return key;
-    }
+  public T getKey() {
+    return key;
+  }
 
-    public void setKey(T key) {
-        this.key = key;
-    }
+  public void setKey(T key) {
+    this.key = key;
+  }
 
-    public Y getValue() {
-        return value;
-    }
+  public Y getValue() {
+    return value;
+  }
 
-    public void setValue(Y value) {
-        this.value = value;
-    }
+  public void setValue(Y value) {
+    this.value = value;
+  }
 
-    public static <T, Y> Pair<T, Y> of(T key, Y value) {
-        return new Pair<>(key, value);
-    }
+  public static <T, Y> Pair<T, Y> of(T key, Y value) {
+    return new Pair<>(key, value);
+  }
 
-    @Override
-    public String toString() {
-        return "Pair{" +
-            "key=" + key +
-            ", value=" + value +
-            '}';
-    }
+  @Override
+  public String toString() {
+    return "Pair{" + "key=" + key + ", value=" + value + '}';
+  }
 
-    @Override
-    public int hashCode() {
-        int hash = 5;
-        hash = 37 * hash + Objects.hashCode(this.key);
-        return hash;
-    }
+  @Override
+  public int hashCode() {
+    int hash = 5;
+    hash = 37 * hash + Objects.hashCode(this.key);
+    return hash;
+  }
 
-
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
-        Pair<?, ?> pair = (Pair<?, ?>) o;
-        return Objects.equals(key, pair.key) && Objects.equals(value, pair.value);
-    }
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) return true;
+    if (o == null || getClass() != o.getClass()) return false;
+    Pair<?, ?> pair = (Pair<?, ?>) o;
+    return Objects.equals(key, pair.key) && Objects.equals(value, pair.value);
+  }
 }

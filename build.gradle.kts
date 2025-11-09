@@ -11,10 +11,14 @@
  * See the License for the specific language governing permissions and limitations under the License.
  */
 
+import org.gradle.api.plugins.quality.Checkstyle
+
 plugins {
     id("java")
     id("jacoco")
     id("maven-publish")
+    id("checkstyle")
+    id("com.diffplug.spotless") version "6.25.0"
 }
 
 var libReleaseVersion = "2.0-RC"
@@ -47,6 +51,31 @@ java {
         languageVersion.set(JavaLanguageVersion.of(17))
     }
     withSourcesJar()
+}
+
+checkstyle {
+    toolVersion = "10.17.0"
+    configDirectory.set(layout.projectDirectory.dir("config/checkstyle"))
+}
+
+tasks.withType<Checkstyle>().configureEach {
+    reports {
+        html.required.set(true)
+        xml.required.set(false)
+    }
+}
+
+spotless {
+    java {
+        target("src/**/*.java")
+        googleJavaFormat("1.22.0")
+        trimTrailingWhitespace()
+        endWithNewline()
+    }
+}
+
+tasks.named("check") {
+    dependsOn("spotlessCheck")
 }
 
 

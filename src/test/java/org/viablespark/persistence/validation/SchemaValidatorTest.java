@@ -1,9 +1,10 @@
 package org.viablespark.persistence.validation;
 
-import org.junit.jupiter.api.AfterEach;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.datasource.embedded.EmbeddedDatabase;
@@ -24,84 +25,87 @@ import org.viablespark.persistence.dsl.PrimaryKey;
 @SuppressWarnings("unused")
 class SchemaValidatorTest {
 
-    private EmbeddedDatabase database;
+  private EmbeddedDatabase database;
 
-    @BeforeEach
+  @BeforeEach
+  @SuppressWarnings("unused")
+  void setUp() {
+    database =
+        new EmbeddedDatabaseBuilder().addDefaultScripts().setName("SchemaValidatorTest").build();
+  }
+
+  @AfterEach
+  @SuppressWarnings("unused")
+  void tearDown() {
+    database.shutdown();
+  }
+
+  @Test
+  void validatesMappingsWithoutErrors() {
+    assertDoesNotThrow(
+        () ->
+            SchemaValidator.assertMappings(
+                database,
+                Contractor.class,
+                Proposal.class,
+                Note.class,
+                Supplier.class,
+                ProposalTask.class,
+                Task.class,
+                Progress.class));
+  }
+
+  @Test
+  void reportsMissingTable() {
+    IllegalStateException thrown =
+        assertThrows(
+            IllegalStateException.class,
+            () -> SchemaValidator.assertMappings(database, MissingEntity.class));
+    assertTrue(thrown.getMessage().contains("fake_table"));
+  }
+
+  @Test
+  void reportsMissingColumn() {
+    IllegalStateException thrown =
+        assertThrows(
+            IllegalStateException.class,
+            () -> SchemaValidator.assertMappings(database, MissingColumnEntity.class));
+    assertTrue(thrown.getMessage().contains("missing_column"));
+  }
+
+  @Named("fake_table")
+  @PrimaryKey("fake_id")
+  static class MissingEntity extends Model {
+    public RefValue getNothing() {
+      return null;
+    }
+
     @SuppressWarnings("unused")
-    void setUp() {
-        database = new EmbeddedDatabaseBuilder()
-            .addDefaultScripts()
-            .setName("SchemaValidatorTest")
-            .build();
+    public void setNothing(RefValue value) {}
+  }
+
+  @Named("contractor")
+  @PrimaryKey("sc_key")
+  static class MissingColumnEntity implements Persistable {
+
+    private org.viablespark.persistence.Key key = org.viablespark.persistence.Key.None;
+
+    @Override
+    public org.viablespark.persistence.Key getRefs() {
+      return key;
     }
 
-    @AfterEach
+    @Override
+    public void setRefs(org.viablespark.persistence.Key refs) {
+      this.key = refs;
+    }
+
+    @Named("missing_column")
+    public String getBroken() {
+      return "";
+    }
+
     @SuppressWarnings("unused")
-    void tearDown() {
-        database.shutdown();
-    }
-
-    @Test
-    void validatesMappingsWithoutErrors() {
-        assertDoesNotThrow(() -> SchemaValidator.assertMappings(database,
-            Contractor.class,
-            Proposal.class,
-            Note.class,
-            Supplier.class,
-            ProposalTask.class,
-            Task.class,
-            Progress.class));
-    }
-
-    @Test
-    void reportsMissingTable() {
-        IllegalStateException thrown = assertThrows(IllegalStateException.class, () ->
-            SchemaValidator.assertMappings(database, MissingEntity.class));
-        assertTrue(thrown.getMessage().contains("fake_table"));
-    }
-
-    @Test
-    void reportsMissingColumn() {
-        IllegalStateException thrown = assertThrows(IllegalStateException.class, () ->
-            SchemaValidator.assertMappings(database, MissingColumnEntity.class));
-        assertTrue(thrown.getMessage().contains("missing_column"));
-    }
-
-    @Named("fake_table")
-    @PrimaryKey("fake_id")
-    static class MissingEntity extends Model {
-        public RefValue getNothing() {
-            return null;
-        }
-
-        @SuppressWarnings("unused")
-        public void setNothing(RefValue value) {
-        }
-    }
-
-    @Named("contractor")
-    @PrimaryKey("sc_key")
-    static class MissingColumnEntity implements Persistable {
-
-        private org.viablespark.persistence.Key key = org.viablespark.persistence.Key.None;
-
-        @Override
-        public org.viablespark.persistence.Key getRefs() {
-            return key;
-        }
-
-        @Override
-        public void setRefs(org.viablespark.persistence.Key refs) {
-            this.key = refs;
-        }
-
-        @Named("missing_column")
-        public String getBroken() {
-            return "";
-        }
-
-        @SuppressWarnings("unused")
-        public void setBroken(String broken) {
-        }
-    }
+    public void setBroken(String broken) {}
+  }
 }

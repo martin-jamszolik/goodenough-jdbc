@@ -13,24 +13,21 @@
 
 package org.viablespark.persistence;
 
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.support.rowset.ResultSetWrappingSqlRowSet;
 import org.springframework.jdbc.support.rowset.SqlRowSet;
 import org.springframework.lang.Nullable;
 
-import java.sql.ResultSet;
-import java.sql.SQLException;
-
 @FunctionalInterface
 public interface PersistableMapper<E extends Persistable> extends RowMapper<E> {
 
+  @Override
+  default E mapRow(ResultSet rs, int rowNum) throws SQLException {
+    return mapRow(new ResultSetWrappingSqlRowSet(rs), rowNum);
+  }
 
-    @Override
-    default E mapRow(ResultSet rs, int rowNum) throws SQLException {
-        return mapRow(new ResultSetWrappingSqlRowSet(rs), rowNum);
-    }
-
-    @Nullable
-    E mapRow(SqlRowSet rs, int rowNum);
-    
+  @Nullable
+  E mapRow(SqlRowSet rs, int rowNum);
 }

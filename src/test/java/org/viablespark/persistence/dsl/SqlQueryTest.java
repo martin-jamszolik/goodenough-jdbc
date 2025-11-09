@@ -13,64 +13,58 @@
 
 package org.viablespark.persistence.dsl;
 
-import java.util.Date;
-
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import java.util.Date;
 import org.junit.jupiter.api.Test;
 
-/**
- *
- *
- */
+/** */
 public class SqlQueryTest {
 
-    public SqlQueryTest() {
-    }
+  public SqlQueryTest() {}
 
-    @Test
-    public void testClause() {
-        SqlQuery q = new SqlQuery().clause("WHERE pri_key=? AND sec_date >=?", 233L, new Date());
+  @Test
+  public void testClause() {
+    SqlQuery q = new SqlQuery().clause("WHERE pri_key=? AND sec_date >=?", 233L, new Date());
 
-        String result = q.sql();
-        assertEquals("WHERE pri_key=? AND sec_date >=?", result);
-    }
+    String result = q.sql();
+    assertEquals("WHERE pri_key=? AND sec_date >=?", result);
+  }
 
-    @Test
-    public void testCondition() {
-        SqlQuery q = new SqlQuery()
+  @Test
+  public void testCondition() {
+    SqlQuery q =
+        new SqlQuery()
             .where("pri_key=?", 233L)
             .andWhere("sec_date >=?", new Date())
             .orWhere("(other_key =?", 23L)
             .andWhere("something !=?)", "elseHere");
 
-        String result = q.sql();
-        assertEquals("WHERE pri_key=? AND sec_date >=? OR (other_key =? AND something !=?)", result);
-    }
+    String result = q.sql();
+    assertEquals("WHERE pri_key=? AND sec_date >=? OR (other_key =? AND something !=?)", result);
+  }
 
-    @Test
-    public void testOrderBy() {
-        SqlQuery q = new SqlQuery()
-            .where("pri_key=?", 233L)
-            .andWhere("sec_date >=?", new Date());
-        String result = q.orderBy("testColumn", SqlQuery.Direction.DESC).sql();
-        assertEquals("WHERE pri_key=? AND sec_date >=? ORDER BY testColumn desc", result);
-    }
+  @Test
+  public void testOrderBy() {
+    SqlQuery q = new SqlQuery().where("pri_key=?", 233L).andWhere("sec_date >=?", new Date());
+    String result = q.orderBy("testColumn", SqlQuery.Direction.DESC).sql();
+    assertEquals("WHERE pri_key=? AND sec_date >=? ORDER BY testColumn desc", result);
+  }
 
-    @Test
-    public void testLimit() {
-        SqlQuery q = new SqlQuery()
-            .where("pri_key=?", 233L)
-            .andWhere("sec_date >=?", new Date());
-        String result = q.limit(5).sql();
-        assertEquals("WHERE pri_key=? AND sec_date >=? LIMIT 5", result);
-    }
+  @Test
+  public void testLimit() {
+    SqlQuery q = new SqlQuery().where("pri_key=?", 233L).andWhere("sec_date >=?", new Date());
+    String result = q.limit(5).sql();
+    assertEquals("WHERE pri_key=? AND sec_date >=? LIMIT 5", result);
+  }
 
-    @Test
-    public void testDynamicQuery() {
-        String name = "123 main";
+  @Test
+  public void testDynamicQuery() {
+    String name = "123 main";
 
-        var query = new SqlQuery()
+    var query =
+        new SqlQuery()
             .select("SELECT COUNT(*)")
             .from("1_proposalproject p")
             .join("INNER JOIN company c using(c_key)")
@@ -79,15 +73,22 @@ public class SqlQueryTest {
             .where("pp_key IS NOT NULL")
             .andWhere("pp_name like ?", "%" + name + "%");
 
-        assertTrue(query.sql().contains("SELECT COUNT(*) FROM 1_proposalproject p") );
-        assertEquals(1, query.values().length);
-        assertTrue(query.sql().contains("INNER JOIN estimator e using(e_key) WHERE pp_key IS NOT NULL AND pp_name like ?") );
+    assertTrue(query.sql().contains("SELECT COUNT(*) FROM 1_proposalproject p"));
+    assertEquals(1, query.values().length);
+    assertTrue(
+        query
+            .sql()
+            .contains(
+                "INNER JOIN estimator e using(e_key) WHERE pp_key IS NOT NULL AND pp_name like ?"));
 
-        query.select("SELECT p.pp_key, pp_name, tax, pp_status, pp_date, pp_owner");
-        query.paginate(20,0);
+    query.select("SELECT p.pp_key, pp_name, tax, pp_status, pp_date, pp_owner");
+    query.paginate(20, 0);
 
-        assertTrue(query.sql().contains("SELECT p.pp_key, pp_name, tax, pp_status, pp_date, pp_owner FROM 1_proposalproject p") );
-        assertEquals(1, query.values().length);
-    }
-
+    assertTrue(
+        query
+            .sql()
+            .contains(
+                "SELECT p.pp_key, pp_name, tax, pp_status, pp_date, pp_owner FROM 1_proposalproject p"));
+    assertEquals(1, query.values().length);
+  }
 }
