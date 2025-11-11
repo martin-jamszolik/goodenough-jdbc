@@ -13,10 +13,10 @@
 
 package org.viablespark.persistence.dsl;
 
-import java.util.Date;
-
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import java.util.Date;
 import org.junit.jupiter.api.Test;
 
 /** */

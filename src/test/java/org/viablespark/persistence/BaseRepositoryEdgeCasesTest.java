@@ -13,17 +13,17 @@
 
 package org.viablespark.persistence;
 
-import java.util.Date;
-import java.util.List;
-import java.util.Optional;
-
-import org.junit.jupiter.api.AfterEach;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import java.util.Date;
+import java.util.List;
+import java.util.Optional;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
@@ -54,8 +54,8 @@ public class BaseRepositoryEdgeCasesTest {
   @Test
   public void testSaveWithDatabaseError() {
     Proposal proposal = new Proposal();
-    proposal.setPropName(null); 
-    proposal.setPropId("TEST_ID");   
+    proposal.setPropName(null);
+    proposal.setPropId("TEST_ID");
 
     try {
       repository.save(proposal);
@@ -240,7 +240,7 @@ public class BaseRepositoryEdgeCasesTest {
   public void testGetExistingEntityFromStagedData() {
     TestContractorRepository contractorRepo = new TestContractorRepository(new JdbcTemplate(db));
     Optional<Contractor> contractor = contractorRepo.get(Key.of("sc_key", 1L), Contractor.class);
-    
+
     assertTrue(contractor.isPresent());
     assertEquals("Mr Contractor", contractor.get().getName());
     assertEquals(1L, contractor.get().getRefs().primaryKey().getValue());
@@ -248,10 +248,9 @@ public class BaseRepositoryEdgeCasesTest {
 
   @Test
   public void testQueryEntityWithStagedData() {
-    SqlQuery query = new SqlQuery()
-        .where("sc_key = ?", 1L)
-        .orderBy("pr_key", SqlQuery.Direction.ASC);
-    
+    SqlQuery query =
+        new SqlQuery().where("sc_key = ?", 1L).orderBy("pr_key", SqlQuery.Direction.ASC);
+
     List<Proposal> proposals = repository.queryEntity(query, Proposal.class);
     assertNotNull(proposals);
     assertEquals(2, proposals.size()); // Staged data has 2 proposals for contractor 1
@@ -261,19 +260,19 @@ public class BaseRepositoryEdgeCasesTest {
   public void testUpdateExistingEntityFromStagedData() {
     Optional<Proposal> proposal = repository.get(Key.of("pr_key", 1L), Proposal.class);
     assertTrue(proposal.isPresent());
-    
+
     Proposal toUpdate = proposal.get();
     String originalName = toUpdate.getPropName();
     toUpdate.setPropName("Updated from Test");
-    
+
     Optional<Key> updateKey = repository.save(toUpdate);
     assertTrue(updateKey.isPresent());
-    
+
     // Verify update
     Optional<Proposal> updated = repository.get(Key.of("pr_key", 1L), Proposal.class);
     assertTrue(updated.isPresent());
     assertEquals("Updated from Test", updated.get().getPropName());
-    
+
     // Restore original for other tests
     toUpdate.setPropName(originalName);
     repository.save(toUpdate);
@@ -282,12 +281,13 @@ public class BaseRepositoryEdgeCasesTest {
   @Test
   public void testQueryWithLimitAndOffsetOnStagedData() {
     // Test pagination with staged data (3 proposals total)
-    SqlQuery query = new SqlQuery()
-        .where("pr_key > ?", 0L)
-        .orderBy("pr_key", SqlQuery.Direction.ASC)
-        .limit(2)
-        .offset(1);
-    
+    SqlQuery query =
+        new SqlQuery()
+            .where("pr_key > ?", 0L)
+            .orderBy("pr_key", SqlQuery.Direction.ASC)
+            .limit(2)
+            .offset(1);
+
     List<Proposal> proposals = repository.queryEntity(query, Proposal.class);
     assertNotNull(proposals);
     assertEquals(2, proposals.size());

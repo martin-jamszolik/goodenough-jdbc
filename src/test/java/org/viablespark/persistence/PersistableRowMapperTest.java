@@ -13,14 +13,15 @@
 
 package org.viablespark.persistence;
 
-import java.sql.SQLException;
-import java.util.List;
-
-import org.junit.jupiter.api.AfterEach;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.springframework.test.util.AssertionErrors.assertTrue;
+
+import java.sql.SQLException;
+import java.util.List;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
@@ -28,7 +29,6 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.embedded.EmbeddedDatabase;
 import org.springframework.jdbc.datasource.embedded.EmbeddedDatabaseBuilder;
 import org.springframework.jdbc.support.rowset.SqlRowSet;
-import static org.springframework.test.util.AssertionErrors.assertTrue;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class PersistableRowMapperTest {
@@ -239,8 +239,7 @@ class PersistableRowMapperTest {
     var mapper = PersistableRowMapper.of(Proposal.class);
     var jdbc = new JdbcTemplate(db);
     // Test that uses LocalDate conversion via proxy
-    var rowSet =
-        jdbc.queryForRowSet("select * from est_proposal where pr_key = 1");
+    var rowSet = jdbc.queryForRowSet("select * from est_proposal where pr_key = 1");
     if (rowSet.next()) {
       Proposal proposal = mapper.mapRow(rowSet, rowSet.getRow());
       assertNotNull(proposal);
@@ -252,7 +251,7 @@ class PersistableRowMapperTest {
   public void testProxyInvocationHandlerException() throws Exception {
     var mapper = PersistableRowMapper.of(Contractor.class);
     var jdbc = new JdbcTemplate(db);
-    
+
     // This tests the exception handling in SqlRowSetWrapper.invoke()
     var rowSet = jdbc.queryForRowSet("select * from contractor where sc_key = 1");
     if (rowSet.next()) {
@@ -266,7 +265,7 @@ class PersistableRowMapperTest {
   public void testMultipleRowsMappingWithData() throws Exception {
     var mapper = PersistableRowMapper.of(Contractor.class);
     var jdbc = new JdbcTemplate(db);
-    
+
     // Test data has 2 contractors
     List<Contractor> contractors = jdbc.query("select * from contractor order by sc_key", mapper);
     assertEquals(2, contractors.size());

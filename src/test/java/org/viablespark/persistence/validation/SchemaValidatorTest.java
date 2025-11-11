@@ -1,9 +1,10 @@
 package org.viablespark.persistence.validation;
 
-import org.junit.jupiter.api.AfterEach;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.datasource.embedded.EmbeddedDatabase;
@@ -96,7 +97,10 @@ class SchemaValidatorTest {
   void handlesNullEntityCollection() {
     NullPointerException thrown =
         assertThrows(
-            NullPointerException.class, () -> SchemaValidator.assertMappings(database, (java.util.Collection<Class<? extends Persistable>>) null));
+            NullPointerException.class,
+            () ->
+                SchemaValidator.assertMappings(
+                    database, (java.util.Collection<Class<? extends Persistable>>) null));
     assertTrue(thrown.getMessage().contains("Entity collection"));
   }
 
@@ -108,7 +112,8 @@ class SchemaValidatorTest {
 
   @Test
   void handlesEmptyEntityCollection() {
-    assertDoesNotThrow(() -> SchemaValidator.assertMappings(database, java.util.Collections.emptyList()));
+    assertDoesNotThrow(
+        () -> SchemaValidator.assertMappings(database, java.util.Collections.emptyList()));
   }
 
   @Test
