@@ -1,4 +1,3 @@
-
 /*
  * Copyright (c) 2023 the original author or authors.
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,114 +13,111 @@
 
 package org.viablespark.persistence;
 
+import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
 import org.viablespark.persistence.dsl.Named;
 import org.viablespark.persistence.dsl.PrimaryKey;
 import org.viablespark.persistence.dsl.Ref;
 import org.viablespark.persistence.dsl.Skip;
 
-import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
-
-
 @Named("est_proposal")
 @PrimaryKey("pr_key")
 public class Proposal extends Model {
 
-    private String propName;
-    private Date propDate;
-    private Integer distanceToFollow;
+  private String propName;
+  private Date propDate;
+  private Integer distanceToFollow;
 
-    private LocalDate submitDeadline;
-    private String propId;
-    private String skipMeIamWorthless;
+  private LocalDate submitDeadline;
+  private String propId;
+  private String skipMeIamWorthless;
 
-    private Contractor contractor;
+  private Contractor contractor;
 
-    private List<ProposalTask> tasks = new ArrayList<>();
+  private List<ProposalTask> tasks = new ArrayList<>();
 
-    public Proposal() {
-    }
+  public Proposal() {}
 
-    public Proposal(String key, Long id) {
-        super.setRefs(Key.of(key, id));
-    }
+  public Proposal(String key, Long id) {
+    super.setRefs(Key.of(key, id));
+  }
 
-    @Named("proposal_name")
-    public String getPropName() {
-        return propName;
-    }
+  @Named("proposal_name")
+  public String getPropName() {
+    return propName;
+  }
 
-    public void setPr_key(Long id) {
-        setRefs(Key.of("pr_key", id));
-    }
+  public void setPr_key(Long id) {
+    setRefs(Key.of("pr_key", id));
+  }
 
-    public void setPropName(String propName) {
-        this.propName = propName;
-    }
+  public void setPropName(String propName) {
+    this.propName = propName;
+  }
 
-    public Date getPropDate() {
-        return propDate;
-    }
+  public Date getPropDate() {
+    return propDate;
+  }
 
-    public void setPropDate(Date propDate) {
-        this.propDate = propDate;
-    }
+  public void setPropDate(Date propDate) {
+    this.propDate = propDate;
+  }
 
-    @Named("dist")
-    public Integer getDistance() {
-        return distanceToFollow;
-    }
+  @Named("dist")
+  public Integer getDistance() {
+    return distanceToFollow;
+  }
 
-    public void setDistance(Integer distanceToFollow) {
-        this.distanceToFollow = distanceToFollow;
-    }
+  public void setDistance(Integer distanceToFollow) {
+    this.distanceToFollow = distanceToFollow;
+  }
 
-    public LocalDate getSubmitDeadline() {
-        return submitDeadline;
-    }
+  public LocalDate getSubmitDeadline() {
+    return submitDeadline;
+  }
 
-    public void setSubmitDeadline(LocalDate submitDeadline) {
-        this.submitDeadline = submitDeadline;
-    }
+  public void setSubmitDeadline(LocalDate submitDeadline) {
+    this.submitDeadline = submitDeadline;
+  }
 
-    public String getPropId() {
-        return propId;
-    }
+  public String getPropId() {
+    return propId;
+  }
 
-    public void setPropId(String propId) {
-        this.propId = propId;
-    }
+  public void setPropId(String propId) {
+    this.propId = propId;
+  }
 
-    @Skip
-    public String getSkipMeIamWorthless() {
-        return skipMeIamWorthless;
-    }
+  @Skip
+  public String getSkipMeIamWorthless() {
+    return skipMeIamWorthless;
+  }
 
-    public void setSkipMeIamWorthless(String skipMeIamWorthless) {
-        this.skipMeIamWorthless = skipMeIamWorthless;
-    }
+  public void setSkipMeIamWorthless(String skipMeIamWorthless) {
+    this.skipMeIamWorthless = skipMeIamWorthless;
+  }
 
+  @Ref
+  public Contractor getContractor() {
+    return contractor;
+  }
 
-    @Ref
-    public Contractor getContractor() {
-        return contractor;
-    }
+  public void setContractor(Contractor contractor) {
+    this.contractor = contractor;
+  }
 
-    public void setContractor(Contractor contractor) {
-        this.contractor = contractor;
-    }
+  @Skip
+  public List<ProposalTask> getTasks() {
+    return tasks;
+  }
 
-    @Skip
-    public List<ProposalTask> getTasks() {
-        return tasks;
-    }
+  public void setTasks(List<ProposalTask> tasks) {
+    this.tasks = tasks;
+  }
 
-    public void setTasks(List<ProposalTask> tasks) {
-        this.tasks = tasks;
-    }
-    public void addTask(ProposalTask task){
-        tasks.add(task);
-    }
+  public void addTask(ProposalTask task) {
+    tasks.add(task);
+  }
 }

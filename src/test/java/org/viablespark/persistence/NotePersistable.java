@@ -13,50 +13,48 @@
 
 package org.viablespark.persistence;
 
-import org.viablespark.persistence.dsl.Named;
-
 import java.time.LocalDate;
+import org.viablespark.persistence.dsl.Named;
 
 @Named("note")
 public class NotePersistable implements Persistable {
-    private Key key = Key.None;
+  private Key key = Key.None;
 
-    private String note;
-    private String additional;
+  private String note;
+  private String additional;
 
-    private LocalDate note_date;
+  private LocalDate note_date;
 
-    public String getNote() {
-        return note;
-    }
+  public String getNote() {
+    return note;
+  }
 
-    public void setNote(String note) {
-        this.note = note;
-    }
+  public void setNote(String note) {
+    this.note = note;
+  }
 
-    public String getAdditional() {
-        return additional;
-    }
+  public String getAdditional() {
+    return additional;
+  }
 
-    public void setAdditional(String additional) {
-        this.additional = additional;
-    }
+  public void setAdditional(String additional) {
+    this.additional = additional;
+  }
 
-    public LocalDate getNote_date() {
-        return note_date;
-    }
+  public LocalDate getNote_date() {
+    return note_date;
+  }
 
-    public void setNote_date(LocalDate note_date) {
-        this.note_date = note_date;
-    }
+  public void setNote_date(LocalDate note_date) {
+    this.note_date = note_date;
+  }
 
-    public Key getRefs() {
-        return key;
-    }
+  public Key getRefs() {
+    return key;
+  }
 
-    @Override
-    public void setRefs(Key refs) {
-        this.key = refs;
-    }
+  @Override
+  public void setRefs(Key refs) {
+    this.key = refs;
+  }
 }
-

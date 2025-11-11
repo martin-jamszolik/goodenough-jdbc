@@ -15,23 +15,23 @@ package org.viablespark.persistence;
 
 public class Supplier extends Model {
 
-    private String supName;
+  private String supName;
 
-    private String contact;
+  private String contact;
 
-    public String getSupName() {
-        return supName;
-    }
+  public String getSupName() {
+    return supName;
+  }
 
-    public void setSupName(String supName) {
-        this.supName = supName;
-    }
+  public void setSupName(String supName) {
+    this.supName = supName;
+  }
 
-    public String getContact() {
-        return contact;
-    }
+  public String getContact() {
+    return contact;
+  }
 
-    public void setContact(String contact) {
-        this.contact = contact;
-    }
+  public void setContact(String contact) {
+    this.contact = contact;
+  }
 }

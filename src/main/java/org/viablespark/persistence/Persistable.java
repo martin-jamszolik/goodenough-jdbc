@@ -13,21 +13,26 @@
 
 package org.viablespark.persistence;
 
-
 public interface Persistable {
-    Key getRefs();
+  Key getRefs();
 
-    void setRefs(Key refs);
+  void setRefs(Key refs);
 
-    default Long getId() {
-        if( getRefs() == Key.None ){
-            return null;
-        }
-        return getRefs().primaryKey().getValue();
+  default Long getId() {
+    if (getRefs() == Key.None) {
+      return null;
     }
+    return getRefs().primaryKey().getValue();
+  }
 
-    default boolean isNew() {
-        return getRefs() == Key.None;
+  default void setId(Long value) {
+    if (getRefs() == null || getRefs() == Key.None) {
+      return;
     }
+    getRefs().primaryKey().setValue(value);
+  }
 
+  default boolean isNew() {
+    return (getRefs() == Key.None || getRefs() == null);
+  }
 }

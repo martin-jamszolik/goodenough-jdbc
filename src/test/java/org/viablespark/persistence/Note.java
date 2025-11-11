@@ -13,86 +13,90 @@
 
 package org.viablespark.persistence;
 
-
+import java.time.LocalDate;
+import java.util.Objects;
 import org.viablespark.persistence.dsl.Named;
 import org.viablespark.persistence.dsl.PrimaryKey;
 import org.viablespark.persistence.dsl.Ref;
 import org.viablespark.persistence.dsl.Skip;
-import java.time.LocalDate;
-import java.util.Objects;
 
 @PrimaryKey("n_key")
 public class Note extends Model {
 
-    @Named("note") private String noteContent;
-    @Named("additional") private String extra;
+  @Named("note")
+  private String noteContent;
 
-    @Named("note_date") private LocalDate dateTaken;
+  @Named("additional")
+  private String extra;
 
-    //@Named("note_created") private LocalDate customNoteDateCreated;
+  @Named("note_date")
+  private LocalDate dateTaken;
 
-    @Ref
-    @Named("progress_id")
-    private Progress progress;
+  // @Named("note_created") private LocalDate customNoteDateCreated;
 
-    @Skip
-    private String noGood;
+  @Ref
+  @Named("progress_id")
+  private Progress progress;
 
-    public String getNoteContent() {
-        return noteContent;
+  @Skip private String noGood;
+
+  public String getNoteContent() {
+    return noteContent;
+  }
+
+  public void setNoteContent(String noteContent) {
+    this.noteContent = noteContent;
+  }
+
+  public String getExtra() {
+    return extra;
+  }
+
+  public void setExtra(String extra) {
+    this.extra = extra;
+  }
+
+  public Progress getProgress() {
+    return progress;
+  }
+
+  public void setProgress(Progress progress) {
+    this.progress = progress;
+  }
+
+  public String getNoGood() {
+    return noGood;
+  }
+
+  public void setNoGood(String noGood) {
+    this.noGood = noGood;
+  }
+
+  public LocalDate getDateTaken() {
+    return dateTaken;
+  }
+
+  public void setDateTaken(LocalDate dateTaken) {
+    this.dateTaken = dateTaken;
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) return true;
+    if (o == null || getClass() != o.getClass()) return false;
+    Note note = (Note) o;
+    return Objects.equals(getNoteContent(), note.getNoteContent())
+        && Objects.equals(getExtra(), note.getExtra())
+        && Objects.equals(getDateTaken(), note.getDateTaken());
+  }
+
+  @Override
+  public int hashCode() {
+    int hash = Objects.hash(getNoteContent(), getDateTaken());
+
+    if (this.getId() != null) {
+      hash = 53 * hash + this.getId().intValue();
     }
-
-    public void setNoteContent(String noteContent) {
-        this.noteContent = noteContent;
-    }
-
-    public String getExtra() {
-        return extra;
-    }
-
-    public void setExtra(String extra) {
-        this.extra = extra;
-    }
-
-    public Progress getProgress() {
-        return progress;
-    }
-
-    public void setProgress(Progress progress) {
-        this.progress = progress;
-    }
-
-    public String getNoGood() {
-        return noGood;
-    }
-    public void setNoGood(String noGood) {
-        this.noGood = noGood;
-    }
-
-    public LocalDate getDateTaken() {
-        return dateTaken;
-    }
-
-    public void setDateTaken(LocalDate dateTaken) {
-        this.dateTaken = dateTaken;
-    }
-
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
-        Note note = (Note) o;
-        return Objects.equals(getNoteContent(), note.getNoteContent()) && Objects.equals(getExtra(), note.getExtra()) && Objects.equals(getDateTaken(), note.getDateTaken());
-    }
-
-    @Override
-    public int hashCode() {
-        int hash = Objects.hash(getNoteContent(), getDateTaken());
-
-        if (this.getId() != null) {
-            hash = 53 * hash + this.getId().intValue();
-        }
-        return hash;
-    }
+    return hash;
+  }
 }
-

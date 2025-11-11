@@ -18,110 +18,110 @@ import org.viablespark.persistence.dsl.Ref;
 
 public class PurchaseOrder extends Model {
 
-    @Named("requester")
-    private String requester;
-    @Named("po_number_id")
-    private Integer poNumberId;
-    @Named("primitive_id")
-    private int primitiveExampleId;
+  @Named("requester")
+  private String requester;
 
-    @Named("long_id")
-    private Long longId;
+  @Named("po_number_id")
+  private Integer poNumberId;
 
-    @Named("some_fake_field")
-    private int fakeField;
+  @Named("primitive_id")
+  private int primitiveExampleId;
 
-    @Ref
-    private Note note;
+  @Named("long_id")
+  private Long longId;
 
-    @Ref
-    private Supplier supplier;
+  @Named("some_fake_field")
+  private int fakeField;
 
-    @Ref(value="supplier_id",label="sup_name")
-    private RefValue supplierRef; // valid case. Expect SQL data
+  @Ref private Note note;
 
-    private RefValue supplierRefInvalid; //Invalid case, skip
+  @Ref private Supplier supplier;
 
-    @Named("supplier_id")
-    private RefValue supplierRefInvalidAgain; //Invalid case, skip
+  @Ref(value = "supplier_id", label = "sup_name")
+  private RefValue supplierRef; // valid case. Expect SQL data
 
-    public String getRequester() {
-        return requester;
-    }
+  private RefValue supplierRefInvalid; // Invalid case, skip
 
-    public void setRequester(String requester) {
-        this.requester = requester;
-    }
+  @Named("supplier_id")
+  private RefValue supplierRefInvalidAgain; // Invalid case, skip
 
-    public Note getNote() {
-        return note;
-    }
+  public String getRequester() {
+    return requester;
+  }
 
-    public void setNote(Note note) {
-        this.note = note;
-    }
+  public void setRequester(String requester) {
+    this.requester = requester;
+  }
 
-    public Supplier getSupplier() {
-        return supplier;
-    }
+  public Note getNote() {
+    return note;
+  }
 
-    public void setSupplier(Supplier supplier) {
-        this.supplier = supplier;
-    }
+  public void setNote(Note note) {
+    this.note = note;
+  }
 
-    public Integer getPoNumberId() {
-        return poNumberId;
-    }
+  public Supplier getSupplier() {
+    return supplier;
+  }
 
-    public void setPoNumberId(Integer poNumberId) {
-        this.poNumberId = poNumberId;
-    }
+  public void setSupplier(Supplier supplier) {
+    this.supplier = supplier;
+  }
 
-    public int getFakeField() {
-        return fakeField;
-    }
+  public Integer getPoNumberId() {
+    return poNumberId;
+  }
 
-    public int getPrimitiveExampleId() {
-        return primitiveExampleId;
-    }
+  public void setPoNumberId(Integer poNumberId) {
+    this.poNumberId = poNumberId;
+  }
 
-    public void setPrimitiveExampleId(int primitiveExampleId) {
-        this.primitiveExampleId = primitiveExampleId;
-    }
+  public int getFakeField() {
+    return fakeField;
+  }
 
-    public Long getLongId() {
-        return longId;
-    }
+  public int getPrimitiveExampleId() {
+    return primitiveExampleId;
+  }
 
-    public void setLongId(Long longId) {
-        this.longId = longId;
-    }
+  public void setPrimitiveExampleId(int primitiveExampleId) {
+    this.primitiveExampleId = primitiveExampleId;
+  }
 
-    public void setFakeField(int fakeField) {
-        this.fakeField = fakeField;
-    }
+  public Long getLongId() {
+    return longId;
+  }
 
-    public RefValue getSupplierRef() {
-        return supplierRef;
-    }
+  public void setLongId(Long longId) {
+    this.longId = longId;
+  }
 
-    public void setSupplierRef(RefValue supplierRef) {
-        this.supplierRef = supplierRef;
-    }
+  public void setFakeField(int fakeField) {
+    this.fakeField = fakeField;
+  }
 
-    public RefValue getSupplierRefInvalid() {
-        return supplierRefInvalid;
-    }
+  public RefValue getSupplierRef() {
+    return supplierRef;
+  }
 
-    public void setSupplierRefInvalid(RefValue supplierRefInvalid) {
-        this.supplierRefInvalid = supplierRefInvalid;
-    }
+  public void setSupplierRef(RefValue supplierRef) {
+    this.supplierRef = supplierRef;
+  }
 
-    public RefValue getSupplierRefInvalidAgain() {
-        return supplierRefInvalidAgain;
-    }
+  public RefValue getSupplierRefInvalid() {
+    return supplierRefInvalid;
+  }
 
-    public void setSupplierRefInvalidAgain(RefValue supplierRefInvalidAgain) {
-        this.supplierRefInvalidAgain = supplierRefInvalidAgain;
-    }
+  public void setSupplierRefInvalid(RefValue supplierRefInvalid) {
+    this.supplierRefInvalid = supplierRefInvalid;
+  }
+
+  public RefValue getSupplierRefInvalidAgain() {
+    return supplierRefInvalidAgain;
+  }
+
+  public void setSupplierRefInvalidAgain(RefValue supplierRefInvalidAgain) {
+    this.supplierRefInvalidAgain = supplierRefInvalidAgain;
+  }
 }

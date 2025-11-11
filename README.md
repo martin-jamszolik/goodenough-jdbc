@@ -4,7 +4,7 @@
 
 ## Overview
 
-`goodenough-jdbc` is a lightweight, flexible library designed for **schema-first** databases, offering a middle ground between raw SQL and heavy ORM frameworks. It enhances and simplifies the `spring-jdbc` framework, simplifying common database operations without introducing unnecessary complexity.
+`goodenough-jdbc` is a lightweight, flexible library designed for **schema-first** databases, offering a middle ground between raw SQL and heavy ORM frameworks. It elevates and simplifies the `spring-jdbc` library, streamlining common database operations with Repository-style conventions.
 
 ### ⚠️ Java 11 Compatibility Notice
 
@@ -27,14 +27,20 @@ Modern ORM frameworks like [KTorm](https://www.ktorm.org/), [Django](https://doc
 - Fine-grained control over queries and mappings.
 - Ease of use for CRUD operations.
 - Minimal boilerplate while avoiding runtime model generation.
-- Ease of foreign relationships composition with repository pattern
+- Easy foreign relationship composition with repository pattern.
 
 ## Key Features
 
-- Annotation-based entity mapping.
-- Powerful repository abstraction for common operations.
+- Annotation-based entity mapping with default conventions (e.g., snake_case mappings).
+- Common repository (column) operations.
 - Flexible, customizable mappers for advanced scenarios.
 - Designed for **manual SQL control** where necessary.
+
+## Not All Batteries Included
+
+- Bring your own transaction management (e.g., Spring Transactions).
+- Bring your own schema and data migration/evolution (e.g., Flyway).
+- Query DSL is just a helper (e.g., SQL strings).
 
 ---
 
@@ -42,58 +48,105 @@ Modern ORM frameworks like [KTorm](https://www.ktorm.org/), [Django](https://doc
 
 ### Entity Mapping
 
+If extending `Model` is not feasible, implement `Persistable` for manual control.
 Entities are simple Java classes decorated with annotations for mapping database tables and columns. For example:
 
 ```java
 @PrimaryKey("t_key")
 public class Task extends Model {
     
-    @Named("sc_name")
-    public String getName() {
-        return name;
-    }
+    @Named("sc_name") String name;
     
-    @Ref
-    public Proposal getProposal() {
-        return proposal;
-    }
+    @Ref Proposal proposal;    
 
     @Ref(value = "supplier_id", label = "sup_name")
     private RefValue supplierRef;
+
+    @Skip String skipMeField;
+
+    /* Followed by getters/setters */
 }
 ```
 
 Key Annotations:
+
 - **`@PrimaryKey("t_key")`**: Indicates the primary key column.
 - **`@Named("sc_name")`**: Maps a column to a specific field or method.
 - **`@Ref`**: Maps foreign key references, supporting lightweight lookups with `RefValue`.
-
-If extending `Model` is not feasible, implement `Persistable` for manual control.
-
+- **`@Skip`**: Ignore a column(field) or a list, so you can seperate to another Repository.
 
 ### Repository
 
 The `BaseRepository` class simplifies CRUD operations:
 
 - **`create`**, **`update`**, **`delete`**, **`list`**, and more.
-- Extend `BaseRepository` to define custom queries and composite operations.
+- Extend `BaseRepository` to define custom, high performance queries and composite operations.
 
 Example:
 
 ```java
-var repository = new BaseRepository<>(PurchaseOrder.class);
+var repository = new BaseRepository<>(new JdbcTemplate(dataSource)) {};
 
 // Fetch a unique entity by key
 var result = repository.get(Key.of("sc_key", 1L), Contractor.class);
 
-// Query entities with custom conditions
+// Query entities with custom conditions using SqlQuery DSL
 List<Proposal> results = repository.queryEntity(
-    SqlQuery.withClause("WHERE dist >= ?", 10).primaryKey("pr_key"), 
+    new SqlQuery().where("dist >= ?", 10), 
     Proposal.class
+);
+
+// Use raw SQL when needed
+List<Proposal> rawResults = repository.query(
+    SqlQuery.raw("SELECT * FROM est_proposal WHERE dist > ?", 10),
+    new ProposalMapper()
 );
 ```
 
-### Mapping Made Simple
+### SqlQuery DSL
+
+The `SqlQuery` class provides a fluent API for building programmatic SQL queries:
+
+```java
+// Composed query with WHERE clause
+new SqlQuery()
+    .where("dist >= ?", 10)
+    .orderBy("dist", Direction.DESC)
+    .limit(5);
+
+// Combining conditions with AND/OR
+new SqlQuery()
+    .where("status = ?", "active")
+    .andWhere("amount > ?", 1000)
+    .orWhere("priority = ?", "high");
+
+// Select specific columns
+new SqlQuery()
+    .selectColumns("id", "name", "status")
+    .from("proposals")
+    .where("created_date > ?", LocalDate.now().minusDays(30));
+
+// Raw SQL for complex scenarios
+SqlQuery.raw(
+    "SELECT * FROM proposal p " +
+    "INNER JOIN contractor c ON (p.sc_key = c.sc_key) " +
+    "WHERE p.dist > ?", 
+    10
+);
+```
+
+Key Methods:
+
+- **`where()`**, **`andWhere()`**, **`orWhere()`**: Build WHERE conditions with parameter binding
+- **`selectColumns()`**, **`selectDistinct()`**: Specify columns to retrieve
+- **`from()`**, **`join()`**: Define table expressions and joins
+- **`orderBy()`**: Sort results by column or expression
+- **`limit()`**, **`offset()`**, **`paginate()`**: Control result pagination
+- **`SqlQuery.raw()`**: Use raw SQL for complex queries
+- **`primaryKey()`**: Specify primary key for entity mapping
+
+
+### Mapping Helper
 
 Leverage `PersistableRowMapper` for efficient entity mapping:
 
@@ -116,17 +169,111 @@ var results = repository.query(
 **Advanced Example:**  
 See the [ProposalMapper](src/test/java/org/viablespark/persistence/ProposalMapper.java) for a detailed example of custom mapping.
 
+## Notes on Java Compatibility
+
+We will maintain Java 11/Spring 5 compatibility for as long as it allows us to retain core functionality. For Java 11/Spring 5 support, see the [1.x-java-11](https://github.com/martin-jamszolik/goodenough-jdbc/tree/1.x-java-11) branch.
+
+We test the library with Kotlin for compatibility with data classes and common JSON marshallers for easy exposure over REST controllers/endpoints.
+
+---
 
 ## Examples and Test Cases
 
-Explore real-world usage scenarios through the provided test cases:
+The test suite demonstrates real-world usage patterns covering common development scenarios:
 
-| Example                         | Reference                                                                                               |
-|---------------------------------|---------------------------------------------------------------------------------------------------------|
-| Composite Repository            | [ProposalTaskRepositoryTest](src/test/java/org/viablespark/persistence/ProposalTaskRepositoryTest.java) |
-| Many-to-One Entity Mapping      | [ProposalTaskMapper](src/test/java/org/viablespark/persistence/ProposalTaskMapper.java)                 |
-| Simple Repository Example       | [ProposalRepositoryTest](src/test/java/org/viablespark/persistence/ProposalRepositoryTest.java)         |
+| Use Case | Test Method | Description |
+|----------|-------------|-------------|
+| **Save & Update Entity** | [`testSave()`](src/test/java/org/viablespark/persistence/ProposalRepositoryTest.java#L58) | Insert new entity with foreign key reference and update existing record |
+| **Delete Entity** | [`testDelete()`](src/test/java/org/viablespark/persistence/ProposalRepositoryTest.java#L93) | Remove entity from database by key |
+| **Retrieve by Key** | [`testGet()`](src/test/java/org/viablespark/persistence/ProposalRepositoryTest.java#L100) | Fetch single entity using primary key |
+| **Query with Conditions** | [`testQuery()`](src/test/java/org/viablespark/persistence/ProposalRepositoryTest.java#L106) | Filter entities using SqlQuery WHERE clause with parameters |
+| **Join Multiple Tables** | [`testGetProposalWithTasks()`](src/test/java/org/viablespark/persistence/ProposalTaskRepositoryTest.java#L32) | Execute multi-table JOIN query to map many-to-many relationships |
+| **Custom Row Mapper** | [`testRowQuery()`](src/test/java/org/viablespark/persistence/ProposalRepositoryTest.java#L115) | Use custom mapper to handle JOIN queries with related entities |
+| **Manual Row Mapping** | [`testRowSetQuery()`](src/test/java/org/viablespark/persistence/ProposalRepositoryTest.java#L120) | Map result sets manually using lambda expressions |
+| **Insert with Foreign Key** | [`testInsertNote()`](src/test/java/org/viablespark/persistence/NoteRepositoryTest.java#L48) | Create entity with nested foreign key relationships |
+| **Select with Relations** | [`testSelectNote()`](src/test/java/org/viablespark/persistence/NoteRepositoryTest.java#L53) | Retrieve entity and verify foreign key references are populated |
+| **Query with Primary Key** | [`testQueryNote()`](src/test/java/org/viablespark/persistence/NoteRepositoryTest.java#L61) | Query entities using SqlQuery with primary key specification |
+| **Many-to-Many Mapping** | [`testInsertWithPKnoAutoGenerate()`](src/test/java/org/viablespark/persistence/ProposalTaskRepositoryTest.java#L45) | Handle junction table with composite primary keys (no auto-generation) |
+| **Validate Constraints** | [`testSaveContractorThrowsException()`](src/test/java/org/viablespark/persistence/ContractorRepositoryTest.java#L69) | Handle database constraint violations gracefully |
+| **Full CRUD Workflow** | [`testSaveContractor()`](src/test/java/org/viablespark/persistence/ContractorRepositoryTest.java#L44) | Complete create-retrieve-verify workflow |
 
+For advanced mapping patterns, see:
+
+- [ProposalMapper](src/test/java/org/viablespark/persistence/ProposalMapper.java) - One-to-many relationship mapping
+- [ProposalTaskMapper](src/test/java/org/viablespark/persistence/ProposalTaskMapper.java) - Many-to-many relationship mapping
+
+---
+
+## Using LLM Coding Agents Effectively
+
+This library works exceptionally well with LLM coding agents (GitHub Copilot, Cursor, etc.) when you provide the right context. Here's how to maximize productivity:
+
+### 1. Share Your Database Schema
+
+Provide your database schema (DDL) to the agent. This helps it understand your table structure, relationships, and constraints:
+
+```sql
+-- Example: share your schema.sql or migration files
+CREATE TABLE contractor (
+    sc_key BIGINT PRIMARY KEY AUTO_INCREMENT,
+    sc_name VARCHAR(100) NOT NULL,
+    contact VARCHAR(100),
+    phone_1 VARCHAR(20),
+    email VARCHAR(100)
+);
+
+CREATE TABLE est_proposal (
+    pr_key BIGINT PRIMARY KEY AUTO_INCREMENT,
+    sc_key BIGINT,
+    proposal_name VARCHAR(200),
+    dist INT,
+    submit_deadline DATE,
+    FOREIGN KEY (sc_key) REFERENCES contractor(sc_key)
+);
+```
+
+### 2. Show Example Usage Patterns
+
+Point the agent to test files that demonstrate common patterns:
+
+- **Simple CRUD**: Reference [ContractorRepositoryTest.java](src/test/java/org/viablespark/persistence/ContractorRepositoryTest.java)
+- **Relationships**: Reference [NoteRepositoryTest.java](src/test/java/org/viablespark/persistence/NoteRepositoryTest.java)
+- **Complex Queries**: Reference [ProposalRepositoryTest.java](src/test/java/org/viablespark/persistence/ProposalRepositoryTest.java)
+
+### 3. Sample Prompt for Agents
+
+```text
+I'm using goodenough-jdbc for database operations. Here's my schema:
+[paste schema.sql]
+
+I need to:
+1. Create an entity class for the 'order_items' table
+2. Create a repository with a custom query to find items by order_id and status
+3. Handle the foreign key relationship to 'orders' table
+
+Please follow the patterns shown in ContractorRepositoryTest.java and use 
+@PrimaryKey, @Named, and @Ref annotations as appropriate.
+```
+
+### 4. Key Context to Provide
+
+When asking the agent to generate code, include:
+
+- **Schema definition** (CREATE TABLE statements or ER diagram)
+- **Specific requirements** (query conditions, JOIN needs, pagination)
+- **Reference to similar examples** from the test suite
+- **Naming conventions** your project uses (e.g., snake_case in DB, camelCase in Java)
+
+### 5. Iterative Development
+
+1. Start with entity classes mapped to tables
+2. Create basic repository with standard CRUD
+3. Add custom queries using `SqlQuery` DSL
+4. Implement complex mappers for JOINs if needed
+
+The agent can generate most boilerplate by understanding the schema-first approach and seeing how annotations map database columns to Java fields.
+
+---
 
 ## Contributing
 
