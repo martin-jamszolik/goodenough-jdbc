@@ -187,7 +187,7 @@ public class SqlQuery {
     StringBuilder sqlBuilder = new StringBuilder();
     appendSegment(sqlBuilder, selectClause);
     for (SqlClause clause : bodyClauses) {
-      appendSegment(sqlBuilder, clause.getClause());
+      appendSegment(sqlBuilder, clause.clause());
     }
     if (!whereClauses.isEmpty()) {
       appendSegment(sqlBuilder, buildWhereClause());
@@ -212,7 +212,7 @@ public class SqlQuery {
 
     List<Object> values = new ArrayList<>();
     for (SqlClause clause : bodyClauses) {
-      Collections.addAll(values, clause.getValues());
+      Collections.addAll(values, clause.values());
     }
     for (WhereClause clause : whereClauses) {
       Collections.addAll(values, clause.values());
@@ -279,12 +279,7 @@ public class SqlQuery {
     DESC
   }
 
-  private static final class WhereClause {
-    private final String connective;
-    private final String fragment;
-    private final Object[] values;
-    private final boolean raw;
-
+  private record WhereClause(String connective, String fragment, Object[] values, boolean raw) {
     private WhereClause(String connective, String fragment, Object[] values, boolean raw) {
       this.connective = connective;
       this.fragment = fragment;
@@ -308,10 +303,6 @@ public class SqlQuery {
       return new WhereClause(null, fragment, values, true);
     }
 
-    Object[] values() {
-      return values;
-    }
-
     String render(boolean first) {
       if (raw) {
         return fragment;
@@ -323,10 +314,7 @@ public class SqlQuery {
     }
   }
 
-  private static final class OrderBy {
-    private final String expression;
-    private final Direction direction;
-
+  private record OrderBy(String expression, Direction direction) {
     private OrderBy(String expression, Direction direction) {
       this.expression = expression.trim();
       this.direction = direction;

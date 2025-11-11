@@ -59,15 +59,15 @@ public abstract class BaseRepository<E extends Persistable> {
     SqlClause insertClause = WithSql.getInsertClause(entity);
     String sql =
         String.format(
-            "INSERT INTO %s %s", deriveEntityName(entity.getClass()), insertClause.getClause());
+            "INSERT INTO %s %s", deriveEntityName(entity.getClass()), insertClause.clause());
     if (log.isDebugEnabled()) {
       log.debug(
           "Executing insert for {} with SQL [{}] and values {}",
           entity.getClass().getSimpleName(),
           sql,
-          java.util.Arrays.toString(insertClause.getValues()));
+          java.util.Arrays.toString(insertClause.values()));
     }
-    KeyHolder keyHolder = execWithKey(sql, insertClause.getValues());
+    KeyHolder keyHolder = execWithKey(sql, insertClause.values());
 
     if (keyHolder.getKeys() != null) {
       entity.setRefs(
@@ -82,16 +82,15 @@ public abstract class BaseRepository<E extends Persistable> {
   private Optional<Key> updateEntity(E entity) throws Exception {
     SqlClause updateClause = WithSql.getUpdateClause(entity);
     String sql =
-        String.format(
-            "UPDATE %s %s", deriveEntityName(entity.getClass()), updateClause.getClause());
+        String.format("UPDATE %s %s", deriveEntityName(entity.getClass()), updateClause.clause());
     if (log.isDebugEnabled()) {
       log.debug(
           "Executing update for {} with SQL [{}] and values {}",
           entity.getClass().getSimpleName(),
           sql,
-          java.util.Arrays.toString(updateClause.getValues()));
+          java.util.Arrays.toString(updateClause.values()));
     }
-    jdbc.update(sql, updateClause.getValues());
+    jdbc.update(sql, updateClause.values());
 
     return Optional.ofNullable(entity.getRefs());
   }

@@ -18,6 +18,7 @@ plugins {
     id("jacoco")
     id("maven-publish")
     id("checkstyle")
+    kotlin("jvm") version "1.9.24"
     id("com.diffplug.spotless") version "6.25.0"
 }
 
@@ -36,6 +37,8 @@ dependencies {
 
 
     compileOnly ("com.google.code.findbugs:jsr305:3.0.2")
+    testImplementation(kotlin("stdlib"))
+    testImplementation(kotlin("reflect"))
     testImplementation("org.junit.jupiter:junit-jupiter-api:5.9.1")
     testImplementation("org.hsqldb:hsqldb:2.7.3")
     testImplementation("org.springframework:spring-jdbc:5.3.39")
@@ -53,6 +56,16 @@ java {
     withSourcesJar()
 }
 
+configurations.implementation {
+    withDependencies {
+        removeAll { dep -> dep.group == "org.jetbrains.kotlin" }
+    }
+}
+
+kotlin {
+    jvmToolchain(17)
+}
+
 checkstyle {
     toolVersion = "10.17.0"
     configDirectory.set(layout.projectDirectory.dir("config/checkstyle"))
@@ -68,7 +81,7 @@ tasks.withType<Checkstyle>().configureEach {
 spotless {
     java {
         target("src/**/*.java")
-        googleJavaFormat("1.22.0")
+        googleJavaFormat("1.28.0")
         trimTrailingWhitespace()
         endWithNewline()
     }

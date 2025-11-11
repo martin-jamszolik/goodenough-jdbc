@@ -13,21 +13,10 @@
 
 package org.viablespark.persistence.dsl;
 
-public class SqlClause {
-
-  private final String clause;
-  private final Object[] values;
+public record SqlClause(String clause, Object[] values) {
 
   public SqlClause(String clause, Object[] values) {
     this.clause = clause;
     this.values = values != null ? values : new Object[] {};
-  }
-
-  public String getClause() {
-    return clause;
-  }
-
-  public Object[] getValues() {
-    return values;
   }
 }

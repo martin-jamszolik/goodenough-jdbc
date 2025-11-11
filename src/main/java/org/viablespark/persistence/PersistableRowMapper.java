@@ -20,6 +20,7 @@ import java.lang.reflect.Proxy;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
+import java.time.LocalDate;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -302,12 +303,7 @@ public class PersistableRowMapper<E extends Persistable> implements PersistableM
                     new SqlRowSetWrapper(key)));
   }
 
-  private static class SqlRowSetWrapper implements InvocationHandler {
-    private final SqlRowSet rows;
-
-    public SqlRowSetWrapper(SqlRowSet rows) {
-      this.rows = rows;
-    }
+  private record SqlRowSetWrapper(SqlRowSet rows) implements InvocationHandler {
 
     @Override
     @SuppressWarnings("UseSpecificCatch")
@@ -319,7 +315,7 @@ public class PersistableRowMapper<E extends Persistable> implements PersistableM
       if ("getObject".equals(method.getName())
           && args.length == 2
           && isIntegerType(method.getParameterTypes()[0])
-          && args[1].equals(java.time.LocalDate.class)) {
+          && args[1].equals(LocalDate.class)) {
         return rows.getDate((Integer) args[0]);
       }
       var targetMethod = rows.getClass().getMethod(method.getName(), method.getParameterTypes());

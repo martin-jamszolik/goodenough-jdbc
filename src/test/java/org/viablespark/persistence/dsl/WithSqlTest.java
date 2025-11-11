@@ -64,7 +64,7 @@ public class WithSqlTest {
 
     assertEquals(
         "SET sc_key=?,dist=?,prop_date=?,prop_id=?,proposal_name=?,submit_deadline=? WHERE pri_key=?",
-        update.getClause());
+        update.clause());
 
     Exception thrown =
         assertThrows(
@@ -83,7 +83,7 @@ public class WithSqlTest {
 
     assertEquals(
         "SET some_fake_field=?,long_id=?,po_number_id=?,primitive_id=?,requester=? WHERE id=?",
-        update.getClause());
+        update.clause());
   }
 
   @Test
@@ -97,7 +97,7 @@ public class WithSqlTest {
 
     assertEquals(
         "(some_fake_field,long_id,po_number_id,primitive_id,requester) VALUES (?,?,?,?,?)",
-        insert.getClause());
+        insert.clause());
   }
 
   @Test
@@ -116,7 +116,7 @@ public class WithSqlTest {
 
     assertEquals(
         "(sc_key,dist,prop_date,prop_id,proposal_name,submit_deadline) VALUES (?,?,?,?,?,?)",
-        insert.getClause());
+        insert.clause());
 
     Exception thrown =
         assertThrows(
