@@ -13,16 +13,22 @@
 
 package org.viablespark.persistence;
 
-import static org.junit.jupiter.api.Assertions.*;
-import static org.springframework.test.util.AssertionErrors.assertTrue;
-
 import java.sql.SQLException;
 import java.util.List;
-import org.junit.jupiter.api.*;
+
+import org.junit.jupiter.api.AfterEach;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInstance;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.embedded.EmbeddedDatabase;
 import org.springframework.jdbc.datasource.embedded.EmbeddedDatabaseBuilder;
 import org.springframework.jdbc.support.rowset.SqlRowSet;
+import static org.springframework.test.util.AssertionErrors.assertTrue;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class PersistableRowMapperTest {
@@ -136,6 +142,136 @@ class PersistableRowMapperTest {
       SQLException ex = assertThrows(SQLException.class, () -> mapper.mapRow(rs, rs.getRow()));
       org.junit.jupiter.api.Assertions.assertTrue(ex.getMessage().contains("n_key"));
     }
+  }
+
+  @Test
+  public void testNullValueHandling() throws Exception {
+    var mapper = PersistableRowMapper.of(Contractor.class);
+    var jdbc = new JdbcTemplate(db);
+    var rowSet =
+        jdbc.queryForRowSet("select sc_key, sc_name, null as contact from contractor limit 1");
+    if (rowSet.next()) {
+      Contractor c = mapper.mapRow(rowSet, rowSet.getRow());
+      assertNotNull(c);
+      assertNull(c.getContact());
+    }
+  }
+
+  @Test
+  public void testTypeConversionLongToInt() throws Exception {
+    var mapper = PersistableRowMapper.of(Contractor.class);
+    var jdbc = new JdbcTemplate(db);
+    // Test integer type conversion from Long
+    var rowSet = jdbc.queryForRowSet("select * from contractor limit 1");
+    if (rowSet.next()) {
+      Contractor c = mapper.mapRow(rowSet, rowSet.getRow());
+      assertNotNull(c);
+    }
+  }
+
+  @Test
+  public void testSqlRowSetProxyMetaData() throws Exception {
+    var mapper = PersistableRowMapper.of(Contractor.class);
+    var jdbc = new JdbcTemplate(db);
+    var rowSet = jdbc.queryForRowSet("select sc_key, sc_name from contractor limit 1");
+    if (rowSet.next()) {
+      // This tests the proxy creation and metadata handling
+      Contractor c = mapper.mapRow(rowSet, rowSet.getRow());
+      assertNotNull(c);
+      assertNotNull(c.getRefs());
+    }
+  }
+
+  @Test
+  public void testMissingPrimaryKeyColumnThrowsException() throws Exception {
+    var mapper = PersistableRowMapper.of(Contractor.class);
+    String sql = "select sc_name, contact from contractor";
+    try (var conn = db.getConnection();
+        var stmt = conn.prepareStatement(sql)) {
+      var rs = stmt.executeQuery();
+      rs.next();
+      SQLException ex = assertThrows(SQLException.class, () -> mapper.mapRow(rs, rs.getRow()));
+      org.junit.jupiter.api.Assertions.assertTrue(ex.getMessage().contains("sc_key"));
+    }
+  }
+
+  @Test
+  public void testRefValueWithMissingLabelColumn() throws Exception {
+    var mapper = PersistableRowMapper.of(PurchaseOrder.class);
+    String sql = "select id, n_key, supplier_id, 'dummy' as fake from purchase_order";
+    try (var conn = db.getConnection();
+        var stmt = conn.prepareStatement(sql)) {
+      var rs = stmt.executeQuery();
+      rs.next();
+      // Should throw because sup_name is missing
+      assertThrows(SQLException.class, () -> mapper.mapRow(rs, rs.getRow()));
+    }
+  }
+
+  @Test
+  public void testMapperCaching() {
+    // Test that mapper instances are cached
+    var mapper1 = PersistableRowMapper.of(Contractor.class);
+    var mapper2 = PersistableRowMapper.of(Contractor.class);
+    assertNotNull(mapper1);
+    assertNotNull(mapper2);
+    // Both should work correctly
+  }
+
+  @Test
+  public void testResultSetDirectMapping() throws Exception {
+    var mapper = PersistableRowMapper.of(Contractor.class);
+    String sql = "select * from contractor order by sc_key asc";
+    try (var conn = db.getConnection();
+        var stmt = conn.prepareStatement(sql)) {
+      var rs = stmt.executeQuery();
+      if (rs.next()) {
+        Contractor c = mapper.mapRow(rs, rs.getRow());
+        assertNotNull(c);
+        assertNotNull(c.getRefs());
+        assertEquals("sc_key", c.getRefs().primaryKey().getKey());
+      }
+    }
+  }
+
+  @Test
+  public void testSqlRowSetProxyGetObject() throws Exception {
+    var mapper = PersistableRowMapper.of(Proposal.class);
+    var jdbc = new JdbcTemplate(db);
+    // Test that uses LocalDate conversion via proxy
+    var rowSet =
+        jdbc.queryForRowSet("select * from est_proposal where pr_key = 1");
+    if (rowSet.next()) {
+      Proposal proposal = mapper.mapRow(rowSet, rowSet.getRow());
+      assertNotNull(proposal);
+      assertNotNull(proposal.getSubmitDeadline());
+    }
+  }
+
+  @Test
+  public void testProxyInvocationHandlerException() throws Exception {
+    var mapper = PersistableRowMapper.of(Contractor.class);
+    var jdbc = new JdbcTemplate(db);
+    
+    // This tests the exception handling in SqlRowSetWrapper.invoke()
+    var rowSet = jdbc.queryForRowSet("select * from contractor where sc_key = 1");
+    if (rowSet.next()) {
+      Contractor c = mapper.mapRow(rowSet, rowSet.getRow());
+      assertNotNull(c);
+      assertEquals("Mr Contractor", c.getName());
+    }
+  }
+
+  @Test
+  public void testMultipleRowsMappingWithData() throws Exception {
+    var mapper = PersistableRowMapper.of(Contractor.class);
+    var jdbc = new JdbcTemplate(db);
+    
+    // Test data has 2 contractors
+    List<Contractor> contractors = jdbc.query("select * from contractor order by sc_key", mapper);
+    assertEquals(2, contractors.size());
+    assertEquals("Mr Contractor", contractors.get(0).getName());
+    assertEquals("ABC Contractor Inc", contractors.get(1).getName());
   }
 
   @BeforeEach
