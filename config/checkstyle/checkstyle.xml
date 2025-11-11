@@ -11,45 +11,15 @@
 
     <module name="NewlineAtEndOfFile"/>
 
+    <module name="SuppressionFilter">
+        <property name="file" value="${config_loc}/suppressions.xml"/>
+    </module>
+
     <module name="TreeWalker">
         <module name="UnusedImports"/>
-        <module name="NeedBraces"/>
-        <module name="EqualsHashCode"/>
-        <module name="FinalClass"/>
-        <module name="HiddenField">
-            <property name="ignoreSetter" value="true"/>
-            <property name="ignoreConstructorParameter" value="true"/>
+        <module name="IllegalImport">
+            <property name="illegalPkgs" value="javax.xml.bind,javax.xml.ws"/>
         </module>
-        <module name="MethodName">
-            <property name="format" value="^[a-z][a-zA-Z0-9]*$"/>
-        </module>
-        <module name="ParameterName">
-            <property name="format" value="^[a-z][a-zA-Z0-9]*$"/>
-        </module>
-        <module name="LocalVariableName">
-            <property name="format" value="^[a-z][a-zA-Z0-9]*$"/>
-        </module>
-        <module name="MemberName">
-            <property name="format" value="^[a-z][a-zA-Z0-9]*$"/>
-        </module>
-        <module name="StaticVariableName">
-            <property name="format" value="^[A-Z][A-Z0-9_]*$"/>
-        </module>
-        <module name="ConstantName"/>
-        <module name="ModifierOrder"/>
-        <module name="WhitespaceAfter"/>
-        <module name="WhitespaceAround"/>
-        <module name="OperatorWrap">
-            <property name="option" value="eol"/>
-        </module>
-        <module name="Indentation">
-            <property name="basicOffset" value="4"/>
-            <property name="braceAdjustment" value="0"/>
-            <property name="caseIndent" value="4"/>
-            <property name="tabWidth" value="4"/>
-        </module>
-        <module name="LineLength">
-            <property name="max" value="120"/>
-        </module>
+        <module name="RecordComponentName"/>
     </module>
 </module>
