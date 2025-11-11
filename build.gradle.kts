@@ -11,13 +11,21 @@
  * See the License for the specific language governing permissions and limitations under the License.
  */
 
+import org.gradle.api.plugins.quality.Checkstyle
+
 plugins {
     id("java")
     id("jacoco")
     id("maven-publish")
+    id("checkstyle")
+    kotlin("jvm") version "1.9.24"
+    id("com.diffplug.spotless") version "6.25.0"
 }
 
-var libReleaseVersion = "1.7.3"
+var libReleaseVersion = "2.0"
+val springFrameworkVersion = "6.2.12"
+val slf4jVersion = "2.0.17"
+val junitVersion = "5.10.3"
 
 group = "org.viablespark"
 version = libReleaseVersion
@@ -27,26 +35,68 @@ repositories {
 }
 
 dependencies {
-    compileOnly("org.springframework:spring-jdbc:5.3.39")
-    compileOnly("org.slf4j:slf4j-api:2.0.5")
+    compileOnly("org.springframework:spring-jdbc:$springFrameworkVersion")
+    compileOnly("org.slf4j:slf4j-api:$slf4jVersion")
+    compileOnly("com.google.code.findbugs:jsr305:3.0.2")
 
+    testImplementation(kotlin("stdlib"))
+    testImplementation(kotlin("reflect"))
+    testImplementation(platform("org.junit:junit-bom:$junitVersion"))
+    testImplementation("org.junit.jupiter:junit-jupiter-api")
+    testImplementation("org.hsqldb:hsqldb:2.7.4")
+    testImplementation("org.springframework:spring-jdbc:$springFrameworkVersion")
+    testImplementation("org.springframework:spring-test:$springFrameworkVersion")
+    testImplementation("ch.qos.logback:logback-classic:1.5.20")
+    testImplementation("org.mockito:mockito-core:5.20.0")
 
-    compileOnly ("com.google.code.findbugs:jsr305:3.0.2")
-    testImplementation("org.junit.jupiter:junit-jupiter-api:5.9.1")
-    testImplementation("org.hsqldb:hsqldb:2.7.3")
-    testImplementation("org.springframework:spring-jdbc:5.3.39")
-    testImplementation("org.springframework:spring-test:5.3.39")
-    testImplementation("ch.qos.logback:logback-classic:1.5.6")
-    testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.9.1")
-    testImplementation("org.mockito:mockito-core:4.10.0")
+    testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine")
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
 
 java {
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
     toolchain {
-        languageVersion.set(JavaLanguageVersion.of(11))
+        languageVersion.set(JavaLanguageVersion.of(17))
     }
     withSourcesJar()
+}
+
+configurations.named("implementation") {
+    withDependencies {
+        removeIf { it.group == "org.jetbrains.kotlin" }
+    }
+}
+
+kotlin {
+    jvmToolchain(17)
+}
+
+checkstyle {
+    toolVersion = "10.17.0"
+    configDirectory.set(layout.projectDirectory.dir("config/checkstyle"))
+}
+
+tasks.withType<Checkstyle>().configureEach {
+    reports {
+        html.required.set(true)
+        xml.required.set(false)
+    }
+    exclude("**/module-info.java")
+}
+
+spotless {
+    java {
+        target("src/**/*.java")
+        googleJavaFormat("1.28.0")
+        trimTrailingWhitespace()
+        endWithNewline()
+    }
+}
+
+tasks.named("check") {
+    dependsOn("spotlessCheck")
 }
 
 

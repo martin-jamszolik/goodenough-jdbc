@@ -13,37 +13,38 @@
 
 package org.viablespark.persistence;
 
-import org.springframework.jdbc.support.rowset.SqlRowSet;
-
 import java.util.LinkedHashMap;
 import java.util.Map;
+import org.springframework.jdbc.support.rowset.SqlRowSet;
 
 public class ProposalMapper implements PersistableMapper<Proposal> {
 
-    private final Map<Key, Contractor> store = new LinkedHashMap<>();
+  private final Map<Key, Contractor> store = new LinkedHashMap<>();
 
-    @Override
-    public Proposal mapRow(SqlRowSet rs, int rowNum) {
-        var pr = new Proposal();
-        pr.setRefs(Key.of("pr_key", rs.getLong("pr_key")));
-        pr.setDistance(rs.getInt("dist"));
-        pr.setPropName(rs.getString("proposal_name"));
-        if (rs.getObject("sc_key") != null) {
-            var contractor = store.computeIfAbsent(Key.of("sc_key", rs.getLong("sc_key")),
-                sc -> {
-                    var ct = new Contractor("sc_key", rs.getLong("sc_key"));
-                    ct.setContact(rs.getString("contact"));
-                    ct.setFax(rs.getString("fax"));
-                    ct.setEmail(rs.getString("email"));
-                    ct.setPhone1(rs.getString("phone1"));
-                    return ct;
-                });
-            pr.setContractor(contractor);
-        }
-        return pr;
+  @Override
+  public Proposal mapRow(SqlRowSet rs, int rowNum) {
+    var pr = new Proposal();
+    pr.setRefs(Key.of("pr_key", rs.getLong("pr_key")));
+    pr.setDistance(rs.getInt("dist"));
+    pr.setPropName(rs.getString("proposal_name"));
+    if (rs.getObject("sc_key") != null) {
+      var contractor =
+          store.computeIfAbsent(
+              Key.of("sc_key", rs.getLong("sc_key")),
+              sc -> {
+                var ct = new Contractor("sc_key", rs.getLong("sc_key"));
+                ct.setContact(rs.getString("contact"));
+                ct.setFax(rs.getString("fax"));
+                ct.setEmail(rs.getString("email"));
+                ct.setPhone1(rs.getString("phone1"));
+                return ct;
+              });
+      pr.setContractor(contractor);
     }
+    return pr;
+  }
 
-    public Map<Key, Contractor> getContractors() {
-        return store;
-    }
+  public Map<Key, Contractor> getContractors() {
+    return store;
+  }
 }

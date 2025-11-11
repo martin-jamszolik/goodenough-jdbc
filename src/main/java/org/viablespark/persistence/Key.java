@@ -22,120 +22,118 @@ import java.util.Optional;
 
 public class Key implements Serializable {
 
-    public static final Key None = new Key();
-    private final Map<String,Pair<String, Long>> keys = new LinkedHashMap<>();
+  public static final Key None = new Key();
+  private final Map<String, Pair<String, Long>> keys = new LinkedHashMap<>();
 
-    public Key() {
+  public Key() {}
+
+  public Key(Pair<String, Long> primaryKey) {
+    keys.put(primaryKey.getKey(), primaryKey);
+  }
+
+  public static Key of(String key, Long value) {
+    return new Key(new Pair<>(key, value));
+  }
+
+  public Key(Map<String, ?> map) {
+    for (Entry<String, ?> e : map.entrySet()) {
+      keys.put(e.getKey(), Pair.of(e.getKey(), ((Number) e.getValue()).longValue()));
+    }
+  }
+
+  public Key add(String name, Number key) {
+    return add(name, key.longValue());
+  }
+
+  public Key addIfValid(String name, Long key) {
+    if (key != null) {
+      add(name, key);
+    }
+    return this;
+  }
+
+  public Key add(String name, Long key) {
+    keys.put(name, Pair.of(name, key));
+    return this;
+  }
+
+  public int count() {
+    return keys.size();
+  }
+
+  public Collection<Pair<String, Long>> getKeys() {
+    return keys.values();
+  }
+
+  public void setKeys(Collection<Pair<String, Long>> _keys) {
+    _keys.forEach(pair -> keys.put(pair.getKey(), pair));
+  }
+
+  public Pair<String, Long> getAt(int index) {
+    int counter = 0;
+    for (Entry<String, Pair<String, Long>> entry : keys.entrySet()) {
+      if (counter == index) {
+        return entry.getValue();
+      }
+      counter++;
+    }
+    return null;
+  }
+
+  public Long getKey(String name) {
+    Pair<String, Long> found = keys.get(name);
+    if (found == null) {
+      throw new RuntimeException("Key " + name + " not found. Other keys?" + this);
+    }
+    return found.getValue();
+  }
+
+  public Optional<Pair<String, Long>> contains(String strKey) {
+    if (!keys.containsKey(strKey)) {
+      return Optional.empty();
+    }
+    return Optional.of(keys.get(strKey));
+  }
+
+  @Override
+  public boolean equals(Object other) {
+
+    if (!(other instanceof Key)) {
+      return false;
     }
 
-    public Key(Pair<String, Long> primaryKey) {
-        keys.put(primaryKey.getKey(), primaryKey);
-    }
-    
-    public static Key of(String key, Long value){
-        return new Key(new Pair<>(key,value));
-    }
-    
-    public Key(Map<String, ?> map){
-        for ( Entry<String,?> e: map.entrySet() ){
-            keys.put(e.getKey(), Pair.of(e.getKey(), ((Number)e.getValue()).longValue() ));
-        }
+    if (((Key) other).count() != count()) {
+      return false;
     }
 
-    public Key add(String name, Number key) {
-        return add(name,key.longValue());
+    for (int i = 0; i < count(); i++) {
+      if (!getAt(i).equals(((Key) other).getAt(i))) {
+        return false;
+      }
     }
 
-    public Key addIfValid(String name, Long key){
-        if( key != null ){
-            add(name,key);
-        }
-        return this;
+    return true;
+  }
+
+  @Override
+  public int hashCode() {
+    int hash = 0;
+    for (int i = 0; i < count(); i++) {
+      hash += getAt(i).hashCode();
     }
+    return hash;
+  }
 
-    public Key add(String name, Long key) {
-        keys.put(name,Pair.of(name, key));
-        return this;
+  public Pair<String, Long> primaryKey() {
+    return getAt(0);
+  }
+
+  @Override
+  public String toString() {
+    StringBuilder str = new StringBuilder("Key(s) ");
+    for (Pair<String, Long> key : keys.values()) {
+      str.append(key.getKey()).append("=").append(key.getValue()).append(" ");
     }
-
-    public int count() {
-        return keys.size();
-    }
-
-    public Collection<Pair<String, Long>> getKeys() {
-        return keys.values();
-    }
-
-    public void setKeys(Collection<Pair<String,Long>> _keys){
-        _keys.forEach( pair -> keys.put(pair.getKey(),pair));
-    }
-
-    public Pair<String, Long> getAt(int index) {
-        int counter=0;
-        for (Entry<String, Pair<String, Long>> entry : keys.entrySet()) {
-            if(counter == index){
-                return entry.getValue();
-            }
-            counter++;
-        }
-        return null;
-    }
-
-    public Long getKey(String name) {
-        Pair<String, Long> found = keys.get(name);
-        if( found == null ){
-            throw new RuntimeException("Key " + name + " not found. Other keys?" + this);
-        }
-        return found.getValue();
-    }
-
-    public Optional<Pair<String, Long>> contains(String strKey) {
-        if ( !keys.containsKey(strKey) ){
-            return Optional.empty();
-        }
-        return Optional.of( keys.get(strKey));        
-    }
-
-    @Override
-    public boolean equals(Object other) {
-
-        if (!(other instanceof Key)) {
-            return false;
-        }
-
-        if (((Key) other).count() != count()) {
-            return false;
-        }
-
-        for (int i = 0; i < count(); i++) {
-            if (!getAt(i).equals(((Key) other).getAt(i))) {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-    @Override
-    public int hashCode() {
-        int hash = 0;
-        for (int i = 0; i < count(); i++) {
-            hash += getAt(i).hashCode();
-        }
-        return hash;
-    }
-
-    public Pair<String, Long> primaryKey() {
-        return getAt(0);
-    }
-
-    @Override
-    public String toString() {
-        StringBuilder str = new StringBuilder("Key(s) ");
-        for (Pair<String,Long> key : keys.values()) {
-            str.append(key.getKey()).append("=").append(key.getValue()).append(" ");
-        }
-        return str.toString();
-    }
-
+    return str.toString();
+  }
 }

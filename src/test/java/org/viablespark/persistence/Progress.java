@@ -13,17 +13,18 @@
 
 package org.viablespark.persistence;
 
-import org.viablespark.persistence.dsl.PrimaryKey;
-
 import java.math.BigDecimal;
+import org.viablespark.persistence.dsl.PrimaryKey;
 
 @PrimaryKey("id")
 public class Progress extends Model {
-    private BigDecimal percent;
-    public BigDecimal getPercent() {
-        return percent;
-    }
-    public void setPercent(BigDecimal percent) {
-        this.percent = percent;
-    }
+  private BigDecimal percent;
+
+  public BigDecimal getPercent() {
+    return percent;
+  }
+
+  public void setPercent(BigDecimal percent) {
+    this.percent = percent;
+  }
 }

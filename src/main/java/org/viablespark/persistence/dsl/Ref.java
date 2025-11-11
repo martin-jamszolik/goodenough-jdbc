@@ -19,8 +19,9 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 @Retention(RetentionPolicy.RUNTIME)
-@Target({ElementType.METHOD,ElementType.FIELD})
+@Target({ElementType.METHOD, ElementType.FIELD})
 public @interface Ref {
-    String value() default "";
-    String label() default "";
+  String value() default "";
+
+  String label() default "";
 }

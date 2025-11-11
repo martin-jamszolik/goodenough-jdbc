@@ -18,13 +18,13 @@ import org.viablespark.persistence.dsl.PrimaryKey;
 @PrimaryKey("t_key")
 public class Task extends Model {
 
-    private String task_name;
+  private String task_name;
 
-    public String getTask_name() {
-        return task_name;
-    }
+  public String getTask_name() {
+    return task_name;
+  }
 
-    public void setTask_name(String task_name) {
-        this.task_name = task_name;
-    }
+  public void setTask_name(String task_name) {
+    this.task_name = task_name;
+  }
 }

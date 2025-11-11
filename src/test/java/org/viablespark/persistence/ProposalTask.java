@@ -19,24 +19,24 @@ import org.viablespark.persistence.dsl.Ref;
 @PrimaryKey("t_key")
 public class ProposalTask extends Model {
 
-    private Task task;
-    private Proposal proposal;
+  private Task task;
+  private Proposal proposal;
 
-    @Ref
-    public Task getTask() {
-        return task;
-    }
+  @Ref
+  public Task getTask() {
+    return task;
+  }
 
-    public void setTask(Task task) {
-        this.task = task;
-    }
+  public void setTask(Task task) {
+    this.task = task;
+  }
 
-    @Ref
-    public Proposal getProposal() {
-        return proposal;
-    }
+  @Ref
+  public Proposal getProposal() {
+    return proposal;
+  }
 
-    public void setProposal(Proposal proposal) {
-        this.proposal = proposal;
-    }
+  public void setProposal(Proposal proposal) {
+    this.proposal = proposal;
+  }
 }

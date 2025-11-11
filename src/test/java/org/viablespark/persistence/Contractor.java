@@ -17,74 +17,73 @@ import org.viablespark.persistence.dsl.Named;
 import org.viablespark.persistence.dsl.PrimaryKey;
 
 /*
-* Contractor entity demonstrates that you don't have to extend from Model.
-* There are situations where you cannot extend your object.
-* Use the interface and provide an instance of Data object to hold keys.
+ * Contractor entity demonstrates that you don't have to extend from Model.
+ * There are situations where you cannot extend your object.
+ * Use the interface and provide an instance of Data object to hold keys.
  */
 @PrimaryKey("sc_key")
 public class Contractor implements Persistable {
-    private Key key = Key.None;
-    private String name;
-    private String contact;
-    private String phone1;
-    private String fax;
-    private String email;
+  private Key key = Key.None;
+  private String name;
+  private String contact;
+  private String phone1;
+  private String fax;
+  private String email;
 
-    @Override
-    public Key getRefs() {
-        return key;
-    }
+  @Override
+  public Key getRefs() {
+    return key;
+  }
 
-    @Override
-    public void setRefs(Key refs) {
-        this.key = refs;
-    }
+  @Override
+  public void setRefs(Key refs) {
+    this.key = refs;
+  }
 
-    public Contractor() {
-    }
+  public Contractor() {}
 
-    public Contractor(String key, Long id) {
-        setRefs(Key.of(key,id));
-    }
+  public Contractor(String key, Long id) {
+    setRefs(Key.of(key, id));
+  }
 
-    @Named("sc_name")
-    public String getName() {
-        return name;
-    }
+  @Named("sc_name")
+  public String getName() {
+    return name;
+  }
 
-    public void setName(String name) {
-        this.name = name;
-    }
+  public void setName(String name) {
+    this.name = name;
+  }
 
-    public String getContact() {
-        return contact;
-    }
+  public String getContact() {
+    return contact;
+  }
 
-    public void setContact(String contact) {
-        this.contact = contact;
-    }
+  public void setContact(String contact) {
+    this.contact = contact;
+  }
 
-    public String getPhone1() {
-        return phone1;
-    }
+  public String getPhone1() {
+    return phone1;
+  }
 
-    public void setPhone1(String phone1) {
-        this.phone1 = phone1;
-    }
+  public void setPhone1(String phone1) {
+    this.phone1 = phone1;
+  }
 
-    public String getFax() {
-        return fax;
-    }
+  public String getFax() {
+    return fax;
+  }
 
-    public void setFax(String fax) {
-        this.fax = fax;
-    }
+  public void setFax(String fax) {
+    this.fax = fax;
+  }
 
-    public String getEmail() {
-        return email;
-    }
+  public String getEmail() {
+    return email;
+  }
 
-    public void setEmail(String email) {
-        this.email = email;
-    }
+  public void setEmail(String email) {
+    this.email = email;
+  }
 }
