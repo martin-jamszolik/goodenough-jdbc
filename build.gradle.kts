@@ -39,6 +39,7 @@ dependencies {
     compileOnly("org.slf4j:slf4j-api:$slf4jVersion")
     compileOnly("com.google.code.findbugs:jsr305:3.0.2")
 
+    // Kotlin only needed for tests (compatibility checks / data classes)
     testImplementation(kotlin("stdlib"))
     testImplementation(kotlin("reflect"))
     testImplementation(platform("org.junit:junit-bom:$junitVersion"))
@@ -63,14 +64,18 @@ java {
     withSourcesJar()
 }
 
-configurations.named("implementation") {
-    withDependencies {
-        removeIf { it.group == "org.jetbrains.kotlin" }
-    }
-}
-
 kotlin {
     jvmToolchain(17)
+}
+
+// Disable automatic stdlib addition via project property in gradle.properties.
+// Keep kotlin only for tests; no main Kotlin sources are present.
+configurations.configureEach {
+    // Do not mutate testImplementation; rely on explicit testImplementation(kotlin("stdlib")).
+    if (name == "implementation") {
+        // Guard in case plugin tries to inject stdlib; remove after evaluation of dependencies.
+        withDependencies { removeIf { it.group == "org.jetbrains.kotlin" } }
+    }
 }
 
 checkstyle {
