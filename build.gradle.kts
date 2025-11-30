@@ -22,7 +22,7 @@ plugins {
     id("com.diffplug.spotless") version "6.25.0"
 }
 
-var libReleaseVersion = "1.7.4"
+var libReleaseVersion = "1.7.5"
 val springFrameworkVersion = "5.3.39"
 val slf4jVersion = "2.0.17"
 val junitVersion = "5.10.3"

@@ -36,8 +36,8 @@ class PersistableRowMapperAdvancedTest {
 
     when(rs.getMetaData()).thenReturn(metaData);
     when(metaData.getColumnCount()).thenReturn(2);
-    when(metaData.getColumnName(1)).thenReturn("id");
-    when(metaData.getColumnName(2)).thenReturn("name");
+    when(metaData.getColumnLabel(1)).thenReturn("id");
+    when(metaData.getColumnLabel(2)).thenReturn("name");
     when(rs.getLong(1)).thenReturn(1L);
     when(rs.getString(2)).thenReturn("Test");
     when(rs.getObject(2)).thenReturn("Test");
@@ -59,8 +59,8 @@ class PersistableRowMapperAdvancedTest {
 
     when(rs.getMetaData()).thenReturn(metaData);
     when(metaData.getColumnCount()).thenReturn(2);
-    when(metaData.getColumnName(1)).thenReturn("id");
-    when(metaData.getColumnName(2)).thenReturn("created_date");
+    when(metaData.getColumnLabel(1)).thenReturn("id");
+    when(metaData.getColumnLabel(2)).thenReturn("created_date");
     when(rs.getLong(1)).thenReturn(1L);
 
     Timestamp timestamp = Timestamp.valueOf(LocalDateTime.of(2024, 1, 15, 10, 30));
@@ -80,8 +80,8 @@ class PersistableRowMapperAdvancedTest {
 
     when(rs.getMetaData()).thenReturn(metaData);
     when(metaData.getColumnCount()).thenReturn(2);
-    when(metaData.getColumnName(1)).thenReturn("id");
-    when(metaData.getColumnName(2)).thenReturn("created_date");
+    when(metaData.getColumnLabel(1)).thenReturn("id");
+    when(metaData.getColumnLabel(2)).thenReturn("created_date");
     when(rs.getLong(1)).thenReturn(1L);
     when(rs.getObject(2)).thenReturn(null);
     when(rs.wasNull()).thenReturn(true);
@@ -99,7 +99,7 @@ class PersistableRowMapperAdvancedTest {
 
     when(rs.getMetaData()).thenReturn(metaData);
     when(metaData.getColumnCount()).thenReturn(1);
-    when(metaData.getColumnName(1)).thenReturn("id");
+    when(metaData.getColumnLabel(1)).thenReturn("id");
     when(rs.getLong(1)).thenReturn(1L);
     when(rs.wasNull()).thenReturn(false);
 
@@ -116,7 +116,7 @@ class PersistableRowMapperAdvancedTest {
 
     when(rs.getMetaData()).thenReturn(metaData);
     when(metaData.getColumnCount()).thenReturn(1);
-    when(metaData.getColumnName(1)).thenReturn("name");
+    when(metaData.getColumnLabel(1)).thenReturn("name");
     when(rs.getString(1)).thenReturn("Test");
     when(rs.getObject(1)).thenReturn("Test");
     when(rs.wasNull()).thenReturn(false);
@@ -133,7 +133,7 @@ class PersistableRowMapperAdvancedTest {
 
     when(rs.getMetaData()).thenReturn(metaData);
     when(metaData.getColumnCount()).thenReturn(1);
-    when(metaData.getColumnName(1)).thenReturn("id");
+    when(metaData.getColumnLabel(1)).thenReturn("id");
     when(rs.getLong(1)).thenReturn(1L);
     when(rs.wasNull()).thenReturn(false);
 
@@ -150,7 +150,7 @@ class PersistableRowMapperAdvancedTest {
 
     when(rs.getMetaData()).thenReturn(metaData);
     when(metaData.getColumnCount()).thenReturn(1);
-    when(metaData.getColumnName(1)).thenReturn("id");
+    when(metaData.getColumnLabel(1)).thenReturn("id");
     when(rs.getLong(1)).thenReturn(1L);
     when(rs.wasNull()).thenReturn(false);
 
@@ -188,8 +188,8 @@ class PersistableRowMapperAdvancedTest {
 
     when(rs.getMetaData()).thenReturn(metaData);
     when(metaData.getColumnCount()).thenReturn(2);
-    when(metaData.getColumnName(1)).thenReturn("id");
-    when(metaData.getColumnName(2)).thenReturn("count");
+    when(metaData.getColumnLabel(1)).thenReturn("id");
+    when(metaData.getColumnLabel(2)).thenReturn("count");
     when(rs.getLong(1)).thenReturn(1L);
     when(rs.getObject(2)).thenReturn(42L); // Long value for integer field
     when(rs.wasNull()).thenReturn(false);
@@ -207,8 +207,8 @@ class PersistableRowMapperAdvancedTest {
 
     when(rs.getMetaData()).thenReturn(metaData);
     when(metaData.getColumnCount()).thenReturn(2);
-    when(metaData.getColumnName(1)).thenReturn("id");
-    when(metaData.getColumnName(2)).thenReturn("count");
+    when(metaData.getColumnLabel(1)).thenReturn("id");
+    when(metaData.getColumnLabel(2)).thenReturn("count");
     when(rs.getLong(1)).thenReturn(1L);
     when(rs.getObject(2)).thenReturn(Long.MAX_VALUE); // Value too large for int
     when(rs.wasNull()).thenReturn(false);
@@ -225,8 +225,8 @@ class PersistableRowMapperAdvancedTest {
 
     when(rs.getMetaData()).thenReturn(metaData);
     when(metaData.getColumnCount()).thenReturn(2);
-    when(metaData.getColumnName(1)).thenReturn("id");
-    when(metaData.getColumnName(2)).thenReturn("custom_ref_id");
+    when(metaData.getColumnLabel(1)).thenReturn("id");
+    when(metaData.getColumnLabel(2)).thenReturn("custom_ref_id");
     when(rs.getLong(1)).thenReturn(1L);
     when(rs.getLong(2)).thenReturn(99L);
     when(rs.wasNull()).thenReturn(false);
@@ -251,8 +251,8 @@ class PersistableRowMapperAdvancedTest {
 
     when(rs.getMetaData()).thenReturn(metaData);
     when(metaData.getColumnCount()).thenReturn(2);
-    when(metaData.getColumnName(1)).thenReturn("id");
-    when(metaData.getColumnName(2)).thenReturn("created_date");
+    when(metaData.getColumnLabel(1)).thenReturn("id");
+    when(metaData.getColumnLabel(2)).thenReturn("created_date");
     when(rs.getLong(1)).thenReturn(1L);
 
     java.sql.Date sqlDate = java.sql.Date.valueOf("2024-01-15");
@@ -272,8 +272,8 @@ class PersistableRowMapperAdvancedTest {
 
     when(rs.getMetaData()).thenReturn(metaData);
     when(metaData.getColumnCount()).thenReturn(2);
-    when(metaData.getColumnName(1)).thenReturn("id");
-    when(metaData.getColumnName(2)).thenReturn("created_date");
+    when(metaData.getColumnLabel(1)).thenReturn("id");
+    when(metaData.getColumnLabel(2)).thenReturn("created_date");
     when(rs.getLong(1)).thenReturn(1L);
 
     LocalDate localDate = LocalDate.of(2024, 1, 15);
