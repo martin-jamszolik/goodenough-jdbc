@@ -152,7 +152,7 @@ public class PersistableRowMapper<E extends Persistable> implements PersistableM
     int columnCount = metaData.getColumnCount();
     int index = -1;
     for (int i = 1; i <= columnCount; i++) {
-      if (metaData.getColumnName(i).equalsIgnoreCase(columnName)) {
+      if (metaData.getColumnLabel(i).equalsIgnoreCase(columnName)) {
         index = i;
         break;
       }
