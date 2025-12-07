@@ -18,7 +18,7 @@ plugins {
     id("jacoco")
     id("maven-publish")
     id("checkstyle")
-    kotlin("jvm") version "1.9.24"
+    kotlin("jvm") version "2.2.21"
     id("com.diffplug.spotless") version "6.25.0"
 }
 
