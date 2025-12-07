@@ -12,10 +12,9 @@
  */
 package org.viablespark.persistence;
 
+import org.junit.jupiter.api.AfterEach;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
@@ -82,14 +81,12 @@ class PersistableRowMapperLabelTest {
     var jdbc = new JdbcTemplate(db);
 
     var sql =
-        """
-            SELECT purchase_order.*,
-            supplier.id,
-            supplier.sup_name as "supplier.sup_name"
-            FROM purchase_order
-            LEFT JOIN supplier ON (supplier.id = purchase_order.supplier_id)
-            WHERE purchase_order.id = 1
-        """;
+        "SELECT purchase_order.*, "
+            + "supplier.id, "
+            + "supplier.sup_name as \"supplier.sup_name\" "
+            + "FROM purchase_order "
+            + "LEFT JOIN supplier ON (supplier.id = purchase_order.supplier_id) "
+            + "WHERE purchase_order.id = 1";
 
     var po = jdbc.queryForObject(sql, mapper);
 
