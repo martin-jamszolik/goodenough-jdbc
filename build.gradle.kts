@@ -18,11 +18,11 @@ plugins {
     id("jacoco")
     id("maven-publish")
     id("checkstyle")
-    kotlin("jvm") version "1.9.24"
+    kotlin("jvm") version "2.2.21"
     id("com.diffplug.spotless") version "6.25.0"
 }
 
-var libReleaseVersion = "2.0.1"
+var libReleaseVersion = "2.0.2"
 val springFrameworkVersion = "6.2.12"
 val slf4jVersion = "2.0.17"
 val junitVersion = "5.10.3"

@@ -13,7 +13,6 @@
 
 package org.viablespark.persistence;
 
-import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -41,6 +40,14 @@ public class PersistableInterfaceTest {
   }
 
   @Test
+  public void testGetIdWithEmptyKeyInstance() {
+    Contractor entity = new Contractor();
+    entity.setRefs(new Key());
+
+    assertNull(entity.getId());
+  }
+
+  @Test
   public void testSetIdWithValidKey() {
     Contractor entity = new Contractor();
     entity.setRefs(Key.of("sc_key", 100L));
@@ -56,9 +63,10 @@ public class PersistableInterfaceTest {
     Contractor entity = new Contractor();
     entity.setRefs(Key.None);
 
-    // Should not throw, just return without setting
-    assertDoesNotThrow(() -> entity.setId(100L));
-    assertEquals(Key.None, entity.getRefs());
+    // Should deduce key from annotation
+    entity.setId(100L);
+    assertEquals(100L, entity.getId());
+    assertEquals("sc_key", entity.getRefs().primaryKey().getKey());
   }
 
   @Test
@@ -66,9 +74,78 @@ public class PersistableInterfaceTest {
     Contractor entity = new Contractor();
     entity.setRefs(null);
 
-    // Should not throw, just return without setting
-    assertDoesNotThrow(() -> entity.setId(100L));
-    assertNull(entity.getRefs());
+    // Should deduce key from annotation
+    entity.setId(100L);
+    assertEquals(100L, entity.getId());
+    assertEquals("sc_key", entity.getRefs().primaryKey().getKey());
+  }
+
+  @Test
+  public void testSetIdWithEmptyKeyInstance() {
+    Contractor entity = new Contractor();
+    entity.setRefs(new Key());
+
+    // Should deduce key from annotation
+    entity.setId(100L);
+    assertEquals(100L, entity.getId());
+    assertEquals("sc_key", entity.getRefs().primaryKey().getKey());
+  }
+
+  static class NoAnnotationEntity implements Persistable {
+    private Key refs = Key.None;
+
+    @Override
+    public Key getRefs() {
+      return refs;
+    }
+
+    @Override
+    public void setRefs(Key refs) {
+      this.refs = refs;
+    }
+  }
+
+  @Test
+  public void testSetIdWithoutAnnotation() {
+    NoAnnotationEntity entity = new NoAnnotationEntity();
+    entity.setRefs(Key.None);
+
+    entity.setId(100L);
+    assertEquals(Key.None, entity.getRefs());
+  }
+
+  @Test
+  public void testJacksonHydrationOrder_RefsThenId() {
+    // Scenario: JSON has "refs": {...}, "id": 123
+    // Jackson calls setRefs(...) then setId(123)
+    Contractor entity = new Contractor();
+    Key originalKey = Key.of("sc_key", 999L);
+    entity.setRefs(originalKey);
+
+    entity.setId(123L);
+
+    assertEquals(123L, entity.getId());
+    assertEquals(123L, entity.getRefs().primaryKey().getValue());
+    // Ensure it's the same key object, just mutated
+    assertEquals(originalKey, entity.getRefs());
+  }
+
+  @Test
+  public void testJacksonHydrationOrder_IdThenRefs() {
+    // Scenario: JSON has "id": 123, "refs": {...}
+    // Jackson calls setId(123) then setRefs(...)
+    Contractor entity = new Contractor();
+
+    // 1. setId triggers the new "deduction" logic
+    entity.setId(123L);
+    assertEquals(123L, entity.getId());
+
+    // 2. setRefs overwrites it
+    Key finalKey = Key.of("sc_key", 456L);
+    entity.setRefs(finalKey);
+
+    assertEquals(456L, entity.getId());
+    assertEquals(finalKey, entity.getRefs());
   }
 
   @Test
@@ -93,5 +170,13 @@ public class PersistableInterfaceTest {
     entity.setRefs(Key.of("sc_key", 1L));
 
     assertFalse(entity.isNew());
+  }
+
+  @Test
+  public void testIsNewWithEmptyKeyInstance() {
+    Contractor entity = new Contractor();
+    entity.setRefs(new Key());
+
+    assertTrue(entity.isNew());
   }
 }
