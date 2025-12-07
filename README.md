@@ -198,11 +198,15 @@ For advanced mapping patterns, see:
 
 ## Using LLM Coding Agents Effectively
 
-This library works exceptionally well with LLM coding agents (GitHub Copilot, Cursor, etc.) when you provide the right context. Here's how to maximize productivity:
+This library works exceptionally well with LLM coding agents (GitHub Copilot, Cursor, etc.). For optimal results, point your agent to **[llm.md](llm.md)** - a compact reference guide specifically designed for code generation agents with all essential patterns and examples.
 
-### 1. Share Your Database Schema
+### Quick Tips
 
-Provide your database schema (DDL) to the agent. This helps it understand your table structure, relationships, and constraints:
+1. **Share Your Database Schema** - Provide DDL so the agent understands your table structure and relationships
+2. **Reference llm.md** - Include it in your agent's context for accurate code generation
+3. **Start Simple** - Entity classes first, then repository, then custom queries
+
+### Example Schema Context
 
 ```sql
 -- Example: share your schema.sql or migration files
@@ -224,46 +228,20 @@ CREATE TABLE est_proposal (
 );
 ```
 
-### 2. Show Example Usage Patterns
-
-Point the agent to test files that demonstrate common patterns:
-
-- **Simple CRUD**: Reference [ContractorRepositoryTest.java](src/test/java/org/viablespark/persistence/ContractorRepositoryTest.java)
-- **Relationships**: Reference [NoteRepositoryTest.java](src/test/java/org/viablespark/persistence/NoteRepositoryTest.java)
-- **Complex Queries**: Reference [ProposalRepositoryTest.java](src/test/java/org/viablespark/persistence/ProposalRepositoryTest.java)
-
-### 3. Sample Prompt for Agents
+### Sample Prompt for Agents
 
 ```text
-I'm using goodenough-jdbc for database operations. Here's my schema:
+I'm using goodenough-jdbc for database operations. 
+Please read llm.md for the library reference.
+
+Here's my schema:
 [paste schema.sql]
 
 I need to:
 1. Create an entity class for the 'order_items' table
 2. Create a repository with a custom query to find items by order_id and status
 3. Handle the foreign key relationship to 'orders' table
-
-Please follow the patterns shown in ContractorRepositoryTest.java and use 
-@PrimaryKey, @Named, and @Ref annotations as appropriate.
 ```
-
-### 4. Key Context to Provide
-
-When asking the agent to generate code, include:
-
-- **Schema definition** (CREATE TABLE statements or ER diagram)
-- **Specific requirements** (query conditions, JOIN needs, pagination)
-- **Reference to similar examples** from the test suite
-- **Naming conventions** your project uses (e.g., snake_case in DB, camelCase in Java)
-
-### 5. Iterative Development
-
-1. Start with entity classes mapped to tables
-2. Create basic repository with standard CRUD
-3. Add custom queries using `SqlQuery` DSL
-4. Implement complex mappers for JOINs if needed
-
-The agent can generate most boilerplate by understanding the schema-first approach and seeing how annotations map database columns to Java fields.
 
 ---
 

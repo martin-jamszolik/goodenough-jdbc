@@ -13,26 +13,32 @@
 
 package org.viablespark.persistence;
 
+import org.viablespark.persistence.dsl.PrimaryKey;
+
 public interface Persistable {
   Key getRefs();
 
   void setRefs(Key refs);
 
   default Long getId() {
-    if (getRefs() == Key.None) {
+    if (getRefs() == null || getRefs().count() == 0) {
       return null;
     }
     return getRefs().primaryKey().getValue();
   }
 
   default void setId(Long value) {
-    if (getRefs() == null || getRefs() == Key.None) {
+    if (getRefs() == null || getRefs().count() == 0) {
+      var pk = this.getClass().getAnnotation(PrimaryKey.class);
+      if (pk != null && !pk.value().isEmpty()) {
+        setRefs(Key.of(pk.value(), value));
+      }
       return;
     }
     getRefs().primaryKey().setValue(value);
   }
 
   default boolean isNew() {
-    return (getRefs() == Key.None || getRefs() == null);
+    return (getRefs() == null || getRefs().count() == 0);
   }
 }
