@@ -25,4 +25,18 @@ class SqlQueryValidatorTest {
             IllegalArgumentException.class, () -> SqlQueryValidator.assertPlaceholderCount(query));
     assertTrue(thrown.getMessage().contains("expected 2 values but found 1"));
   }
+
+  @Test
+  void rejectsNullQuery() {
+    NullPointerException thrown =
+        assertThrows(NullPointerException.class, () -> SqlQueryValidator.assertPlaceholderCount(null));
+    assertEquals("SqlQuery must not be null", thrown.getMessage());
+  }
+
+  @Test
+  void countsEmptyAndQuestionFreeSql() {
+    assertEquals(0, SqlQueryValidator.countPlaceholders(null));
+    assertEquals(0, SqlQueryValidator.countPlaceholders(""));
+    assertEquals(0, SqlQueryValidator.countPlaceholders("SELECT * FROM contractor"));
+  }
 }
