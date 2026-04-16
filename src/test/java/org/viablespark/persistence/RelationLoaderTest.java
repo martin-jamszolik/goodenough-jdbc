@@ -1,8 +1,8 @@
 package org.viablespark.persistence;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
@@ -24,12 +24,10 @@ class RelationLoaderTest {
         TestParent::setChildren);
 
     assertEquals(
-        List.of("a", "b"),
-        parents.get(0).children().stream().map(TestChild::value).toList());
+        List.of("a", "b"), parents.get(0).children().stream().map(TestChild::value).toList());
     assertEquals(List.of("c"), parents.get(1).children().stream().map(TestChild::value).toList());
     assertEquals(
-        List.of("a", "b"),
-        parents.get(2).children().stream().map(TestChild::value).toList());
+        List.of("a", "b"), parents.get(2).children().stream().map(TestChild::value).toList());
   }
 
   @Test
@@ -45,8 +43,7 @@ class RelationLoaderTest {
 
     assertTrue(parents.get(0).children().isEmpty());
     assertEquals(
-        List.of("kept"),
-        parents.get(1).children().stream().map(TestChild::value).toList());
+        List.of("kept"), parents.get(1).children().stream().map(TestChild::value).toList());
   }
 
   @Test
@@ -91,7 +88,11 @@ class RelationLoaderTest {
         NullPointerException.class,
         () ->
             RelationLoader.attachOneToMany(
-                null, ids -> List.of(), TestParent::id, TestChild::parentId, TestParent::setChildren));
+                null,
+                ids -> List.of(),
+                TestParent::id,
+                TestChild::parentId,
+                TestParent::setChildren));
     assertThrows(
         NullPointerException.class,
         () ->

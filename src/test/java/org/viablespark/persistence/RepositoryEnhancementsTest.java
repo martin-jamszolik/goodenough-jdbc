@@ -66,15 +66,19 @@ class RepositoryEnhancementsTest {
   @Test
   void supportsNamedParameterCustomMapperQueries() {
     List<Long> ids =
-        proposalRepository.query(
-            NamedSqlQuery.raw(
-                "SELECT * FROM est_proposal WHERE pr_key IN (:ids) ORDER BY pr_key",
-                new MapSqlParameterSource("ids", List.of(1L, 2L))),
-            (rowSet, rowNum) -> {
-              Proposal proposal = new Proposal();
-              proposal.setPr_key(rowSet.getLong("pr_key"));
-              return proposal;
-            }).stream().map(Proposal::getId).toList();
+        proposalRepository
+            .query(
+                NamedSqlQuery.raw(
+                    "SELECT * FROM est_proposal WHERE pr_key IN (:ids) ORDER BY pr_key",
+                    new MapSqlParameterSource("ids", List.of(1L, 2L))),
+                (rowSet, rowNum) -> {
+                  Proposal proposal = new Proposal();
+                  proposal.setPr_key(rowSet.getLong("pr_key"));
+                  return proposal;
+                })
+            .stream()
+            .map(Proposal::getId)
+            .toList();
 
     assertEquals(List.of(1L, 2L), ids);
   }

@@ -29,7 +29,8 @@ class SqlQueryValidatorTest {
   @Test
   void rejectsNullQuery() {
     NullPointerException thrown =
-        assertThrows(NullPointerException.class, () -> SqlQueryValidator.assertPlaceholderCount(null));
+        assertThrows(
+            NullPointerException.class, () -> SqlQueryValidator.assertPlaceholderCount(null));
     assertEquals("SqlQuery must not be null", thrown.getMessage());
   }
 

@@ -22,7 +22,7 @@ plugins {
     id("com.diffplug.spotless") version "6.25.0"
 }
 
-var libReleaseVersion = "2.0.2"
+var libReleaseVersion = "2.1.0"
 val springFrameworkVersion = "6.2.12"
 val slf4jVersion = "2.0.17"
 val junitVersion = "5.10.3"
@@ -174,4 +174,3 @@ tasks.jar {
         attributes("Automatic-Module-Name" to "org.viablespark.persistence")
     }
 }
-
