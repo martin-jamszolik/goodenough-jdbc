@@ -20,6 +20,7 @@ Modern ORM frameworks like [KTorm](https://www.ktorm.org/), [Django](https://doc
 - Ease of use for CRUD operations.
 - Minimal boilerplate while avoiding runtime model generation.
 - Easy foreign relationship composition with repository pattern.
+- Named-parameter queries, batch operations, and explicit one-to-many attachment helpers.
 
 ## Key Features
 
@@ -27,6 +28,7 @@ Modern ORM frameworks like [KTorm](https://www.ktorm.org/), [Django](https://doc
 - Common repository (column) operations.
 - Flexible, customizable mappers for advanced scenarios.
 - Designed for **manual SQL control** where necessary.
+- Collection-valued relationships are ignored by convention and loaded explicitly.
 
 ## Not All Batteries Included
 
@@ -72,6 +74,8 @@ Key Annotations:
 The `BaseRepository` class simplifies CRUD operations:
 
 - **`create`**, **`update`**, **`delete`**, **`list`**, and more.
+- **`insertAll`**, **`updateAll`**, **`deleteAll`**, **`saveAll`** for batch-oriented workflows.
+- **`queryOne`**, **`exists`**, **`count`**, and **`queryRows`** for common repository reads.
 - Extend `BaseRepository` to define custom, high performance queries and composite operations.
 
 Example:
@@ -88,12 +92,53 @@ List<Proposal> results = repository.queryEntity(
     Proposal.class
 );
 
+// Query a single entity safely
+Optional<Proposal> proposal = repository.queryOne(
+    new SqlQuery().where("pr_key = ?", 1L),
+    Proposal.class
+);
+
 // Use raw SQL when needed
 List<Proposal> rawResults = repository.query(
     SqlQuery.raw("SELECT * FROM est_proposal WHERE dist > ?", 10),
     new ProposalMapper()
 );
+
+// Named-parameter queries stay explicit while avoiding positional argument juggling
+List<Proposal> namedResults = repository.queryEntity(
+    NamedSqlQuery.raw("WHERE sc_key = :contractorId ORDER BY pr_key", Map.of("contractorId", 1L)),
+    Proposal.class
+);
 ```
+
+### Collection Relationships
+
+Collection-valued getters such as `List<Task>` are **ignored by convention**. They are not mapped from the base row, they are not included in generated insert/update SQL, and they are not validated against table columns.
+
+This keeps one-to-many loading explicit and predictable:
+
+```java
+var proposals = proposalRepository.queryEntity(
+    new SqlQuery().where("sc_key = ?", 1L),
+    Proposal.class
+);
+
+RelationLoader.attachOneToMany(
+    proposals,
+    ids -> proposalTaskRepository.query(
+        NamedSqlQuery.raw(
+            "SELECT * FROM proposal_task WHERE pr_key IN (:proposalIds)",
+            Map.of("proposalIds", ids)
+        ),
+        PersistableRowMapper.of(ProposalTask.class)
+    ),
+    proposal -> proposal.getRefs().primaryKey().getValue(),
+    proposalTask -> proposalTask.getProposal().getRefs().primaryKey().getValue(),
+    Proposal::setTasks
+);
+```
+
+Use `@Skip` when you need to omit a scalar property or a relationship for a custom reason. You no longer need it for `List`, `Set`, or `Collection` properties.
 
 ### SqlQuery DSL
 
@@ -136,6 +181,35 @@ Key Methods:
 - **`limit()`**, **`offset()`**, **`paginate()`**: Control result pagination
 - **`SqlQuery.raw()`**: Use raw SQL for complex queries
 - **`primaryKey()`**: Specify primary key for entity mapping
+
+### Named Parameters
+
+For larger SQL fragments, named parameters often read better than positional placeholders:
+
+```java
+var namedQuery = NamedSqlQuery.raw(
+    "SELECT sc_key, sc_name FROM contractor WHERE sc_key IN (:ids) ORDER BY sc_key",
+    Map.of("ids", List.of(1L, 2L))
+);
+
+var contractors = repository.queryRows(
+    namedQuery,
+    (rs, rowNum) -> rs.getString("sc_name")
+);
+```
+
+### Batch Operations
+
+`BaseRepository` includes explicit batch helpers for repetitive write operations:
+
+```java
+int[] inserted = contractorRepository.insertAll(List.of(first, second));
+int[] updated = contractorRepository.updateAll(List.of(first, second));
+int[] deleted = contractorRepository.deleteAll(List.of(first, second));
+
+// saveAll keeps per-entity save semantics when you need generated keys back
+List<Optional<Key>> keys = contractorRepository.saveAll(List.of(first, second));
+```
 
 
 ### Mapping Helper

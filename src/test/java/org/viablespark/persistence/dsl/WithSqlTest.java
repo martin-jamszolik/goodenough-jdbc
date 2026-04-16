@@ -17,7 +17,9 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.springframework.test.util.AssertionErrors.assertTrue;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.viablespark.persistence.*;
 
@@ -36,6 +38,7 @@ public class WithSqlTest {
     assertEquals(
         "sc_key,dist as \"distance\",prop_date,prop_id,proposal_name as \"prop_name\",submit_deadline",
         select);
+    assertFalse(select.contains("tasks"));
 
     String notesSelect = WithSql.getSelectClause(Note.class, "n_key");
     assertEquals(
@@ -123,5 +126,40 @@ public class WithSqlTest {
             Exception.class, () -> WithSql.getInsertClause(null), "Should throw Exception");
 
     assertTrue("Should throw", thrown != null);
+  }
+
+  @Test
+  public void testCollectionGetterIgnoredByConvention() throws Exception {
+    var entity = new CollectionHolder();
+    entity.setName("Grouped");
+    entity.setRefs(Key.of("id", 10L));
+    entity.setChildren(List.of(new ProposalTask()));
+
+    assertEquals("name as \"name\"", WithSql.getSelectClause(CollectionHolder.class));
+    assertEquals("(name) VALUES (?)", WithSql.getInsertClause(entity).clause());
+    assertEquals("SET name=? WHERE id=?", WithSql.getUpdateClause(entity).clause());
+  }
+
+  @PrimaryKey("id")
+  static class CollectionHolder extends Model {
+    private String name;
+    private List<ProposalTask> children = new ArrayList<>();
+
+    @Named("name")
+    public String getName() {
+      return name;
+    }
+
+    public void setName(String name) {
+      this.name = name;
+    }
+
+    public List<ProposalTask> getChildren() {
+      return children;
+    }
+
+    public void setChildren(List<ProposalTask> children) {
+      this.children = children;
+    }
   }
 }

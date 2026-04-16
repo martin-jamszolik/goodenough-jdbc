@@ -125,6 +125,7 @@ public class PersistableRowMapper<E extends Persistable> implements PersistableM
                     m.getName().startsWith("get")
                         && WithSql.getAnnotation(m, entity.getClass(), Named.class).isPresent()
                         && WithSql.getAnnotation(m, entity.getClass(), Ref.class).isEmpty()
+                        && !WithSql.isCollectionLike(m.getReturnType())
                         && !m.getReturnType().equals(RefValue.class))
             .collect(Collectors.toList());
 
@@ -193,6 +194,7 @@ public class PersistableRowMapper<E extends Persistable> implements PersistableM
         Arrays.stream(entity.getClass().getDeclaredMethods())
             .filter(m -> m.getName().startsWith("get"))
             .filter(m -> WithSql.getAnnotation(m, entity.getClass(), Ref.class).isPresent())
+            .filter(m -> !WithSql.isCollectionLike(m.getReturnType()))
             .filter(
                 m ->
                     m.getReturnType().isAnnotationPresent(PrimaryKey.class)

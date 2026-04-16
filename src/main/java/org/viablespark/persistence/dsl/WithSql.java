@@ -19,6 +19,7 @@ import java.lang.reflect.Method;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
@@ -37,6 +38,7 @@ public final class WithSql {
         Arrays.stream(cls.getDeclaredMethods())
             .filter(m -> m.getName().startsWith("get"))
             .filter(m -> getAnnotation(m, cls, Skip.class).isEmpty())
+            .filter(m -> !isCollectionLike(m.getReturnType()))
             .filter(m -> !m.getReturnType().equals(Key.class))
             .filter(m -> !m.getReturnType().equals(RefValue.class))
             .sorted(Comparator.comparing(Method::getName))
@@ -61,6 +63,7 @@ public final class WithSql {
           Arrays.stream(entity.getClass().getDeclaredMethods())
               .filter(m -> m.getName().startsWith("get"))
               .filter(m -> getAnnotation(m, entity.getClass(), Skip.class).isEmpty())
+              .filter(m -> !isCollectionLike(m.getReturnType()))
               .filter(m -> !m.getReturnType().equals(RefValue.class))
               .filter(m -> !m.getReturnType().equals(Key.class))
               .sorted(Comparator.comparing(Method::getName))
@@ -93,6 +96,7 @@ public final class WithSql {
           Arrays.stream(entity.getClass().getDeclaredMethods())
               .filter(m -> m.getName().startsWith("get"))
               .filter(m -> getAnnotation(m, entity.getClass(), Skip.class).isEmpty())
+              .filter(m -> !isCollectionLike(m.getReturnType()))
               .filter(m -> !m.getReturnType().equals(RefValue.class))
               .filter(m -> !m.getReturnType().equals(Key.class))
               .sorted(Comparator.comparing(Method::getName))
@@ -205,6 +209,10 @@ public final class WithSql {
     StringBuilder b = new StringBuilder(methodName.substring(3));
     var result = b.replace(0, 1, (b.charAt(0) + "").toLowerCase());
     return result.toString();
+  }
+
+  public static boolean isCollectionLike(Class<?> type) {
+    return type != null && Collection.class.isAssignableFrom(type);
   }
 
   private static String camelToSnake(String str) {

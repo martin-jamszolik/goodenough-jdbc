@@ -123,6 +123,9 @@ public final class SchemaValidator {
       if (WithSql.getAnnotation(method, entityClass, Skip.class).isPresent()) {
         continue;
       }
+      if (WithSql.isCollectionLike(method.getReturnType())) {
+        continue;
+      }
       if (method.getReturnType().equals(Key.class)) {
         continue;
       }

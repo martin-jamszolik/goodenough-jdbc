@@ -108,7 +108,6 @@ public class Proposal extends Model {
     this.contractor = contractor;
   }
 
-  @Skip
   public List<ProposalTask> getTasks() {
     return tasks;
   }

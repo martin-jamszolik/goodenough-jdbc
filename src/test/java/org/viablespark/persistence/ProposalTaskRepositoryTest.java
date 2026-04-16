@@ -15,7 +15,10 @@ package org.viablespark.persistence;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -23,6 +26,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.embedded.EmbeddedDatabase;
 import org.springframework.jdbc.datasource.embedded.EmbeddedDatabaseBuilder;
+import org.viablespark.persistence.dsl.NamedSqlQuery;
 import org.viablespark.persistence.dsl.SqlQuery;
 
 public class ProposalTaskRepositoryTest {
@@ -52,6 +56,21 @@ public class ProposalTaskRepositoryTest {
     keyOption.ifPresent(key -> assertEquals(Key.None, key));
   }
 
+  @Test
+  public void testAttachTasksExplicitly() {
+    List<Proposal> proposals =
+        repository.proposalRepository.queryEntity(
+            new SqlQuery().where("sc_key = ?", 1L).orderBy("pr_key", SqlQuery.Direction.ASC),
+            Proposal.class);
+
+    proposals.forEach(proposal -> assertTrue(proposal.getTasks().isEmpty()));
+
+    repository.attachTasks(proposals);
+
+    assertEquals(2, proposals.get(0).getTasks().size());
+    assertTrue(proposals.get(1).getTasks().isEmpty());
+  }
+
   @BeforeEach
   public void setUp() {
     // creates an HSQL in-memory database populated from default scripts
@@ -72,7 +91,7 @@ public class ProposalTaskRepositoryTest {
   public static class ProposalTaskRepository extends BaseRepository<ProposalTask> {
 
     private final BaseRepository<Task> taskRepository;
-    private final BaseRepository<Proposal> proposalRepository;
+    final BaseRepository<Proposal> proposalRepository;
 
     public ProposalTaskRepository(JdbcTemplate db) {
       super(db);
@@ -86,6 +105,26 @@ public class ProposalTaskRepositoryTest {
 
     public Optional<Proposal> getProposal(Long id) {
       return proposalRepository.get(Key.of("pr_key", id), Proposal.class);
+    }
+
+    public void attachTasks(List<Proposal> proposals) {
+      RelationLoader.attachOneToMany(
+          proposals,
+          this::listByProposalIds,
+          proposal -> proposal.getRefs().primaryKey().getValue(),
+          proposalTask -> proposalTask.getProposal().getRefs().primaryKey().getValue(),
+          Proposal::setTasks);
+    }
+
+    private List<ProposalTask> listByProposalIds(List<Long> proposalIds) {
+      if (proposalIds.isEmpty()) {
+        return List.of();
+      }
+      return query(
+          NamedSqlQuery.raw(
+              "SELECT * FROM proposal_task WHERE pr_key IN (:proposalIds) ORDER BY pr_key, t_key",
+              Map.of("proposalIds", proposalIds)),
+          PersistableRowMapper.of(ProposalTask.class));
     }
   }
 }

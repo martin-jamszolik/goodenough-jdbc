@@ -4,6 +4,8 @@ import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.ArrayList;
+import java.util.List;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -144,6 +146,11 @@ class SchemaValidatorTest {
   }
 
   @Test
+  void ignoresCollectionMappingsWithoutSkipAnnotation() {
+    assertDoesNotThrow(() -> SchemaValidator.assertMappings(database, ContractorWithTasks.class));
+  }
+
+  @Test
   void handlesCamelCaseFieldNames() {
     // Test camelToSnake conversion for field names
     assertDoesNotThrow(() -> SchemaValidator.assertMappings(database, Progress.class));
@@ -208,6 +215,30 @@ class SchemaValidatorTest {
     @Override
     public void setRefs(org.viablespark.persistence.Key refs) {
       this.key = refs;
+    }
+  }
+
+  @Named("contractor")
+  @PrimaryKey("sc_key")
+  static class ContractorWithTasks extends Model {
+    private String name;
+    private List<Task> tasks = new ArrayList<>();
+
+    @Named("sc_name")
+    public String getName() {
+      return name;
+    }
+
+    public void setName(String name) {
+      this.name = name;
+    }
+
+    public List<Task> getTasks() {
+      return tasks;
+    }
+
+    public void setTasks(List<Task> tasks) {
+      this.tasks = tasks;
     }
   }
 }
