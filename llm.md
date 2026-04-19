@@ -1,7 +1,7 @@
 # goodenough-jdbc - LLM Agent Instructions
 
 ## Overview
-Lightweight schema-first JDBC library built on `spring-jdbc`. Maps entities via annotations; provides repository CRUD and `SqlQuery` DSL.
+Lightweight schema-first JDBC library built on `spring-jdbc`. Maps entities via annotations; provides repository CRUD, positional and named query DSLs, projection reads, explicit relation loaders, and schema validation helpers.
 
 ## Core Concepts
 
@@ -34,7 +34,9 @@ public class MyEntity extends Model {
 - Default column mapping: `camelCase` → `snake_case`
 - `@Ref` on `Persistable` type = foreign key reference (stores only the key)
 - `@Ref` on `RefValue` = foreign key with label lookup (value + display text)
+- Collection-valued getters are ignored by generated select/insert/update SQL by convention
 - `Model` provides `Key getRefs()/setRefs()` and `Long getId()/setId()`
+- Getters/setters are required for mapped properties and relation fields
 
 ### Alternative: Implement Persistable Directly
 ```java
@@ -101,6 +103,42 @@ new SqlQuery().where("id > ?", 0).limit(20).offset(40); // page 3
 
 // Specify primary key for query (if not on class annotation)
 new SqlQuery().where("fk_id = ?", 1).primaryKey("pk_column");
+
+// Named-parameter DSL
+List<MyEntity> namedResults = repository.queryEntity(
+    new NamedSqlQuery()
+        .where("status = :status")
+        .andWhere("created_at >= :fromDate")
+        .orderBy("created_at", SqlQuery.Direction.DESC)
+        .param("status", "active")
+        .param("fromDate", fromDate),
+    MyEntity.class
+);
+
+// Single-result entity read
+Optional<MyEntity> one = repository.queryOne(
+    new NamedSqlQuery().where("id = :id").param("id", 1L),
+    MyEntity.class
+);
+
+// Ad-hoc scalar / DTO reads
+Optional<String> status = repository.queryRow(
+    new NamedSqlQuery()
+        .selectColumns("status")
+        .from("my_entity")
+        .where("id = :id")
+        .param("id", 1L),
+    (rs, rowNum) -> rs.getString("status")
+);
+
+List<MySummary> summaries = repository.queryProjection(
+    new NamedSqlQuery()
+        .selectColumns("id as id", "display_name as name")
+        .from("my_entity")
+        .where("status = :status")
+        .param("status", "active"),
+    MySummary.class
+);
 ```
 
 ## SqlQuery DSL Reference
@@ -126,6 +164,53 @@ new SqlQuery()
 // Raw SQL (use for complex JOINs)
 SqlQuery.raw("SELECT * FROM t1 INNER JOIN t2 ON ... WHERE x > ?", value);
 ```
+
+## NamedSqlQuery DSL Reference
+
+```java
+new NamedSqlQuery()
+    .select("SELECT col1, col2")        // or .selectColumns("col1", "col2")
+    .selectDistinct("category")
+    .from("table_name t")
+    .join("INNER JOIN other o ON (t.id = o.t_id)")
+    .where("col = :value")
+    .andWhere("other > :minValue")
+    .orWhere("flag = :flag")
+    .condition("status IN (:statuses)")
+    .orderBy("created_at", SqlQuery.Direction.DESC)
+    .limit(10)
+    .offset(20)
+    .paginate(pageSize, offset)
+    .param("value", value)
+    .param("minValue", 100)
+    .params(Map.of("flag", true, "statuses", List.of("A", "B")))
+    .primaryKey("id");
+
+NamedSqlQuery.raw(
+    "SELECT * FROM my_entity WHERE status IN (:statuses)",
+    Map.of("statuses", List.of("A", "B"))
+);
+```
+
+Use `NamedSqlQuery` when the SQL is still composable but positional placeholders are getting hard to read.
+
+## Projection Reads
+
+Projection helpers use Spring's `DataClassRowMapper`, so aliases must match constructor parameter names or bean property names.
+
+```java
+record MySummary(Long id, String name) {}
+
+Optional<MySummary> summary = repository.queryProjectionOne(
+    SqlQuery.raw(
+        "SELECT id as id, display_name as name FROM my_entity WHERE id = ?",
+        1L
+    ),
+    MySummary.class
+);
+```
+
+For custom conversions, use `queryRow(...)` / `queryRows(...)` with a `RowMapper`.
 
 ## Custom Mappers (for JOINs)
 
@@ -199,6 +284,86 @@ List<Proposal> results = repository.query(
 );
 ```
 
+## Explicit Relation Loading
+
+Collections are not auto-loaded. Compose relationships explicitly after the base query.
+
+```java
+RelationLoader.attachOneToMany(
+    orders,
+    ids -> lineItemRepository.queryEntity(
+        new NamedSqlQuery().where("order_id IN (:ids)").param("ids", ids),
+        LineItem.class
+    ),
+    Order::getId,
+    item -> item.getOrder().getId(),
+    Order::setItems
+);
+
+RelationLoader.attachManyToOne(
+    lineItems,
+    ids -> orderRepository.queryEntity(
+        new NamedSqlQuery().where("order_id IN (:ids)").param("ids", ids),
+        Order.class
+    ),
+    item -> item.getOrder().getId(),
+    Order::getId,
+    LineItem::setOrder
+);
+
+RelationLoader.attachOneToOne(
+    users,
+    ids -> profileRepository.queryEntity(
+        new NamedSqlQuery().where("user_id IN (:ids)").param("ids", ids),
+        UserProfile.class
+    ),
+    User::getId,
+    UserProfile::getId,
+    User::setProfile
+);
+
+RelationLoader.attachManyToMany(
+    groups,
+    ids -> membershipRepository.query(
+        NamedSqlQuery.raw(
+            "SELECT * FROM group_user WHERE group_id IN (:ids)",
+            Map.of("ids", ids)
+        ),
+        PersistableRowMapper.of(GroupUser.class)
+    ),
+    ids -> userRepository.queryEntity(
+        new NamedSqlQuery().where("user_id IN (:ids)").param("ids", ids),
+        User.class
+    ),
+    Group::getId,
+    membership -> membership.getGroup().getId(),
+    membership -> membership.getUser().getId(),
+    User::getId,
+    Group::setUsers
+);
+```
+
+Prefer this explicit pattern over hidden lazy loading.
+
+## Schema Validation
+
+Use `SchemaValidator` in tests or startup validation to catch drift between entity mappings and the real schema:
+
+```java
+SchemaValidator.assertMappings(
+    dataSource,
+    MyEntity.class,
+    OtherEntity.class
+);
+```
+
+It checks:
+- Table existence
+- Required columns derived from getters and annotations
+- Missing setters for actionable mapped fields
+- Common `@Ref` / `RefValue` configuration mistakes
+- Collection fields are ignored by convention
+
 ## Key Class
 ```java
 Key.of("column_name", 123L)           // Single key
@@ -257,6 +422,14 @@ try {
 }
 ```
 
+Single-result helpers throw `IllegalStateException` when more than one row matches:
+
+```java
+Optional<MyEntity> one = repository.queryOne(query, MyEntity.class);
+Optional<MySummary> projection = repository.queryProjectionOne(query, MySummary.class);
+Optional<String> scalar = repository.queryRow(query, rowMapper);
+```
+
 ## Testing Setup
 ```java
 @BeforeEach
@@ -271,3 +444,11 @@ void setUp() {
 @AfterEach
 void tearDown() { db.shutdown(); }
 ```
+
+## Agent Guidance
+
+- Prefer `queryEntity(...)` for entity reads, `queryProjection(...)` for DTO/record reads, and `queryRow(...)` for scalar/custom row mapping.
+- Prefer `NamedSqlQuery` when you need `IN (:ids)` or several repeated parameters.
+- Alias projection columns to the DTO/record field names.
+- Do not assume collections are persisted or loaded automatically.
+- When generating startup checks or integration tests, add `SchemaValidator.assertMappings(...)`.

@@ -20,7 +20,7 @@ Modern ORM frameworks like [KTorm](https://www.ktorm.org/), [Django](https://doc
 - Ease of use for CRUD operations.
 - Minimal boilerplate while avoiding runtime model generation.
 - Easy foreign relationship composition with repository pattern.
-- Named-parameter queries, batch operations, and explicit one-to-many attachment helpers.
+- Named and positional query DSLs, batch operations, projections, and explicit relation attachment helpers.
 
 ## Key Features
 
@@ -29,6 +29,7 @@ Modern ORM frameworks like [KTorm](https://www.ktorm.org/), [Django](https://doc
 - Flexible, customizable mappers for advanced scenarios.
 - Designed for **manual SQL control** where necessary.
 - Collection-valued relationships are ignored by convention and loaded explicitly.
+- Schema validation helpers for catching mapping drift early.
 
 ## Not All Batteries Included
 
@@ -75,7 +76,7 @@ The `BaseRepository` class simplifies CRUD operations:
 
 - **`create`**, **`update`**, **`delete`**, **`list`**, and more.
 - **`insertAll`**, **`updateAll`**, **`deleteAll`**, **`saveAll`** for batch-oriented workflows.
-- **`queryOne`**, **`exists`**, **`count`**, and **`queryRows`** for common repository reads.
+- **`queryOne`**, **`exists`**, **`count`**, **`queryRows`**, **`queryRow`**, **`queryProjection`**, and **`queryProjectionOne`** for common repository reads.
 - Extend `BaseRepository` to define custom, high performance queries and composite operations.
 
 Example:
@@ -106,8 +107,22 @@ List<Proposal> rawResults = repository.query(
 
 // Named-parameter queries stay explicit while avoiding positional argument juggling
 List<Proposal> namedResults = repository.queryEntity(
-    NamedSqlQuery.raw("WHERE sc_key = :contractorId ORDER BY pr_key", Map.of("contractorId", 1L)),
+    new NamedSqlQuery()
+        .where("sc_key = :contractorId")
+        .orderBy("pr_key")
+        .param("contractorId", 1L),
     Proposal.class
+);
+
+// Read DTO/record projections directly
+List<ContractorSummary> summaries = repository.queryProjection(
+    new NamedSqlQuery()
+        .selectColumns("sc_key as id", "sc_name as name")
+        .from("contractor")
+        .where("sc_key IN (:ids)")
+        .orderBy("sc_key")
+        .param("ids", List.of(1L, 2L)),
+    ContractorSummary.class
 );
 ```
 
@@ -115,7 +130,7 @@ List<Proposal> namedResults = repository.queryEntity(
 
 Collection-valued getters such as `List<Task>` are **ignored by convention**. They are not mapped from the base row, they are not included in generated insert/update SQL, and they are not validated against table columns.
 
-This keeps one-to-many loading explicit and predictable:
+This keeps relation loading explicit and predictable:
 
 ```java
 var proposals = proposalRepository.queryEntity(
@@ -126,15 +141,44 @@ var proposals = proposalRepository.queryEntity(
 RelationLoader.attachOneToMany(
     proposals,
     ids -> proposalTaskRepository.query(
-        NamedSqlQuery.raw(
-            "SELECT * FROM proposal_task WHERE pr_key IN (:proposalIds)",
-            Map.of("proposalIds", ids)
-        ),
+        NamedSqlQuery.raw("SELECT * FROM proposal_task WHERE pr_key IN (:proposalIds)", Map.of("proposalIds", ids)),
         PersistableRowMapper.of(ProposalTask.class)
     ),
     proposal -> proposal.getRefs().primaryKey().getValue(),
     proposalTask -> proposalTask.getProposal().getRefs().primaryKey().getValue(),
     Proposal::setTasks
+);
+```
+
+Additional helpers keep other relationship types equally explicit:
+
+```java
+RelationLoader.attachManyToOne(
+    lineItems,
+    ids -> orderRepository.queryEntity(
+        new NamedSqlQuery().where("order_id IN (:ids)").param("ids", ids),
+        Order.class
+    ),
+    lineItem -> lineItem.getOrder().getId(),
+    Order::getId,
+    LineItem::setOrder
+);
+
+RelationLoader.attachManyToMany(
+    groups,
+    groupIds -> membershipRepository.query(
+        NamedSqlQuery.raw("SELECT * FROM user_group_member WHERE group_id IN (:ids)", Map.of("ids", groupIds)),
+        PersistableRowMapper.of(GroupMember.class)
+    ),
+    userIds -> userRepository.queryEntity(
+        new NamedSqlQuery().where("user_id IN (:ids)").param("ids", userIds),
+        User.class
+    ),
+    Group::getId,
+    member -> member.getGroup().getId(),
+    member -> member.getUser().getId(),
+    User::getId,
+    Group::setUsers
 );
 ```
 
@@ -184,17 +228,24 @@ Key Methods:
 
 ### Named Parameters
 
-For larger SQL fragments, named parameters often read better than positional placeholders:
+For larger SQL fragments, named parameters often read better than positional placeholders. You can use either raw SQL or the fluent named DSL:
 
 ```java
-var namedQuery = NamedSqlQuery.raw(
-    "SELECT sc_key, sc_name FROM contractor WHERE sc_key IN (:ids) ORDER BY sc_key",
-    Map.of("ids", List.of(1L, 2L))
-);
+var namedQuery = new NamedSqlQuery()
+    .selectColumns("sc_key", "sc_name")
+    .from("contractor")
+    .where("sc_key IN (:ids)")
+    .orderBy("sc_key")
+    .param("ids", List.of(1L, 2L));
 
 var contractors = repository.queryRows(
     namedQuery,
     (rs, rowNum) -> rs.getString("sc_name")
+);
+
+var rawNamed = NamedSqlQuery.raw(
+    "SELECT sc_key, sc_name FROM contractor WHERE sc_key IN (:ids) ORDER BY sc_key",
+    Map.of("ids", List.of(1L, 2L))
 );
 ```
 
@@ -211,6 +262,48 @@ int[] deleted = contractorRepository.deleteAll(List.of(first, second));
 List<Optional<Key>> keys = contractorRepository.saveAll(List.of(first, second));
 ```
 
+### Projections And Single-Row Reads
+
+For read models, DTOs, and API-facing shapes, prefer projections over entity overloading:
+
+```java
+record ContractorSummary(Long id, String name) {}
+
+Optional<ContractorSummary> contractor = contractorRepository.queryProjectionOne(
+    SqlQuery.raw(
+        "SELECT sc_key as id, sc_name as name FROM contractor WHERE sc_key = ?",
+        1L
+    ),
+    ContractorSummary.class
+);
+
+Optional<String> contractorName = contractorRepository.queryRow(
+    new NamedSqlQuery()
+        .selectColumns("sc_name")
+        .from("contractor")
+        .where("sc_key = :id")
+        .param("id", 2L),
+    (rs, rowNum) -> rs.getString("sc_name")
+);
+```
+
+`queryOne(...)`, `queryRow(...)`, and `queryProjectionOne(...)` enforce single-result semantics and return `Optional`.
+
+### Schema Validation
+
+Use `SchemaValidator` in tests or startup checks to catch mapping drift early:
+
+```java
+SchemaValidator.assertMappings(
+    dataSource,
+    Contractor.class,
+    Proposal.class,
+    Note.class
+);
+```
+
+It validates table presence, required columns, and common annotation mistakes such as missing setters for mapped fields or inconsistent `@Ref`/`RefValue` configuration.
+
 
 ### Mapping Helper
 
@@ -222,9 +315,9 @@ var mapper = PersistableRowMapper.of(PurchaseOrder.class);
 
 // For advanced composites, use custom mappers
 var results = repository.query(
-    SqlQuery.asRaw("SELECT * FROM est_proposal p " +
-                      "INNER JOIN contractor c ON (c.sc_key = p.sc_key) " +
-                      "WHERE dist > 0"),
+    SqlQuery.raw("SELECT * FROM est_proposal p " +
+                    "INNER JOIN contractor c ON (c.sc_key = p.sc_key) " +
+                    "WHERE dist > 0"),
     new ProposalMapper()
 );
 ```
@@ -258,6 +351,9 @@ The test suite demonstrates real-world usage patterns covering common developmen
 | **Manual Row Mapping** | [`testRowSetQuery()`](src/test/java/org/viablespark/persistence/ProposalRepositoryTest.java#L120) | Map result sets manually using lambda expressions |
 | **Insert with Foreign Key** | [`testInsertNote()`](src/test/java/org/viablespark/persistence/NoteRepositoryTest.java#L48) | Create entity with nested foreign key relationships |
 | **Select with Relations** | [`testSelectNote()`](src/test/java/org/viablespark/persistence/NoteRepositoryTest.java#L53) | Retrieve entity and verify foreign key references are populated |
+| **Named Query DSL & Projections** | [`RepositoryEnhancementsTest`](src/test/java/org/viablespark/persistence/RepositoryEnhancementsTest.java) | Named query builder, single-row helpers, and DTO projection reads |
+| **Explicit Relation Loading** | [`RelationLoaderTest`](src/test/java/org/viablespark/persistence/RelationLoaderTest.java) | One-to-many, many-to-one, one-to-one, and many-to-many attachment patterns |
+| **Schema Validation** | [`SchemaValidatorTest`](src/test/java/org/viablespark/persistence/validation/SchemaValidatorTest.java) | Validate mappings, relation metadata, and setter requirements |
 | **Query with Primary Key** | [`testQueryNote()`](src/test/java/org/viablespark/persistence/NoteRepositoryTest.java#L61) | Query entities using SqlQuery with primary key specification |
 | **Many-to-Many Mapping** | [`testInsertWithPKnoAutoGenerate()`](src/test/java/org/viablespark/persistence/ProposalTaskRepositoryTest.java#L45) | Handle junction table with composite primary keys (no auto-generation) |
 | **Validate Constraints** | [`testSaveContractorThrowsException()`](src/test/java/org/viablespark/persistence/ContractorRepositoryTest.java#L69) | Handle database constraint violations gracefully |
