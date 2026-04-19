@@ -2,6 +2,7 @@
 module org.viablespark.persistence {
   exports org.viablespark.persistence;
   exports org.viablespark.persistence.dsl;
+  exports org.viablespark.persistence.validation;
 
   requires spring.jdbc;
   requires spring.core;

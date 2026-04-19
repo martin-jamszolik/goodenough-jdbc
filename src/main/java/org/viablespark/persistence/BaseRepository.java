@@ -14,6 +14,8 @@
 package org.viablespark.persistence;
 
 import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -22,7 +24,9 @@ import java.util.Map;
 import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.jdbc.core.DataClassRowMapper;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.ResultSetExtractor;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
@@ -175,7 +179,7 @@ public abstract class BaseRepository<E extends Persistable> {
     var primaryKeyName =
         cls.isAnnotationPresent(PrimaryKey.class)
             ? cls.getAnnotation(PrimaryKey.class).value()
-            : null;
+            : query.getPrimaryKeyName();
     String sql =
         String.format(
             "SELECT %s FROM %s %s",
@@ -240,11 +244,32 @@ public abstract class BaseRepository<E extends Persistable> {
   }
 
   public Optional<E> queryOne(SqlQuery query, Class<E> cls) {
-    return singleResult(queryEntity(query, cls), query.sql());
+    var primaryKeyName =
+        cls.isAnnotationPresent(PrimaryKey.class)
+            ? cls.getAnnotation(PrimaryKey.class).value()
+            : query.getPrimaryKeyName();
+    SqlQueryValidator.assertPlaceholderCount(query);
+    String sql =
+        String.format(
+            "SELECT %s FROM %s %s",
+            selectClause(cls, primaryKeyName), deriveEntityName(cls), query.sql());
+    return singleResult(
+        queryAtMostTwo(limitForSingleResult(sql), PersistableRowMapper.of(cls), query.values()),
+        sql);
   }
 
   public Optional<E> queryOne(NamedSqlQuery query, Class<E> cls) {
-    return singleResult(queryEntity(query, cls), query.sql());
+    var primaryKeyName =
+        cls.isAnnotationPresent(PrimaryKey.class)
+            ? cls.getAnnotation(PrimaryKey.class).value()
+            : query.getPrimaryKeyName();
+    String sql =
+        String.format(
+            "SELECT %s FROM %s %s",
+            selectClause(cls, primaryKeyName), deriveEntityName(cls), query.sql());
+    return singleResult(
+        queryAtMostTwo(limitForSingleResult(sql), query.params(), PersistableRowMapper.of(cls)),
+        sql);
   }
 
   public boolean exists(Key key, Class<E> cls) {
@@ -271,6 +296,33 @@ public abstract class BaseRepository<E extends Persistable> {
 
   public <T> List<T> queryRows(NamedSqlQuery query, RowMapper<T> mapper) {
     return namedJdbc.query(query.sql(), query.params(), mapper);
+  }
+
+  public <T> List<T> queryProjection(SqlQuery query, Class<T> projectionType) {
+    return queryRows(query, DataClassRowMapper.newInstance(projectionType));
+  }
+
+  public <T> List<T> queryProjection(NamedSqlQuery query, Class<T> projectionType) {
+    return queryRows(query, DataClassRowMapper.newInstance(projectionType));
+  }
+
+  public <T> Optional<T> queryRow(SqlQuery query, RowMapper<T> mapper) {
+    SqlQueryValidator.assertPlaceholderCount(query);
+    return singleResult(
+        queryAtMostTwo(limitForSingleResult(query.sql()), mapper, query.values()), query.sql());
+  }
+
+  public <T> Optional<T> queryRow(NamedSqlQuery query, RowMapper<T> mapper) {
+    return singleResult(
+        queryAtMostTwo(limitForSingleResult(query.sql()), query.params(), mapper), query.sql());
+  }
+
+  public <T> Optional<T> queryProjectionOne(SqlQuery query, Class<T> projectionType) {
+    return queryRow(query, DataClassRowMapper.newInstance(projectionType));
+  }
+
+  public <T> Optional<T> queryProjectionOne(NamedSqlQuery query, Class<T> projectionType) {
+    return queryRow(query, DataClassRowMapper.newInstance(projectionType));
   }
 
   public int[] insertAll(List<E> entities) {
@@ -366,7 +418,7 @@ public abstract class BaseRepository<E extends Persistable> {
     return description.toString();
   }
 
-  private Optional<E> singleResult(List<E> results, String sql) {
+  private <T> Optional<T> singleResult(List<T> results, String sql) {
     if (results.isEmpty()) {
       return Optional.empty();
     }
@@ -375,6 +427,47 @@ public abstract class BaseRepository<E extends Persistable> {
           String.format("Expected a single result for SQL [%s] but found %d", sql, results.size()));
     }
     return Optional.of(results.get(0));
+  }
+
+  private <T> List<T> queryAtMostTwo(String sql, RowMapper<T> mapper, Object... args) {
+    try {
+      return jdbc.query(sql, (ResultSetExtractor<List<T>>) rs -> mapAtMostTwo(rs, mapper), args);
+    } catch (RuntimeException ex) {
+      log.error("Failed to execute single-result query for SQL [{}]", sql, ex);
+      throw ex;
+    }
+  }
+
+  private <T> List<T> queryAtMostTwo(
+      String sql,
+      org.springframework.jdbc.core.namedparam.SqlParameterSource params,
+      RowMapper<T> mapper) {
+    try {
+      return namedJdbc.query(
+          sql, params, (ResultSetExtractor<List<T>>) rs -> mapAtMostTwo(rs, mapper));
+    } catch (RuntimeException ex) {
+      log.error("Failed to execute single-result named query for SQL [{}]", sql, ex);
+      throw ex;
+    }
+  }
+
+  private <T> List<T> mapAtMostTwo(ResultSet rs, RowMapper<T> mapper) throws SQLException {
+    List<T> results = new ArrayList<>(2);
+    int rowNum = 0;
+    while (rs.next() && results.size() < 2) {
+      results.add(mapper.mapRow(rs, rowNum++));
+    }
+    return results;
+  }
+
+  private String limitForSingleResult(String sql) {
+    if (sql == null || sql.isBlank()) {
+      return "LIMIT 2";
+    }
+    if (sql.matches("(?is).*\\blimit\\b\\s+\\d+.*")) {
+      return sql;
+    }
+    return sql.trim() + " LIMIT 2";
   }
 
   private int[] batchStatements(List<E> entities, StatementFactory<E> statementFactory) {

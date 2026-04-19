@@ -5,6 +5,7 @@ bin/
 !**/src/test/**/target/
 .gradle
 *.orig
+.codex
 
 ### IntelliJ IDEA ###
 .idea

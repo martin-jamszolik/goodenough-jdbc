@@ -23,6 +23,7 @@ import org.viablespark.persistence.Supplier;
 import org.viablespark.persistence.Task;
 import org.viablespark.persistence.dsl.Named;
 import org.viablespark.persistence.dsl.PrimaryKey;
+import org.viablespark.persistence.dsl.Ref;
 
 @SuppressWarnings("unused")
 class SchemaValidatorTest {
@@ -167,6 +168,33 @@ class SchemaValidatorTest {
     assertDoesNotThrow(() -> SchemaValidator.assertMappings(database, Contractor.class));
   }
 
+  @Test
+  void reportsMissingSetterForNamedField() {
+    IllegalStateException thrown =
+        assertThrows(
+            IllegalStateException.class,
+            () -> SchemaValidator.assertMappings(database, MissingSetterEntity.class));
+    assertTrue(thrown.getMessage().contains("Setter 'setBroken'"));
+  }
+
+  @Test
+  void reportsInvalidRefValueConfiguration() {
+    IllegalStateException thrown =
+        assertThrows(
+            IllegalStateException.class,
+            () -> SchemaValidator.assertMappings(database, InvalidRefValueEntity.class));
+    assertTrue(thrown.getMessage().contains("requires both value and label"));
+  }
+
+  @Test
+  void reportsMissingSetterForRefField() {
+    IllegalStateException thrown =
+        assertThrows(
+            IllegalStateException.class,
+            () -> SchemaValidator.assertMappings(database, MissingRefSetterEntity.class));
+    assertTrue(thrown.getMessage().contains("Setter 'setContractor'"));
+  }
+
   @Named("fake_table")
   @PrimaryKey("fake_id")
   static class MissingEntity extends Model {
@@ -239,6 +267,35 @@ class SchemaValidatorTest {
 
     public void setTasks(List<Task> tasks) {
       this.tasks = tasks;
+    }
+  }
+
+  @Named("contractor")
+  @PrimaryKey("sc_key")
+  static class MissingSetterEntity extends Model {
+    @Named("sc_name")
+    public String getBroken() {
+      return "broken";
+    }
+  }
+
+  @Named("note")
+  @PrimaryKey("n_key")
+  static class InvalidRefValueEntity extends Model {
+    @Ref(value = "progress_id")
+    public RefValue getProgress() {
+      return null;
+    }
+
+    public void setProgress(RefValue progress) {}
+  }
+
+  @Named("est_proposal")
+  @PrimaryKey("pr_key")
+  static class MissingRefSetterEntity extends Model {
+    @Ref
+    public Contractor getContractor() {
+      return null;
     }
   }
 }

@@ -82,7 +82,7 @@ public final class SchemaValidator {
 
     Set<String> expectedColumns;
     try {
-      expectedColumns = collectExpectedColumns(entityClass);
+      expectedColumns = collectExpectedColumns(entityClass, failures);
     } catch (NullPointerException ex) {
       throw new IllegalStateException(
           "Failed to derive expected columns for " + entityClass.getName(), ex);
@@ -114,7 +114,8 @@ public final class SchemaValidator {
     }
   }
 
-  private static Set<String> collectExpectedColumns(Class<? extends Persistable> entityClass) {
+  private static Set<String> collectExpectedColumns(
+      Class<? extends Persistable> entityClass, List<String> failures) {
     Set<String> columns = new LinkedHashSet<>();
     for (Method method : entityClass.getDeclaredMethods()) {
       if (!method.getName().startsWith("get")) {
@@ -136,19 +137,33 @@ public final class SchemaValidator {
       if (RefValue.class.equals(returnType)) {
         if (refAnnotation.isPresent()) {
           Ref ref = refAnnotation.get();
-          if (!ref.value().isBlank()) {
+          boolean hasValue = !ref.value().isBlank();
+          boolean hasLabel = !ref.label().isBlank();
+          if (hasValue != hasLabel) {
+            validateSetter(entityClass, method, failures);
+            failures.add(
+                String.format(
+                    "- @Ref on %s.%s using RefValue requires both value and label attributes",
+                    entityClass.getName(), method.getName()));
+          }
+          if (hasValue) {
             columns.add(ref.value());
+          }
+          if (hasLabel) {
+            columns.add(ref.label());
           }
         }
         continue;
       }
 
       if (refAnnotation.isPresent()) {
+        Optional<Named> namedAnnotation = WithSql.getAnnotation(method, entityClass, Named.class);
         String columnName =
-            WithSql.getAnnotation(method, entityClass, Named.class)
-                .map(Named::value)
-                .orElseGet(() -> WithSql.getPrimaryKey(returnType).orElse(null));
+            namedAnnotation.isPresent()
+                ? (namedAnnotation.get().value().isBlank() ? null : namedAnnotation.get().value())
+                : WithSql.getPrimaryKey(returnType).orElse(null);
         if (columnName != null && !columnName.isBlank()) {
+          validateSetter(entityClass, method, failures);
           columns.add(columnName);
         }
         continue;
@@ -157,6 +172,7 @@ public final class SchemaValidator {
       Optional<Named> named = WithSql.getAnnotation(method, entityClass, Named.class);
       if (named.isPresent()) {
         if (!named.get().value().isBlank()) {
+          validateSetter(entityClass, method, failures);
           columns.add(named.get().value());
         }
       } else {
@@ -164,6 +180,19 @@ public final class SchemaValidator {
       }
     }
     return columns;
+  }
+
+  private static void validateSetter(
+      Class<? extends Persistable> entityClass, Method getter, List<String> failures) {
+    String setterName = getter.getName().replaceFirst("^get", "set");
+    try {
+      entityClass.getDeclaredMethod(setterName, getter.getReturnType());
+    } catch (NoSuchMethodException ex) {
+      failures.add(
+          String.format(
+              "- Setter '%s' required for %s.%s is missing",
+              setterName, entityClass.getName(), getter.getName()));
+    }
   }
 
   private static Optional<String> findTable(DatabaseMetaData metaData, String tableName)

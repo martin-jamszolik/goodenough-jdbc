@@ -42,8 +42,10 @@ class RepositoryEnhancementsTest {
   void supportsNamedParameterEntityQueries() {
     List<Proposal> results =
         proposalRepository.queryEntity(
-            NamedSqlQuery.raw(
-                "WHERE sc_key = :contractorId ORDER BY pr_key", Map.of("contractorId", 1L)),
+            new NamedSqlQuery()
+                .where("sc_key = :contractorId")
+                .orderBy("pr_key")
+                .param("contractorId", 1L),
             Proposal.class);
 
     assertEquals(2, results.size());
@@ -177,6 +179,44 @@ class RepositoryEnhancementsTest {
             (rs, rowNum) -> rs.getString("sc_name"));
 
     assertEquals(List.of("Mr Contractor", "ABC Contractor Inc"), names);
+  }
+
+  @Test
+  void supportsProjectionQueriesViaProjectionType() {
+    List<ContractorProjection> results =
+        contractorRepository.queryProjection(
+            new NamedSqlQuery()
+                .selectColumns("sc_key as id", "sc_name as name")
+                .from("contractor")
+                .where("sc_key IN (:ids)")
+                .orderBy("sc_key")
+                .param("ids", List.of(1L, 2L)),
+            ContractorProjection.class);
+
+    assertEquals(List.of(1L, 2L), results.stream().map(ContractorProjection::id).toList());
+  }
+
+  @Test
+  void supportsSingleProjectionAndSingleRowQueries() {
+    Optional<ContractorProjection> projection =
+        contractorRepository.queryProjectionOne(
+            SqlQuery.raw(
+                "SELECT sc_key as id, sc_name as name FROM contractor WHERE sc_key = ?", 1L),
+            ContractorProjection.class);
+
+    assertTrue(projection.isPresent());
+    assertEquals("Mr Contractor", projection.orElseThrow().name());
+
+    Optional<String> row =
+        contractorRepository.queryRow(
+            new NamedSqlQuery()
+                .selectColumns("sc_name")
+                .from("contractor")
+                .where("sc_key = :id")
+                .param("id", 2L),
+            (rs, rowNum) -> rs.getString("sc_name"));
+
+    assertEquals(Optional.of("ABC Contractor Inc"), row);
   }
 
   private Contractor contractor(String name, String contact) {
