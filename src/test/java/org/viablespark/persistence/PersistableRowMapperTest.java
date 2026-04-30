@@ -29,6 +29,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.embedded.EmbeddedDatabase;
 import org.springframework.jdbc.datasource.embedded.EmbeddedDatabaseBuilder;
 import org.springframework.jdbc.support.rowset.SqlRowSet;
+import org.viablespark.persistence.dsl.PrimaryKey;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class PersistableRowMapperTest {
@@ -170,6 +171,21 @@ class PersistableRowMapperTest {
   }
 
   @Test
+  public void testTypeConversionNumericToBoolean() throws Exception {
+    var mapper = PersistableRowMapper.of(BooleanValueEntity.class);
+    try (var conn = db.getConnection();
+      var stmt = conn.prepareStatement("select sc_key as id, 1 as active, 0 as enabled from contractor limit 1")) {
+      var rs = stmt.executeQuery();
+      rs.next();
+
+      BooleanValueEntity entity = mapper.mapRow(rs, rs.getRow());
+
+      assertTrue("active should map to true", entity.isActive());
+      org.junit.jupiter.api.Assertions.assertFalse(entity.getEnabled());
+    }
+  }
+
+  @Test
   public void testSqlRowSetProxyMetaData() throws Exception {
     var mapper = PersistableRowMapper.of(Contractor.class);
     var jdbc = new JdbcTemplate(db);
@@ -216,6 +232,28 @@ class PersistableRowMapperTest {
     assertNotNull(mapper1);
     assertNotNull(mapper2);
     // Both should work correctly
+  }
+
+  @PrimaryKey("id")
+  public static class BooleanValueEntity extends Model {
+    private boolean active;
+    private Boolean enabled;
+
+    public boolean isActive() {
+      return active;
+    }
+
+    public void setActive(boolean active) {
+      this.active = active;
+    }
+
+    public Boolean getEnabled() {
+      return enabled;
+    }
+
+    public void setEnabled(Boolean enabled) {
+      this.enabled = enabled;
+    }
   }
 
   @Test

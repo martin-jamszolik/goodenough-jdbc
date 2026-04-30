@@ -165,6 +165,10 @@ public class PersistableRowMapper<E extends Persistable> implements PersistableM
     return parameterType == int.class || parameterType == Integer.class;
   }
 
+  protected static boolean isBooleanType(Class<?> parameterType) {
+    return parameterType == boolean.class || parameterType == Boolean.class;
+  }
+
   private static Object interpolateValue(Object value, Class<?> asType) {
     if (value == null) {
       return null;
@@ -172,6 +176,18 @@ public class PersistableRowMapper<E extends Persistable> implements PersistableM
 
     if (value instanceof Long && isIntegerType(asType)) {
       return Math.toIntExact((Long) value);
+    }
+
+    if (isBooleanType(asType)) {
+      if (value instanceof Number number) {
+        return number.longValue() != 0L;
+      }
+      if (value instanceof String stringValue) {
+        return Boolean.parseBoolean(stringValue)
+            || "1".equals(stringValue)
+            || "Y".equalsIgnoreCase(stringValue)
+            || "YES".equalsIgnoreCase(stringValue);
+      }
     }
 
     if (asType == java.time.LocalDate.class) {
