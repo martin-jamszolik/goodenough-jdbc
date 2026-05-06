@@ -174,7 +174,9 @@ class PersistableRowMapperTest {
   public void testTypeConversionNumericToBoolean() throws Exception {
     var mapper = PersistableRowMapper.of(BooleanValueEntity.class);
     try (var conn = db.getConnection();
-      var stmt = conn.prepareStatement("select sc_key as id, 1 as active, 0 as enabled from contractor limit 1")) {
+        var stmt =
+            conn.prepareStatement(
+                "select sc_key as id, 1 as active, 0 as enabled from contractor limit 1")) {
       var rs = stmt.executeQuery();
       rs.next();
 
