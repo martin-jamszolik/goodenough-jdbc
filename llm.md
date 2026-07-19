@@ -1,7 +1,7 @@
 # goodenough-jdbc - LLM Agent Instructions
 
 ## Overview
-Lightweight schema-first JDBC library built on `spring-jdbc`. Maps entities via annotations; provides repository CRUD, positional and named query DSLs, projection reads, explicit relation loaders, and schema validation helpers.
+Lightweight schema-first JDBC library built on `spring-jdbc`. Maps entities via annotations; provides repository CRUD, a positional query DSL, projection reads, explicit relation loaders, and schema validation helpers.
 
 ## Core Concepts
 
@@ -173,7 +173,7 @@ For custom conversions, use `queryRow(...)` / `queryRows(...)` with a `Persistab
 Entity operations (`queryEntity`, `queryOne`, and `count`) accept only SQL fragments such as
 `WHERE ...`. Custom-row and projection operations accept only complete SQL statements. Use
 `SqlQuery.fragment(...)` for a raw fragment and `SqlQuery.statement(...)` for a raw statement.
-`raw(...)` is an equivalent statement alias.
+Legacy `raw(...)` queries are accepted in either context; prefer the explicit factories in new code.
 
 ## Custom Mappers (for JOINs)
 

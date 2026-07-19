@@ -20,7 +20,7 @@ Modern ORM frameworks like [KTorm](https://www.ktorm.org/), [Django](https://doc
 - Ease of use for CRUD operations.
 - Minimal boilerplate while avoiding runtime model generation.
 - Easy foreign relationship composition with repository pattern.
-- Named and positional query DSLs, batch operations, projections, and explicit relation attachment helpers.
+- Positional query DSL, batch operations, projections, and explicit relation attachment helpers.
 
 ## Key Features
 
@@ -287,7 +287,7 @@ The test suite demonstrates real-world usage patterns covering common developmen
 | **Manual Row Mapping** | [`testRowSetQuery()`](src/test/java/org/viablespark/persistence/ProposalRepositoryTest.java#L120) | Map result sets manually using lambda expressions |
 | **Insert with Foreign Key** | [`testInsertNote()`](src/test/java/org/viablespark/persistence/NoteRepositoryTest.java#L48) | Create entity with nested foreign key relationships |
 | **Select with Relations** | [`testSelectNote()`](src/test/java/org/viablespark/persistence/NoteRepositoryTest.java#L53) | Retrieve entity and verify foreign key references are populated |
-| **Named Query DSL & Projections** | [`RepositoryEnhancementsTest`](src/test/java/org/viablespark/persistence/RepositoryEnhancementsTest.java) | Named query builder, single-row helpers, and DTO projection reads |
+| **Query DSL & Projections** | [`RepositoryEnhancementsTest`](src/test/java/org/viablespark/persistence/RepositoryEnhancementsTest.java) | Positional query builder, single-row helpers, and DTO projection reads |
 | **Explicit Relation Loading** | [`RelationLoaderTest`](src/test/java/org/viablespark/persistence/RelationLoaderTest.java) | One-to-many, many-to-one, one-to-one, and many-to-many attachment patterns |
 | **Schema Validation** | [`SchemaValidatorTest`](src/test/java/org/viablespark/persistence/validation/SchemaValidatorTest.java) | Validate mappings, relation metadata, and setter requirements |
 | **Query with Primary Key** | [`testQueryNote()`](src/test/java/org/viablespark/persistence/NoteRepositoryTest.java#L61) | Query entities using SqlQuery with primary key specification |

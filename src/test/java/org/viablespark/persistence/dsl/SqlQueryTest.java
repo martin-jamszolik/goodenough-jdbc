@@ -48,8 +48,7 @@ public class SqlQueryTest {
     SqlQuery[] queries = {
       new SqlQuery().select("SELECT id"),
       new SqlQuery().selectColumns("id"),
-      new SqlQuery().selectDistinct("id"),
-      new SqlQuery().from("users")
+      new SqlQuery().selectDistinct("id")
     };
 
     for (SqlQuery query : queries) {
@@ -57,6 +56,14 @@ public class SqlQueryTest {
       assertFalse(query.isFragment());
       assertTrue(query.isStatement());
     }
+  }
+
+  @Test
+  public void testFromAloneIsNotACompleteStatement() {
+    SqlQuery query = new SqlQuery().from("users");
+
+    assertTrue(query.isFragment());
+    assertFalse(query.isStatement());
   }
 
   @Test
@@ -167,7 +174,9 @@ public class SqlQueryTest {
     assertEquals(1, q.values().length);
     assertEquals(123, q.values()[0]);
     assertTrue(q.isRaw());
+    assertTrue(q.isFragment());
     assertTrue(q.isStatement());
+    assertEquals(SqlQuery.Kind.RAW, q.kind());
   }
 
   @Test

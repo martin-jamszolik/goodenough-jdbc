@@ -139,8 +139,10 @@ public final class SchemaValidator {
           Ref ref = refAnnotation.get();
           boolean hasValue = !ref.value().isBlank();
           boolean hasLabel = !ref.label().isBlank();
-          if (hasValue != hasLabel) {
+          if (hasValue || hasLabel) {
             validateSetter(entityClass, method, failures);
+          }
+          if (hasValue != hasLabel) {
             failures.add(
                 String.format(
                     "- @Ref on %s.%s using RefValue requires both value and label attributes",
@@ -148,9 +150,6 @@ public final class SchemaValidator {
           }
           if (hasValue) {
             columns.add(ref.value());
-          }
-          if (hasLabel) {
-            columns.add(ref.label());
           }
         }
         continue;
@@ -176,6 +175,7 @@ public final class SchemaValidator {
           columns.add(named.get().value());
         }
       } else {
+        validateSetter(entityClass, method, failures);
         columns.add(camelToSnake(method.getName().substring(3)));
       }
     }

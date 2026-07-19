@@ -136,8 +136,7 @@ class SchemaValidatorTest {
 
   @Test
   void handlesEntityWithRefValueFields() {
-    // Note has RefValue fields with progress reference
-    assertDoesNotThrow(() -> SchemaValidator.assertMappings(database, Note.class));
+    assertDoesNotThrow(() -> SchemaValidator.assertMappings(database, RefValueEntity.class));
   }
 
   @Test
@@ -175,6 +174,15 @@ class SchemaValidatorTest {
             IllegalStateException.class,
             () -> SchemaValidator.assertMappings(database, MissingSetterEntity.class));
     assertTrue(thrown.getMessage().contains("Setter 'setBroken'"));
+  }
+
+  @Test
+  void reportsMissingSetterForConventionMappedField() {
+    IllegalStateException thrown =
+        assertThrows(
+            IllegalStateException.class,
+            () -> SchemaValidator.assertMappings(database, MissingConventionSetterEntity.class));
+    assertTrue(thrown.getMessage().contains("Setter 'setScName'"));
   }
 
   @Test
@@ -277,6 +285,25 @@ class SchemaValidatorTest {
     public String getBroken() {
       return "broken";
     }
+  }
+
+  @Named("contractor")
+  @PrimaryKey("sc_key")
+  static class MissingConventionSetterEntity extends Model {
+    public String getScName() {
+      return "broken";
+    }
+  }
+
+  @Named("note")
+  @PrimaryKey("n_key")
+  static class RefValueEntity extends Model {
+    @Ref(value = "progress_id", label = "joined_progress_label")
+    public RefValue getProgress() {
+      return null;
+    }
+
+    public void setProgress(RefValue progress) {}
   }
 
   @Named("note")

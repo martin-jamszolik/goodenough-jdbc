@@ -69,7 +69,7 @@ public class SqlQuery {
   }
 
   public static SqlQuery raw(String sql, Object... values) {
-    return statement(sql, values);
+    return new SqlQuery(sql, values, Kind.RAW);
   }
 
   public SqlQuery clause(String clause, Object... values) {
@@ -101,7 +101,6 @@ public class SqlQuery {
 
   public SqlQuery from(String tableExpression) {
     clause("FROM " + tableExpression);
-    this.kind = Kind.STATEMENT;
     return this;
   }
 
@@ -233,11 +232,11 @@ public class SqlQuery {
   }
 
   public boolean isFragment() {
-    return kind == Kind.FRAGMENT;
+    return kind == Kind.FRAGMENT || kind == Kind.RAW;
   }
 
   public boolean isStatement() {
-    return kind == Kind.STATEMENT;
+    return kind == Kind.STATEMENT || kind == Kind.RAW;
   }
 
   public boolean isRaw() {
@@ -309,7 +308,8 @@ public class SqlQuery {
 
   public enum Kind {
     FRAGMENT,
-    STATEMENT
+    STATEMENT,
+    RAW
   }
 
   private record WhereClause(String connective, String fragment, Object[] values, boolean raw) {
