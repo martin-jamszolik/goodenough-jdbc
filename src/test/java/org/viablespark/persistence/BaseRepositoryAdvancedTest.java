@@ -23,7 +23,6 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.PreparedStatementCreator;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.support.KeyHolder;
-import org.springframework.jdbc.support.rowset.SqlRowSet;
 import org.viablespark.persistence.dsl.Named;
 import org.viablespark.persistence.dsl.PrimaryKey;
 import org.viablespark.persistence.dsl.SqlQuery;
@@ -98,7 +97,7 @@ class BaseRepositoryAdvancedTest {
     SqlQuery query = SqlQuery.raw("SELECT * FROM test_entity");
     PersistableMapper<TestEntity> mapper = PersistableRowMapper.of(TestEntity.class);
 
-    when(mockJdbc.queryForRowSet(anyString(), any(Object[].class)))
+    when(mockJdbc.query(anyString(), any(RowMapper.class), any(Object[].class)))
         .thenThrow(new DataAccessException("Query failed") {});
 
     RuntimeException thrown =
@@ -182,9 +181,8 @@ class BaseRepositoryAdvancedTest {
     SqlQuery query = SqlQuery.raw("SELECT * FROM test_entity");
     PersistableMapper<TestEntity> mapper = PersistableRowMapper.of(TestEntity.class);
 
-    SqlRowSet mockRowSet = mock(SqlRowSet.class);
-    when(mockRowSet.next()).thenReturn(false);
-    when(mockJdbc.queryForRowSet(anyString(), any(Object[].class))).thenReturn(mockRowSet);
+    when(mockJdbc.query(anyString(), any(RowMapper.class), any(Object[].class)))
+        .thenReturn(List.of());
 
     List<TestEntity> results = repository.query(query, mapper);
     assertTrue(results.isEmpty());

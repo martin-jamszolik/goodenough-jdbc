@@ -265,8 +265,16 @@ RelationLoader.attachOneToMany(
 ```
 
 Build `IN` placeholder lists and their values explicitly for variable-size batches.
+Chunk large ID lists according to the target database's parameter limit.
 
 Prefer this explicit pattern over hidden lazy loading.
+
+## Operational Boundaries
+
+- Applications must provide `spring-jdbc`; the library declares it as `compileOnly`.
+- `insertAll`, `updateAll`, and `deleteAll` use JDBC batching.
+- `saveAll` executes one save per entity to preserve generated-key behavior.
+- Repository and relation helpers do not start transactions. Callers control transaction boundaries.
 
 ## Schema Validation
 

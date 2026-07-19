@@ -248,8 +248,13 @@ public class PersistableRowMapper<E extends Persistable> implements PersistableM
                 String.format(
                     "@Ref label mapping for %s.%s",
                     entity.getClass().getSimpleName(), m.getName()));
+        long value = rs.getLong(valueIdx);
+        if (rs.wasNull()) {
+          invokeSetter(entity, m, null);
+          continue;
+        }
         String labelValue = rs.getString(labelIdx);
-        var fkValue = new RefValue(labelValue, Pair.of(ref.value(), rs.getLong(valueIdx)));
+        var fkValue = new RefValue(labelValue, Pair.of(ref.value(), value));
         invokeSetter(entity, m, fkValue);
 
         // In case of RefValue, continue over to the next method.
@@ -268,6 +273,10 @@ public class PersistableRowMapper<E extends Persistable> implements PersistableM
               String.format(
                   "@Ref mapping for %s.%s", entity.getClass().getSimpleName(), m.getName()));
       var pkValue = rs.getLong(columnIdx);
+      if (rs.wasNull()) {
+        invokeSetter(entity, m, null);
+        continue;
+      }
       var fkInstance = foreignType.getDeclaredConstructor().newInstance();
       ((Persistable) fkInstance).setRefs(Key.of(pkName, pkValue));
       invokeSetter(entity, m, fkInstance);

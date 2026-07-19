@@ -33,6 +33,7 @@ Modern ORM frameworks like [KTorm](https://www.ktorm.org/), [Django](https://doc
 
 ## Not All Batteries Included
 
+- Add `spring-jdbc` to your application dependencies; it is intentionally not bundled transitively.
 - Bring your own transaction management (e.g., Spring Transactions).
 - Bring your own schema and data migration/evolution (e.g., Flyway).
 - Query DSL is just a helper (e.g., SQL strings).
@@ -140,7 +141,8 @@ RelationLoader.attachOneToMany(
 );
 ```
 
-Build `IN` placeholder lists and their values explicitly for variable-size batches.
+Build `IN` placeholder lists and their values explicitly for variable-size batches. Chunk large ID
+lists according to your database's parameter limit.
 
 Use `@Skip` when you need to omit a scalar property or a relationship for a custom reason. You no longer need it for `List`, `Set`, or `Collection` properties.
 
@@ -186,6 +188,9 @@ Key Methods:
 - **`SqlQuery.statement()`**: Use a complete SQL statement for projections and custom rows
 - **`SqlQuery.fragment()`**: Use a raw query fragment with `queryEntity`, `queryOne`, or `count`
 
+Legacy `SqlQuery.raw()` works in either context for compatibility. Prefer `statement()` and
+`fragment()` in new code so context mistakes are rejected before execution.
+
 ### Batch Operations
 
 `BaseRepository` includes explicit batch helpers for repetitive write operations:
@@ -198,6 +203,10 @@ int[] deleted = contractorRepository.deleteAll(List.of(first, second));
 // saveAll keeps per-entity save semantics when you need generated keys back
 List<Optional<Key>> keys = contractorRepository.saveAll(List.of(first, second));
 ```
+
+`insertAll`, `updateAll`, and `deleteAll` use JDBC batching. `saveAll` executes one save per entity
+so generated keys remain available. None of these methods starts a transaction; wrap multi-step
+work in your transaction manager when atomicity is required.
 
 ### Projections And Single-Row Reads
 

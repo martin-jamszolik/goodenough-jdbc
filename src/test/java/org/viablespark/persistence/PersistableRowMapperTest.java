@@ -30,7 +30,9 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.embedded.EmbeddedDatabase;
 import org.springframework.jdbc.datasource.embedded.EmbeddedDatabaseBuilder;
 import org.springframework.jdbc.support.rowset.SqlRowSet;
+import org.viablespark.persistence.dsl.Named;
 import org.viablespark.persistence.dsl.PrimaryKey;
+import org.viablespark.persistence.dsl.Ref;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class PersistableRowMapperTest {
@@ -160,6 +162,23 @@ class PersistableRowMapperTest {
       assertNotNull(c);
       assertNull(c.getContact());
     }
+  }
+
+  @Test
+  public void testNullForeignKeysRemainNull() {
+    var mapper = PersistableRowMapper.of(NullableRefsEntity.class);
+    var jdbc = new JdbcTemplate(db);
+
+    NullableRefsEntity entity =
+        jdbc.queryForObject(
+            "SELECT 1 AS entity_id, CAST(NULL AS BIGINT) AS related_id, "
+                + "CAST(NULL AS BIGINT) AS lookup_id, CAST(NULL AS VARCHAR(20)) AS lookup_label "
+                + "FROM (VALUES(0))",
+            mapper::mapRow);
+
+    assertNotNull(entity);
+    assertNull(entity.getRelated());
+    assertNull(entity.getLookup());
   }
 
   @Test
@@ -320,6 +339,34 @@ class PersistableRowMapperTest {
     assertEquals("Mr Contractor", contractors.get(0).getName());
     assertEquals("ABC Contractor Inc", contractors.get(1).getName());
   }
+
+  @PrimaryKey("entity_id")
+  public static class NullableRefsEntity extends Model {
+    private NullableRelatedEntity related;
+    private RefValue lookup;
+
+    @Ref
+    @Named("related_id")
+    public NullableRelatedEntity getRelated() {
+      return related;
+    }
+
+    public void setRelated(NullableRelatedEntity related) {
+      this.related = related;
+    }
+
+    @Ref(value = "lookup_id", label = "lookup_label")
+    public RefValue getLookup() {
+      return lookup;
+    }
+
+    public void setLookup(RefValue lookup) {
+      this.lookup = lookup;
+    }
+  }
+
+  @PrimaryKey("related_id")
+  public static class NullableRelatedEntity extends Model {}
 
   @BeforeEach
   public void setUp() {

@@ -31,7 +31,6 @@ import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.jdbc.support.rowset.ResultSetWrappingSqlRowSet;
-import org.springframework.jdbc.support.rowset.SqlRowSet;
 import org.viablespark.persistence.dsl.Named;
 import org.viablespark.persistence.dsl.PrimaryKey;
 import org.viablespark.persistence.dsl.SqlClause;
@@ -183,8 +182,7 @@ public abstract class BaseRepository<E extends Persistable> {
           query.sql(),
           java.util.Arrays.toString(query.values()));
     }
-    SqlRowSet rs = jdbc.queryForRowSet(query.sql(), query.values());
-    return mapRows(rs, mapper);
+    return queryRows(query.sql(), query.values(), mapper);
   }
 
   public Optional<E> queryOne(SqlQuery query, Class<E> cls) {
@@ -216,7 +214,7 @@ public abstract class BaseRepository<E extends Persistable> {
   public <T> List<T> queryRows(SqlQuery query, PersistableMapper<T> mapper) {
     requireStatement(query, "queryRows");
     SqlQueryValidator.assertPlaceholderCount(query);
-    return mapRows(jdbc.queryForRowSet(query.sql(), query.values()), mapper);
+    return queryRows(query.sql(), query.values(), mapper);
   }
 
   public <T> List<T> queryProjection(SqlQuery query, Class<T> projectionType) {
@@ -353,10 +351,7 @@ public abstract class BaseRepository<E extends Persistable> {
   }
 
   private <T> List<T> queryAtMostTwo(String sql, PersistableMapper<T> mapper, Object... args) {
-    return queryAtMostTwo(
-        sql,
-        (RowMapper<T>) (rs, rowNum) -> mapper.mapRow(new ResultSetWrappingSqlRowSet(rs), rowNum),
-        args);
+    return queryAtMostTwo(sql, toRowMapper(mapper), args);
   }
 
   private <T> List<T> mapAtMostTwo(ResultSet rs, RowMapper<T> mapper) throws SQLException {
@@ -364,15 +359,6 @@ public abstract class BaseRepository<E extends Persistable> {
     int rowNum = 0;
     while (rs.next() && results.size() < 2) {
       results.add(mapper.mapRow(rs, rowNum++));
-    }
-    return results;
-  }
-
-  private <T> List<T> mapRows(SqlRowSet rows, PersistableMapper<T> mapper) {
-    List<T> results = new ArrayList<>();
-    int rowNum = 0;
-    while (rows.next()) {
-      results.add(mapper.mapRow(rows, rowNum++));
     }
     return results;
   }
@@ -386,7 +372,16 @@ public abstract class BaseRepository<E extends Persistable> {
   }
 
   private <T> RowMapper<T> toRowMapper(PersistableMapper<T> mapper) {
+    if (mapper instanceof PersistableRowMapper<?> persistableMapper) {
+      return (rs, rowNum) -> mapPersistableRow(persistableMapper, rs, rowNum);
+    }
     return (rs, rowNum) -> mapper.mapRow(new ResultSetWrappingSqlRowSet(rs), rowNum);
+  }
+
+  @SuppressWarnings("unchecked")
+  private <T> T mapPersistableRow(PersistableRowMapper<?> mapper, ResultSet resultSet, int rowNum)
+      throws SQLException {
+    return (T) mapper.mapRow(resultSet, rowNum);
   }
 
   private void requireFragment(SqlQuery query, String method) {
