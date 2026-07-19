@@ -7,16 +7,13 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.datasource.embedded.EmbeddedDatabase;
 import org.springframework.jdbc.datasource.embedded.EmbeddedDatabaseBuilder;
-import org.viablespark.persistence.dsl.NamedSqlQuery;
 import org.viablespark.persistence.dsl.SqlQuery;
 
 class RepositoryEnhancementsTest {
@@ -39,40 +36,22 @@ class RepositoryEnhancementsTest {
   }
 
   @Test
-  void supportsNamedParameterEntityQueries() {
+  void supportsPositionalEntityQueries() {
     List<Proposal> results =
         proposalRepository.queryEntity(
-            new NamedSqlQuery()
-                .where("sc_key = :contractorId")
-                .orderBy("pr_key")
-                .param("contractorId", 1L),
-            Proposal.class);
+            new SqlQuery().where("sc_key = ?", 1L).orderBy("pr_key"), Proposal.class);
 
     assertEquals(2, results.size());
     assertTrue(results.stream().allMatch(proposal -> proposal.getContractor().getId() == 1L));
   }
 
   @Test
-  void supportsNamedParameterProjectionQueries() {
-    List<ContractorProjection> results =
-        contractorRepository.queryRows(
-            NamedSqlQuery.raw(
-                "SELECT sc_key, sc_name FROM contractor WHERE sc_key IN (:ids) ORDER BY sc_key",
-                Map.of("ids", List.of(1L, 2L))),
-            (rs, rowNum) ->
-                new ContractorProjection(rs.getLong("sc_key"), rs.getString("sc_name")));
-
-    assertEquals(List.of(1L, 2L), results.stream().map(ContractorProjection::id).toList());
-  }
-
-  @Test
-  void supportsNamedParameterCustomMapperQueries() {
+  void supportsCustomMapperQueries() {
     List<Long> ids =
         proposalRepository
             .query(
-                NamedSqlQuery.raw(
-                    "SELECT * FROM est_proposal WHERE pr_key IN (:ids) ORDER BY pr_key",
-                    new MapSqlParameterSource("ids", List.of(1L, 2L))),
+                SqlQuery.statement(
+                    "SELECT * FROM est_proposal WHERE pr_key IN (?, ?) ORDER BY pr_key", 1L, 2L),
                 (rowSet, rowNum) -> {
                   Proposal proposal = new Proposal();
                   proposal.setPr_key(rowSet.getLong("pr_key"));
@@ -138,22 +117,11 @@ class RepositoryEnhancementsTest {
     assertFalse(proposalRepository.exists(Key.of("pr_key", 999L), Proposal.class));
     assertEquals(
         2L, proposalRepository.count(new SqlQuery().where("sc_key = ?", 1L), Proposal.class));
-    assertEquals(
-        2L,
-        proposalRepository.count(
-            NamedSqlQuery.raw("WHERE sc_key = :contractorId", Map.of("contractorId", 1L)),
-            Proposal.class));
 
     Optional<Proposal> single =
         proposalRepository.queryOne(new SqlQuery().where("pr_key = ?", 1L), Proposal.class);
     assertTrue(single.isPresent());
     assertEquals(1L, single.orElseThrow().getId());
-
-    Optional<Proposal> namedSingle =
-        proposalRepository.queryOne(
-            NamedSqlQuery.raw("WHERE pr_key = :proposalId", Map.of("proposalId", 1L)),
-            Proposal.class);
-    assertTrue(namedSingle.isPresent());
 
     Optional<Proposal> missing =
         proposalRepository.queryOne(new SqlQuery().where("pr_key = ?", 999L), Proposal.class);
@@ -162,12 +130,6 @@ class RepositoryEnhancementsTest {
     assertThrows(
         IllegalStateException.class,
         () -> proposalRepository.queryOne(new SqlQuery().where("sc_key = ?", 1L), Proposal.class));
-    assertThrows(
-        IllegalStateException.class,
-        () ->
-            proposalRepository.queryOne(
-                NamedSqlQuery.raw("WHERE sc_key = :contractorId", Map.of("contractorId", 1L)),
-                Proposal.class));
   }
 
   @Test
@@ -185,12 +147,11 @@ class RepositoryEnhancementsTest {
   void supportsProjectionQueriesViaProjectionType() {
     List<ContractorProjection> results =
         contractorRepository.queryProjection(
-            new NamedSqlQuery()
+            new SqlQuery()
                 .selectColumns("sc_key as id", "sc_name as name")
                 .from("contractor")
-                .where("sc_key IN (:ids)")
-                .orderBy("sc_key")
-                .param("ids", List.of(1L, 2L)),
+                .where("sc_key IN (?, ?)", 1L, 2L)
+                .orderBy("sc_key"),
             ContractorProjection.class);
 
     assertEquals(List.of(1L, 2L), results.stream().map(ContractorProjection::id).toList());
@@ -209,14 +170,44 @@ class RepositoryEnhancementsTest {
 
     Optional<String> row =
         contractorRepository.queryRow(
-            new NamedSqlQuery()
-                .selectColumns("sc_name")
-                .from("contractor")
-                .where("sc_key = :id")
-                .param("id", 2L),
+            new SqlQuery().selectColumns("sc_name").from("contractor").where("sc_key = ?", 2L),
             (rs, rowNum) -> rs.getString("sc_name"));
 
     assertEquals(Optional.of("ABC Contractor Inc"), row);
+  }
+
+  @Test
+  void rejectsQueryKindsThatDoNotMatchRepositoryOperation() {
+    IllegalArgumentException entityException =
+        assertThrows(
+            IllegalArgumentException.class,
+            () ->
+                contractorRepository.queryEntity(
+                    SqlQuery.statement("SELECT * FROM contractor"), Contractor.class));
+    IllegalArgumentException rowException =
+        assertThrows(
+            IllegalArgumentException.class,
+            () ->
+                contractorRepository.queryRows(
+                    new SqlQuery().where("sc_key = ?", 1L),
+                    (rs, rowNum) -> rs.getString("sc_name")));
+
+    assertEquals(
+        "queryEntity requires a SQL fragment; use SqlQuery.fragment(...)",
+        entityException.getMessage());
+    assertEquals(
+        "queryRows requires a complete SQL statement; use SqlQuery.statement(...)",
+        rowException.getMessage());
+  }
+
+  @Test
+  void singleRowOperationsDoNotRewriteStatements() {
+    Optional<String> value =
+        contractorRepository.queryRow(
+            SqlQuery.statement("SELECT sc_name FROM contractor WHERE sc_key = ?;", 1L),
+            (rs, rowNum) -> rs.getString("sc_name"));
+
+    assertEquals(Optional.of("Mr Contractor"), value);
   }
 
   private Contractor contractor(String name, String contact) {

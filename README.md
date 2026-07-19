@@ -105,23 +105,13 @@ List<Proposal> rawResults = repository.query(
     new ProposalMapper()
 );
 
-// Named-parameter queries stay explicit while avoiding positional argument juggling
-List<Proposal> namedResults = repository.queryEntity(
-    new NamedSqlQuery()
-        .where("sc_key = :contractorId")
-        .orderBy("pr_key")
-        .param("contractorId", 1L),
-    Proposal.class
-);
-
 // Read DTO/record projections directly
 List<ContractorSummary> summaries = repository.queryProjection(
-    new NamedSqlQuery()
+    new SqlQuery()
         .selectColumns("sc_key as id", "sc_name as name")
         .from("contractor")
-        .where("sc_key IN (:ids)")
-        .orderBy("sc_key")
-        .param("ids", List.of(1L, 2L)),
+        .where("sc_key IN (?, ?)", 1L, 2L)
+        .orderBy("sc_key"),
     ContractorSummary.class
 );
 ```
@@ -141,7 +131,7 @@ var proposals = proposalRepository.queryEntity(
 RelationLoader.attachOneToMany(
     proposals,
     ids -> proposalTaskRepository.query(
-        NamedSqlQuery.raw("SELECT * FROM proposal_task WHERE pr_key IN (:proposalIds)", Map.of("proposalIds", ids)),
+        SqlQuery.statement("SELECT * FROM proposal_task WHERE pr_key IN (?, ?)", ids.get(0), ids.get(1)),
         PersistableRowMapper.of(ProposalTask.class)
     ),
     proposal -> proposal.getRefs().primaryKey().getValue(),
@@ -150,37 +140,7 @@ RelationLoader.attachOneToMany(
 );
 ```
 
-Additional helpers keep other relationship types equally explicit:
-
-```java
-RelationLoader.attachManyToOne(
-    lineItems,
-    ids -> orderRepository.queryEntity(
-        new NamedSqlQuery().where("order_id IN (:ids)").param("ids", ids),
-        Order.class
-    ),
-    lineItem -> lineItem.getOrder().getId(),
-    Order::getId,
-    LineItem::setOrder
-);
-
-RelationLoader.attachManyToMany(
-    groups,
-    groupIds -> membershipRepository.query(
-        NamedSqlQuery.raw("SELECT * FROM user_group_member WHERE group_id IN (:ids)", Map.of("ids", groupIds)),
-        PersistableRowMapper.of(GroupMember.class)
-    ),
-    userIds -> userRepository.queryEntity(
-        new NamedSqlQuery().where("user_id IN (:ids)").param("ids", userIds),
-        User.class
-    ),
-    Group::getId,
-    member -> member.getGroup().getId(),
-    member -> member.getUser().getId(),
-    User::getId,
-    Group::setUsers
-);
-```
+Build `IN` placeholder lists and their values explicitly for variable-size batches.
 
 Use `@Skip` when you need to omit a scalar property or a relationship for a custom reason. You no longer need it for `List`, `Set`, or `Collection` properties.
 
@@ -207,8 +167,8 @@ new SqlQuery()
     .from("proposals")
     .where("created_date > ?", LocalDate.now().minusDays(30));
 
-// Raw SQL for complex scenarios
-SqlQuery.raw(
+// Complete SQL statement for complex scenarios
+SqlQuery.statement(
     "SELECT * FROM proposal p " +
     "INNER JOIN contractor c ON (p.sc_key = c.sc_key) " +
     "WHERE p.dist > ?", 
@@ -223,31 +183,8 @@ Key Methods:
 - **`from()`**, **`join()`**: Define table expressions and joins
 - **`orderBy()`**: Sort results by column or expression
 - **`limit()`**, **`offset()`**, **`paginate()`**: Control result pagination
-- **`SqlQuery.raw()`**: Use raw SQL for complex queries
-- **`primaryKey()`**: Specify primary key for entity mapping
-
-### Named Parameters
-
-For larger SQL fragments, named parameters often read better than positional placeholders. You can use either raw SQL or the fluent named DSL:
-
-```java
-var namedQuery = new NamedSqlQuery()
-    .selectColumns("sc_key", "sc_name")
-    .from("contractor")
-    .where("sc_key IN (:ids)")
-    .orderBy("sc_key")
-    .param("ids", List.of(1L, 2L));
-
-var contractors = repository.queryRows(
-    namedQuery,
-    (rs, rowNum) -> rs.getString("sc_name")
-);
-
-var rawNamed = NamedSqlQuery.raw(
-    "SELECT sc_key, sc_name FROM contractor WHERE sc_key IN (:ids) ORDER BY sc_key",
-    Map.of("ids", List.of(1L, 2L))
-);
-```
+- **`SqlQuery.statement()`**: Use a complete SQL statement for projections and custom rows
+- **`SqlQuery.fragment()`**: Use a raw query fragment with `queryEntity`, `queryOne`, or `count`
 
 ### Batch Operations
 
@@ -270,7 +207,7 @@ For read models, DTOs, and API-facing shapes, prefer projections over entity ove
 record ContractorSummary(Long id, String name) {}
 
 Optional<ContractorSummary> contractor = contractorRepository.queryProjectionOne(
-    SqlQuery.raw(
+    SqlQuery.statement(
         "SELECT sc_key as id, sc_name as name FROM contractor WHERE sc_key = ?",
         1L
     ),
@@ -278,11 +215,10 @@ Optional<ContractorSummary> contractor = contractorRepository.queryProjectionOne
 );
 
 Optional<String> contractorName = contractorRepository.queryRow(
-    new NamedSqlQuery()
+    new SqlQuery()
         .selectColumns("sc_name")
         .from("contractor")
-        .where("sc_key = :id")
-        .param("id", 2L),
+        .where("sc_key = ?", 2L),
     (rs, rowNum) -> rs.getString("sc_name")
 );
 ```
@@ -315,7 +251,7 @@ var mapper = PersistableRowMapper.of(PurchaseOrder.class);
 
 // For advanced composites, use custom mappers
 var results = repository.query(
-    SqlQuery.raw("SELECT * FROM est_proposal p " +
+    SqlQuery.statement("SELECT * FROM est_proposal p " +
                     "INNER JOIN contractor c ON (c.sc_key = p.sc_key) " +
                     "WHERE dist > 0"),
     new ProposalMapper()
@@ -323,7 +259,7 @@ var results = repository.query(
 ```
 
 - For most use cases, `PersistableRowMapper` is sufficient.
-- Use custom implementations of `PersistableMapper` for complex mappings.
+- Use `PersistableMapper` for custom scalar, DTO, or entity mappings.
 
 **Advanced Example:**  
 See the [ProposalMapper](src/test/java/org/viablespark/persistence/ProposalMapper.java) for a detailed example of custom mapping.

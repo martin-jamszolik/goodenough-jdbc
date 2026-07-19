@@ -21,6 +21,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.PreparedStatementCreator;
+import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.jdbc.support.rowset.SqlRowSet;
 import org.viablespark.persistence.dsl.Named;
@@ -71,7 +72,7 @@ class BaseRepositoryAdvancedTest {
 
   @Test
   void handlesGetWithDatabaseException() {
-    when(mockJdbc.query(anyString(), any(PersistableRowMapper.class), any(Object[].class)))
+    when(mockJdbc.query(anyString(), any(RowMapper.class), any(Object[].class)))
         .thenThrow(new DataAccessException("Query failed") {});
 
     RuntimeException thrown =
@@ -84,7 +85,7 @@ class BaseRepositoryAdvancedTest {
   void handlesQueryEntityWithException() {
     SqlQuery query = new SqlQuery().where("name = ?", "Test");
 
-    when(mockJdbc.query(anyString(), any(PersistableRowMapper.class), any(Object[].class)))
+    when(mockJdbc.query(anyString(), any(RowMapper.class), any(Object[].class)))
         .thenThrow(new DataAccessException("Query failed") {});
 
     RuntimeException thrown =
@@ -147,7 +148,7 @@ class BaseRepositoryAdvancedTest {
 
   @Test
   void logsDebugMessageOnGet() {
-    when(mockJdbc.query(anyString(), any(PersistableRowMapper.class), any(Object[].class)))
+    when(mockJdbc.query(anyString(), any(RowMapper.class), any(Object[].class)))
         .thenReturn(List.of());
 
     Optional<TestEntity> result = repository.get(Key.of("id", 1L), TestEntity.class);
@@ -169,7 +170,7 @@ class BaseRepositoryAdvancedTest {
   void logsDebugMessageOnQueryEntity() {
     SqlQuery query = new SqlQuery().where("name = ?", "Test");
 
-    when(mockJdbc.query(anyString(), any(PersistableRowMapper.class), any(Object[].class)))
+    when(mockJdbc.query(anyString(), any(RowMapper.class), any(Object[].class)))
         .thenReturn(List.of());
 
     List<TestEntity> results = repository.queryEntity(query, TestEntity.class);
@@ -242,7 +243,7 @@ class BaseRepositoryAdvancedTest {
     entity2.setName("Test2");
     entity2.setRefs(Key.of("id", 2L));
 
-    when(mockJdbc.query(anyString(), any(PersistableRowMapper.class), any(Object[].class)))
+    when(mockJdbc.query(anyString(), any(RowMapper.class), any(Object[].class)))
         .thenReturn(List.of(entity1, entity2));
 
     List<TestEntity> results = repository.queryEntity(query, TestEntity.class);
@@ -253,7 +254,7 @@ class BaseRepositoryAdvancedTest {
   void handlesEmptyQueryResult() {
     SqlQuery query = new SqlQuery().where("name = ?", "NonExistent");
 
-    when(mockJdbc.query(anyString(), any(PersistableRowMapper.class), any(Object[].class)))
+    when(mockJdbc.query(anyString(), any(RowMapper.class), any(Object[].class)))
         .thenReturn(List.of());
 
     List<TestEntity> results = repository.queryEntity(query, TestEntity.class);

@@ -30,6 +30,7 @@ public class SqlQuery {
   private final Mode mode;
   private final String rawSql;
   private final Object[] rawValues;
+  private Kind kind;
 
   private String selectClause;
   private final List<SqlClause> bodyClauses;
@@ -43,22 +44,32 @@ public class SqlQuery {
     this.mode = Mode.COMPOSED;
     this.rawSql = null;
     this.rawValues = new Object[0];
+    this.kind = Kind.FRAGMENT;
     this.bodyClauses = new ArrayList<>();
     this.whereClauses = new ArrayList<>();
     this.orderClauses = new ArrayList<>();
   }
 
-  private SqlQuery(String sql, Object[] values) {
+  private SqlQuery(String sql, Object[] values, Kind kind) {
     this.mode = Mode.RAW;
     this.rawSql = Objects.requireNonNull(sql, "SQL must not be null");
     this.rawValues = values != null ? values.clone() : new Object[0];
+    this.kind = Objects.requireNonNull(kind, "Query kind must not be null");
     this.bodyClauses = new ArrayList<>();
     this.whereClauses = new ArrayList<>();
     this.orderClauses = new ArrayList<>();
   }
 
+  public static SqlQuery fragment(String sql, Object... values) {
+    return new SqlQuery(sql, values, Kind.FRAGMENT);
+  }
+
+  public static SqlQuery statement(String sql, Object... values) {
+    return new SqlQuery(sql, values, Kind.STATEMENT);
+  }
+
   public static SqlQuery raw(String sql, Object... values) {
-    return new SqlQuery(sql, values);
+    return statement(sql, values);
   }
 
   public SqlQuery clause(String clause, Object... values) {
@@ -70,39 +81,28 @@ public class SqlQuery {
   public SqlQuery select(String select) {
     ensureComposable();
     this.selectClause = normalize(select);
+    this.kind = Kind.STATEMENT;
     return this;
   }
 
   public SqlQuery selectColumns(String... columns) {
     ensureComposable();
-    if (columns == null || columns.length == 0) {
-      throw new IllegalArgumentException("At least one column must be specified");
-    }
-    String joined =
-        Arrays.stream(columns)
-            .map(String::trim)
-            .filter(s -> !s.isEmpty())
-            .collect(Collectors.joining(", "));
-    this.selectClause = "SELECT " + joined;
+    this.selectClause = "SELECT " + joinColumns(columns);
+    this.kind = Kind.STATEMENT;
     return this;
   }
 
   public SqlQuery selectDistinct(String... columns) {
     ensureComposable();
-    if (columns == null || columns.length == 0) {
-      throw new IllegalArgumentException("At least one column must be specified");
-    }
-    String joined =
-        Arrays.stream(columns)
-            .map(String::trim)
-            .filter(s -> !s.isEmpty())
-            .collect(Collectors.joining(", "));
-    this.selectClause = "SELECT DISTINCT " + joined;
+    this.selectClause = "SELECT DISTINCT " + joinColumns(columns);
+    this.kind = Kind.STATEMENT;
     return this;
   }
 
   public SqlQuery from(String tableExpression) {
-    return clause("FROM " + tableExpression);
+    clause("FROM " + tableExpression);
+    this.kind = Kind.STATEMENT;
+    return this;
   }
 
   public SqlQuery join(String joinExpression) {
@@ -135,7 +135,11 @@ public class SqlQuery {
 
   public SqlQuery condition(String clause, Object... values) {
     ensureComposable();
-    whereClauses.add(WhereClause.raw(clause, sanitize(values)));
+    String fragment = normalize(clause);
+    whereClauses.add(
+        whereClauses.isEmpty()
+            ? WhereClause.initial(fragment, sanitize(values))
+            : WhereClause.and(fragment, sanitize(values)));
     return this;
   }
 
@@ -224,6 +228,18 @@ public class SqlQuery {
     return primaryKeyName;
   }
 
+  public Kind kind() {
+    return kind;
+  }
+
+  public boolean isFragment() {
+    return kind == Kind.FRAGMENT;
+  }
+
+  public boolean isStatement() {
+    return kind == Kind.STATEMENT;
+  }
+
   public boolean isRaw() {
     return mode == Mode.RAW;
   }
@@ -261,10 +277,22 @@ public class SqlQuery {
     if (values == null) {
       return new Object[0];
     }
-    if (values.length == 1 && values[0] == null) {
-      return new Object[0];
-    }
     return values;
+  }
+
+  private static String joinColumns(String... columns) {
+    if (columns == null || columns.length == 0) {
+      throw new IllegalArgumentException("At least one column must be specified");
+    }
+    return Arrays.stream(columns)
+        .map(
+            column -> {
+              if (column == null || column.isBlank()) {
+                throw new IllegalArgumentException("Select columns must not be blank");
+              }
+              return column.trim();
+            })
+        .collect(Collectors.joining(", "));
   }
 
   private static String normalize(String fragment) {
@@ -277,6 +305,11 @@ public class SqlQuery {
   public enum Direction {
     ASC,
     DESC
+  }
+
+  public enum Kind {
+    FRAGMENT,
+    STATEMENT
   }
 
   private record WhereClause(String connective, String fragment, Object[] values, boolean raw) {
@@ -297,10 +330,6 @@ public class SqlQuery {
 
     static WhereClause or(String fragment, Object[] values) {
       return new WhereClause("OR", fragment, values, false);
-    }
-
-    static WhereClause raw(String fragment, Object[] values) {
-      return new WhereClause(null, fragment, values, true);
     }
 
     String render(boolean first) {

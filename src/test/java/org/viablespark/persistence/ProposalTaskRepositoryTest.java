@@ -18,7 +18,6 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -26,7 +25,6 @@ import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.embedded.EmbeddedDatabase;
 import org.springframework.jdbc.datasource.embedded.EmbeddedDatabaseBuilder;
-import org.viablespark.persistence.dsl.NamedSqlQuery;
 import org.viablespark.persistence.dsl.SqlQuery;
 
 public class ProposalTaskRepositoryTest {
@@ -121,9 +119,12 @@ public class ProposalTaskRepositoryTest {
         return List.of();
       }
       return query(
-          NamedSqlQuery.raw(
-              "SELECT * FROM proposal_task WHERE pr_key IN (:proposalIds) ORDER BY pr_key, t_key",
-              Map.of("proposalIds", proposalIds)),
+          SqlQuery.statement(
+              "SELECT * FROM proposal_task WHERE pr_key IN ("
+                  + "?"
+                  + ", ?".repeat(proposalIds.size() - 1)
+                  + ") ORDER BY pr_key, t_key",
+              proposalIds.toArray()),
           PersistableRowMapper.of(ProposalTask.class));
     }
   }

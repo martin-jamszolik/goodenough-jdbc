@@ -20,6 +20,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.springframework.test.util.AssertionErrors.assertTrue;
 
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -41,7 +42,11 @@ class PersistableRowMapperTest {
     var f = PersistableRowMapper.of(Contractor.class);
     var jdbc = new JdbcTemplate(db);
     var rowSet = jdbc.queryForRowSet("select * from contractor order by sc_key asc");
-    List<Contractor> resultSet = jdbc.query("select * from contractor order by sc_key asc", f);
+    List<Contractor> resultSet = new ArrayList<>();
+    var mappedRows = jdbc.queryForRowSet("select * from contractor order by sc_key asc");
+    while (mappedRows.next()) {
+      resultSet.add(f.mapRow(mappedRows, mappedRows.getRow()));
+    }
     while (rowSet.next()) {
       Contractor contractor = f.mapRow(rowSet, rowSet.getRow());
       assertEquals(contractor.getRefs(), resultSet.get(rowSet.getRow() - 1).getRefs());
@@ -64,14 +69,13 @@ class PersistableRowMapperTest {
     var sql =
         "select sc_key, sc_name as name, contact, phone1, fax, email from contractor c order by sc_key asc";
 
-    List<Contractor> list = jdbc.query(sql, f);
-
-    try (var statement = db.getConnection().prepareStatement(sql)) {
-      var rs = statement.executeQuery();
-      rs.next();
-      Contractor entity = f.mapRow(rs, rs.getRow());
-      assertEquals(entity.getRefs(), list.get(rs.getRow() - 1).getRefs());
+    List<Contractor> list = new ArrayList<>();
+    var rowSet = jdbc.queryForRowSet(sql);
+    while (rowSet.next()) {
+      list.add(f.mapRow(rowSet, rowSet.getRow()));
     }
+
+    assertEquals(list.get(0).getRefs(), Key.of("sc_key", 1L));
   }
 
   @Test
@@ -307,7 +311,11 @@ class PersistableRowMapperTest {
     var jdbc = new JdbcTemplate(db);
 
     // Test data has 2 contractors
-    List<Contractor> contractors = jdbc.query("select * from contractor order by sc_key", mapper);
+    List<Contractor> contractors = new ArrayList<>();
+    var rowSet = jdbc.queryForRowSet("select * from contractor order by sc_key");
+    while (rowSet.next()) {
+      contractors.add(mapper.mapRow(rowSet, rowSet.getRow()));
+    }
     assertEquals(2, contractors.size());
     assertEquals("Mr Contractor", contractors.get(0).getName());
     assertEquals("ABC Contractor Inc", contractors.get(1).getName());

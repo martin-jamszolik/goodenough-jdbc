@@ -22,13 +22,11 @@ import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.time.LocalDate;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.WeakHashMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -46,8 +44,6 @@ public class PersistableRowMapper<E extends Persistable> implements PersistableM
   private final BeanPropertyRowMapper<E> propertyMapper;
   private final Class<E> mappedType;
   private static final Logger log = LoggerFactory.getLogger(PersistableRowMapper.class);
-  private static final Map<SqlRowSet, ResultSet> proxyCache =
-      Collections.synchronizedMap(new WeakHashMap<>());
   private static final Map<
           Class<? extends Persistable>, PersistableRowMapper<? extends Persistable>>
       cachedMappers = new ConcurrentHashMap<>(100, 0.75f, 16);
@@ -68,8 +64,7 @@ public class PersistableRowMapper<E extends Persistable> implements PersistableM
             cls, (target) -> new PersistableRowMapper<>((Class<E>) target));
   }
 
-  @Override
-  public E mapRow(ResultSet rs, int rowNum) throws SQLException {
+  E mapRow(ResultSet rs, int rowNum) throws SQLException {
     try {
       var bean = propertyMapper.mapRow(rs, rowNum);
       assignPrimaryKey(Objects.requireNonNull(bean), rs);
@@ -87,7 +82,6 @@ public class PersistableRowMapper<E extends Persistable> implements PersistableM
   }
 
   @Override
-  @SuppressWarnings("exports")
   public E mapRow(SqlRowSet rs, int rowNum) {
     try {
       return mapRow(proxy(rs), rowNum);
@@ -311,14 +305,11 @@ public class PersistableRowMapper<E extends Persistable> implements PersistableM
   }
 
   private static ResultSet proxy(SqlRowSet on) {
-    return proxyCache.computeIfAbsent(
-        on,
-        key ->
-            (ResultSet)
-                Proxy.newProxyInstance(
-                    key.getClass().getClassLoader(),
-                    new Class[] {ResultSet.class},
-                    new SqlRowSetWrapper(key)));
+    return (ResultSet)
+        Proxy.newProxyInstance(
+            on.getClass().getClassLoader(),
+            new Class[] {ResultSet.class},
+            new SqlRowSetWrapper(on));
   }
 
   private record SqlRowSetWrapper(SqlRowSet rows) implements InvocationHandler {

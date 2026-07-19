@@ -10,7 +10,7 @@ Repo-local instructions for Codex in `goodenough-jdbc`.
 
 ## Codex Behavior
 - Prefer the patterns described in `llm.md` over inventing new abstractions.
-- Use `BaseRepository`, `SqlQuery`, `NamedSqlQuery`, `PersistableRowMapper`, and `RelationLoader` when they fit the task.
+- Use `BaseRepository`, `SqlQuery`, `PersistableRowMapper`, and `RelationLoader` when they fit the task.
 - Treat `SchemaValidator` as the default way to catch mapping drift.
 - Keep collection loading explicit; do not assume lazy loading or automatic relationship persistence.
 - Keep SQL explicit, parameterized, and readable.

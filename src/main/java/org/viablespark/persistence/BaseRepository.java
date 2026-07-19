@@ -28,12 +28,11 @@ import org.springframework.jdbc.core.DataClassRowMapper;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.ResultSetExtractor;
 import org.springframework.jdbc.core.RowMapper;
-import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.jdbc.support.KeyHolder;
+import org.springframework.jdbc.support.rowset.ResultSetWrappingSqlRowSet;
 import org.springframework.jdbc.support.rowset.SqlRowSet;
 import org.viablespark.persistence.dsl.Named;
-import org.viablespark.persistence.dsl.NamedSqlQuery;
 import org.viablespark.persistence.dsl.PrimaryKey;
 import org.viablespark.persistence.dsl.SqlClause;
 import org.viablespark.persistence.dsl.SqlQuery;
@@ -43,13 +42,11 @@ import org.viablespark.persistence.validation.SqlQueryValidator;
 public abstract class BaseRepository<E extends Persistable> {
 
   protected final JdbcTemplate jdbc;
-  protected final NamedParameterJdbcTemplate namedJdbc;
   private static final Logger log = LoggerFactory.getLogger(BaseRepository.class);
 
   @SuppressWarnings("exports")
   public BaseRepository(JdbcTemplate db) {
     this.jdbc = db;
-    this.namedJdbc = new NamedParameterJdbcTemplate(db);
   }
 
   public Optional<Key> save(E entity) {
@@ -129,7 +126,8 @@ public abstract class BaseRepository<E extends Persistable> {
     }
     List<E> list;
     try {
-      list = jdbc.query(sql, PersistableRowMapper.of(cls), key.primaryKey().getValue());
+      list =
+          queryRows(sql, new Object[] {key.primaryKey().getValue()}, PersistableRowMapper.of(cls));
     } catch (RuntimeException ex) {
       log.error(
           "Failed to execute get for {} with SQL [{}] and key {}", cls.getName(), sql, key, ex);
@@ -146,6 +144,7 @@ public abstract class BaseRepository<E extends Persistable> {
   }
 
   public List<E> queryEntity(SqlQuery query, Class<E> cls) {
+    requireFragment(query, "queryEntity");
     var primaryKeyName =
         cls.isAnnotationPresent(PrimaryKey.class)
             ? cls.getAnnotation(PrimaryKey.class).value()
@@ -163,7 +162,7 @@ public abstract class BaseRepository<E extends Persistable> {
           java.util.Arrays.toString(query.values()));
     }
     try {
-      return jdbc.query(sql, PersistableRowMapper.of(cls), query.values());
+      return queryRows(sql, query.values(), PersistableRowMapper.of(cls));
     } catch (RuntimeException ex) {
       log.error(
           "Failed to execute queryEntity for {} with SQL [{}] and values {}",
@@ -175,27 +174,8 @@ public abstract class BaseRepository<E extends Persistable> {
     }
   }
 
-  public List<E> queryEntity(NamedSqlQuery query, Class<E> cls) {
-    var primaryKeyName =
-        cls.isAnnotationPresent(PrimaryKey.class)
-            ? cls.getAnnotation(PrimaryKey.class).value()
-            : query.getPrimaryKeyName();
-    String sql =
-        String.format(
-            "SELECT %s FROM %s %s",
-            selectClause(cls, primaryKeyName), deriveEntityName(cls), query.sql());
-    if (log.isDebugEnabled()) {
-      log.debug("Executing named queryEntity for {} with SQL [{}]", cls.getSimpleName(), sql);
-    }
-    try {
-      return namedJdbc.query(sql, query.params(), PersistableRowMapper.of(cls));
-    } catch (RuntimeException ex) {
-      log.error("Failed to execute named queryEntity for {} with SQL [{}]", cls.getName(), sql, ex);
-      throw ex;
-    }
-  }
-
   public List<E> query(SqlQuery query, PersistableMapper<E> mapper) {
+    requireStatement(query, "query");
     SqlQueryValidator.assertPlaceholderCount(query);
     if (log.isDebugEnabled()) {
       log.debug(
@@ -203,47 +183,12 @@ public abstract class BaseRepository<E extends Persistable> {
           query.sql(),
           java.util.Arrays.toString(query.values()));
     }
-    SqlRowSet rs;
-    try {
-      rs = jdbc.queryForRowSet(query.sql(), query.values());
-    } catch (RuntimeException ex) {
-      log.error(
-          "Failed to execute query for SQL [{}] and values {}",
-          query.sql(),
-          java.util.Arrays.toString(query.values()),
-          ex);
-      throw ex;
-    }
-    List<E> list = new ArrayList<>();
-    while (rs.next()) {
-      list.add(mapper.mapRow(rs, rs.getRow()));
-    }
-    return list;
-  }
-
-  public List<E> query(NamedSqlQuery query, PersistableMapper<E> mapper) {
-    if (log.isDebugEnabled()) {
-      log.debug("Executing custom named query with SQL [{}]", query.sql());
-    }
-    try {
-      return namedJdbc.query(
-          query.sql(),
-          query.params(),
-          rs -> {
-            List<E> list = new ArrayList<>();
-            int rowNum = 0;
-            while (rs.next()) {
-              list.add(mapper.mapRow(rs, rowNum++));
-            }
-            return list;
-          });
-    } catch (RuntimeException ex) {
-      log.error("Failed to execute named query for SQL [{}]", query.sql(), ex);
-      throw ex;
-    }
+    SqlRowSet rs = jdbc.queryForRowSet(query.sql(), query.values());
+    return mapRows(rs, mapper);
   }
 
   public Optional<E> queryOne(SqlQuery query, Class<E> cls) {
+    requireFragment(query, "queryOne");
     var primaryKeyName =
         cls.isAnnotationPresent(PrimaryKey.class)
             ? cls.getAnnotation(PrimaryKey.class).value()
@@ -253,23 +198,7 @@ public abstract class BaseRepository<E extends Persistable> {
         String.format(
             "SELECT %s FROM %s %s",
             selectClause(cls, primaryKeyName), deriveEntityName(cls), query.sql());
-    return singleResult(
-        queryAtMostTwo(limitForSingleResult(sql), PersistableRowMapper.of(cls), query.values()),
-        sql);
-  }
-
-  public Optional<E> queryOne(NamedSqlQuery query, Class<E> cls) {
-    var primaryKeyName =
-        cls.isAnnotationPresent(PrimaryKey.class)
-            ? cls.getAnnotation(PrimaryKey.class).value()
-            : query.getPrimaryKeyName();
-    String sql =
-        String.format(
-            "SELECT %s FROM %s %s",
-            selectClause(cls, primaryKeyName), deriveEntityName(cls), query.sql());
-    return singleResult(
-        queryAtMostTwo(limitForSingleResult(sql), query.params(), PersistableRowMapper.of(cls)),
-        sql);
+    return singleResult(queryAtMostTwo(sql, PersistableRowMapper.of(cls), query.values()), sql);
   }
 
   public boolean exists(Key key, Class<E> cls) {
@@ -277,52 +206,37 @@ public abstract class BaseRepository<E extends Persistable> {
   }
 
   public long count(SqlQuery query, Class<E> cls) {
+    requireFragment(query, "count");
     SqlQueryValidator.assertPlaceholderCount(query);
     String sql = String.format("SELECT COUNT(*) FROM %s %s", deriveEntityName(cls), query.sql());
     Long count = jdbc.queryForObject(sql, Long.class, query.values());
     return count != null ? count : 0L;
   }
 
-  public long count(NamedSqlQuery query, Class<E> cls) {
-    String sql = String.format("SELECT COUNT(*) FROM %s %s", deriveEntityName(cls), query.sql());
-    Long count = namedJdbc.queryForObject(sql, query.params(), Long.class);
-    return count != null ? count : 0L;
-  }
-
-  public <T> List<T> queryRows(SqlQuery query, RowMapper<T> mapper) {
+  public <T> List<T> queryRows(SqlQuery query, PersistableMapper<T> mapper) {
+    requireStatement(query, "queryRows");
     SqlQueryValidator.assertPlaceholderCount(query);
-    return jdbc.query(query.sql(), mapper, query.values());
-  }
-
-  public <T> List<T> queryRows(NamedSqlQuery query, RowMapper<T> mapper) {
-    return namedJdbc.query(query.sql(), query.params(), mapper);
+    return mapRows(jdbc.queryForRowSet(query.sql(), query.values()), mapper);
   }
 
   public <T> List<T> queryProjection(SqlQuery query, Class<T> projectionType) {
-    return queryRows(query, DataClassRowMapper.newInstance(projectionType));
-  }
-
-  public <T> List<T> queryProjection(NamedSqlQuery query, Class<T> projectionType) {
-    return queryRows(query, DataClassRowMapper.newInstance(projectionType));
-  }
-
-  public <T> Optional<T> queryRow(SqlQuery query, RowMapper<T> mapper) {
+    requireStatement(query, "queryProjection");
     SqlQueryValidator.assertPlaceholderCount(query);
-    return singleResult(
-        queryAtMostTwo(limitForSingleResult(query.sql()), mapper, query.values()), query.sql());
+    return queryRows(query.sql(), query.values(), DataClassRowMapper.newInstance(projectionType));
   }
 
-  public <T> Optional<T> queryRow(NamedSqlQuery query, RowMapper<T> mapper) {
-    return singleResult(
-        queryAtMostTwo(limitForSingleResult(query.sql()), query.params(), mapper), query.sql());
+  public <T> Optional<T> queryRow(SqlQuery query, PersistableMapper<T> mapper) {
+    requireStatement(query, "queryRow");
+    SqlQueryValidator.assertPlaceholderCount(query);
+    return singleResult(queryAtMostTwo(query.sql(), mapper, query.values()), query.sql());
   }
 
   public <T> Optional<T> queryProjectionOne(SqlQuery query, Class<T> projectionType) {
-    return queryRow(query, DataClassRowMapper.newInstance(projectionType));
-  }
-
-  public <T> Optional<T> queryProjectionOne(NamedSqlQuery query, Class<T> projectionType) {
-    return queryRow(query, DataClassRowMapper.newInstance(projectionType));
+    requireStatement(query, "queryProjectionOne");
+    SqlQueryValidator.assertPlaceholderCount(query);
+    return singleResult(
+        queryAtMostTwo(query.sql(), DataClassRowMapper.newInstance(projectionType), query.values()),
+        query.sql());
   }
 
   public int[] insertAll(List<E> entities) {
@@ -438,17 +352,11 @@ public abstract class BaseRepository<E extends Persistable> {
     }
   }
 
-  private <T> List<T> queryAtMostTwo(
-      String sql,
-      org.springframework.jdbc.core.namedparam.SqlParameterSource params,
-      RowMapper<T> mapper) {
-    try {
-      return namedJdbc.query(
-          sql, params, (ResultSetExtractor<List<T>>) rs -> mapAtMostTwo(rs, mapper));
-    } catch (RuntimeException ex) {
-      log.error("Failed to execute single-result named query for SQL [{}]", sql, ex);
-      throw ex;
-    }
+  private <T> List<T> queryAtMostTwo(String sql, PersistableMapper<T> mapper, Object... args) {
+    return queryAtMostTwo(
+        sql,
+        (RowMapper<T>) (rs, rowNum) -> mapper.mapRow(new ResultSetWrappingSqlRowSet(rs), rowNum),
+        args);
   }
 
   private <T> List<T> mapAtMostTwo(ResultSet rs, RowMapper<T> mapper) throws SQLException {
@@ -460,14 +368,39 @@ public abstract class BaseRepository<E extends Persistable> {
     return results;
   }
 
-  private String limitForSingleResult(String sql) {
-    if (sql == null || sql.isBlank()) {
-      return "LIMIT 2";
+  private <T> List<T> mapRows(SqlRowSet rows, PersistableMapper<T> mapper) {
+    List<T> results = new ArrayList<>();
+    int rowNum = 0;
+    while (rows.next()) {
+      results.add(mapper.mapRow(rows, rowNum++));
     }
-    if (sql.matches("(?is).*\\blimit\\b\\s+\\d+.*")) {
-      return sql;
+    return results;
+  }
+
+  private <T> List<T> queryRows(String sql, Object[] values, RowMapper<T> mapper) {
+    return jdbc.query(sql, mapper, values);
+  }
+
+  private <T> List<T> queryRows(String sql, Object[] values, PersistableMapper<T> mapper) {
+    return queryRows(sql, values, toRowMapper(mapper));
+  }
+
+  private <T> RowMapper<T> toRowMapper(PersistableMapper<T> mapper) {
+    return (rs, rowNum) -> mapper.mapRow(new ResultSetWrappingSqlRowSet(rs), rowNum);
+  }
+
+  private void requireFragment(SqlQuery query, String method) {
+    if (!query.isFragment()) {
+      throw new IllegalArgumentException(
+          method + " requires a SQL fragment; use SqlQuery.fragment(...)");
     }
-    return sql.trim() + " LIMIT 2";
+  }
+
+  private void requireStatement(SqlQuery query, String method) {
+    if (!query.isStatement()) {
+      throw new IllegalArgumentException(
+          method + " requires a complete SQL statement; use SqlQuery.statement(...)");
+    }
   }
 
   private int[] batchStatements(List<E> entities, StatementFactory<E> statementFactory) {

@@ -101,42 +101,29 @@ List<MyEntity> results = repository.queryEntity(
 // Pagination
 new SqlQuery().where("id > ?", 0).limit(20).offset(40); // page 3
 
-// Specify primary key for query (if not on class annotation)
-new SqlQuery().where("fk_id = ?", 1).primaryKey("pk_column");
-
-// Named-parameter DSL
-List<MyEntity> namedResults = repository.queryEntity(
-    new NamedSqlQuery()
-        .where("status = :status")
-        .andWhere("created_at >= :fromDate")
-        .orderBy("created_at", SqlQuery.Direction.DESC)
-        .param("status", "active")
-        .param("fromDate", fromDate),
-    MyEntity.class
-);
+// Entity queries accept fragments only; entities should declare @PrimaryKey.
+new SqlQuery().where("fk_id = ?", 1);
 
 // Single-result entity read
 Optional<MyEntity> one = repository.queryOne(
-    new NamedSqlQuery().where("id = :id").param("id", 1L),
+    new SqlQuery().where("id = ?", 1L),
     MyEntity.class
 );
 
 // Ad-hoc scalar / DTO reads
 Optional<String> status = repository.queryRow(
-    new NamedSqlQuery()
+    new SqlQuery()
         .selectColumns("status")
         .from("my_entity")
-        .where("id = :id")
-        .param("id", 1L),
+        .where("id = ?", 1L),
     (rs, rowNum) -> rs.getString("status")
 );
 
 List<MySummary> summaries = repository.queryProjection(
-    new NamedSqlQuery()
+    new SqlQuery()
         .selectColumns("id as id", "display_name as name")
         .from("my_entity")
-        .where("status = :status")
-        .param("status", "active"),
+        .where("status = ?", "active"),
     MySummary.class
 );
 ```
@@ -159,40 +146,11 @@ new SqlQuery()
     .orderBy("CASE WHEN x=1 THEN 0 END") // Raw expression
     .limit(10)
     .offset(20)
-    .paginate(pageSize, pageNumber);     // Convenience for limit+offset
+    .paginate(pageSize, offset);         // Convenience for limit+offset
 
-// Raw SQL (use for complex JOINs)
-SqlQuery.raw("SELECT * FROM t1 INNER JOIN t2 ON ... WHERE x > ?", value);
+// Complete SQL statement (use for projections or custom rows)
+SqlQuery.statement("SELECT * FROM t1 INNER JOIN t2 ON ... WHERE x > ?", value);
 ```
-
-## NamedSqlQuery DSL Reference
-
-```java
-new NamedSqlQuery()
-    .select("SELECT col1, col2")        // or .selectColumns("col1", "col2")
-    .selectDistinct("category")
-    .from("table_name t")
-    .join("INNER JOIN other o ON (t.id = o.t_id)")
-    .where("col = :value")
-    .andWhere("other > :minValue")
-    .orWhere("flag = :flag")
-    .condition("status IN (:statuses)")
-    .orderBy("created_at", SqlQuery.Direction.DESC)
-    .limit(10)
-    .offset(20)
-    .paginate(pageSize, offset)
-    .param("value", value)
-    .param("minValue", 100)
-    .params(Map.of("flag", true, "statuses", List.of("A", "B")))
-    .primaryKey("id");
-
-NamedSqlQuery.raw(
-    "SELECT * FROM my_entity WHERE status IN (:statuses)",
-    Map.of("statuses", List.of("A", "B"))
-);
-```
-
-Use `NamedSqlQuery` when the SQL is still composable but positional placeholders are getting hard to read.
 
 ## Projection Reads
 
@@ -202,7 +160,7 @@ Projection helpers use Spring's `DataClassRowMapper`, so aliases must match cons
 record MySummary(Long id, String name) {}
 
 Optional<MySummary> summary = repository.queryProjectionOne(
-    SqlQuery.raw(
+    SqlQuery.statement(
         "SELECT id as id, display_name as name FROM my_entity WHERE id = ?",
         1L
     ),
@@ -210,7 +168,12 @@ Optional<MySummary> summary = repository.queryProjectionOne(
 );
 ```
 
-For custom conversions, use `queryRow(...)` / `queryRows(...)` with a `RowMapper`.
+For custom conversions, use `queryRow(...)` / `queryRows(...)` with a `PersistableMapper`.
+
+Entity operations (`queryEntity`, `queryOne`, and `count`) accept only SQL fragments such as
+`WHERE ...`. Custom-row and projection operations accept only complete SQL statements. Use
+`SqlQuery.fragment(...)` for a raw fragment and `SqlQuery.statement(...)` for a raw statement.
+`raw(...)` is an equivalent statement alias.
 
 ## Custom Mappers (for JOINs)
 
@@ -292,56 +255,16 @@ Collections are not auto-loaded. Compose relationships explicitly after the base
 RelationLoader.attachOneToMany(
     orders,
     ids -> lineItemRepository.queryEntity(
-        new NamedSqlQuery().where("order_id IN (:ids)").param("ids", ids),
+        SqlQuery.fragment("WHERE order_id IN (?, ?)", ids.get(0), ids.get(1)),
         LineItem.class
     ),
     Order::getId,
     item -> item.getOrder().getId(),
     Order::setItems
 );
-
-RelationLoader.attachManyToOne(
-    lineItems,
-    ids -> orderRepository.queryEntity(
-        new NamedSqlQuery().where("order_id IN (:ids)").param("ids", ids),
-        Order.class
-    ),
-    item -> item.getOrder().getId(),
-    Order::getId,
-    LineItem::setOrder
-);
-
-RelationLoader.attachOneToOne(
-    users,
-    ids -> profileRepository.queryEntity(
-        new NamedSqlQuery().where("user_id IN (:ids)").param("ids", ids),
-        UserProfile.class
-    ),
-    User::getId,
-    UserProfile::getId,
-    User::setProfile
-);
-
-RelationLoader.attachManyToMany(
-    groups,
-    ids -> membershipRepository.query(
-        NamedSqlQuery.raw(
-            "SELECT * FROM group_user WHERE group_id IN (:ids)",
-            Map.of("ids", ids)
-        ),
-        PersistableRowMapper.of(GroupUser.class)
-    ),
-    ids -> userRepository.queryEntity(
-        new NamedSqlQuery().where("user_id IN (:ids)").param("ids", ids),
-        User.class
-    ),
-    Group::getId,
-    membership -> membership.getGroup().getId(),
-    membership -> membership.getUser().getId(),
-    User::getId,
-    Group::setUsers
-);
 ```
+
+Build `IN` placeholder lists and their values explicitly for variable-size batches.
 
 Prefer this explicit pattern over hidden lazy loading.
 
@@ -448,7 +371,7 @@ void tearDown() { db.shutdown(); }
 ## Agent Guidance
 
 - Prefer `queryEntity(...)` for entity reads, `queryProjection(...)` for DTO/record reads, and `queryRow(...)` for scalar/custom row mapping.
-- Prefer `NamedSqlQuery` when you need `IN (:ids)` or several repeated parameters.
+- Keep placeholder values explicit; build `IN` placeholder lists when a batch is variable-sized.
 - Alias projection columns to the DTO/record field names.
 - Do not assume collections are persisted or loaded automatically.
 - When generating startup checks or integration tests, add `SchemaValidator.assertMappings(...)`.
