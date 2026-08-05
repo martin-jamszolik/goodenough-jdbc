@@ -38,7 +38,8 @@ public class MyEntity extends Model {
 - Mapped getters/fields are inherited; the nearest annotated class supplies table and key metadata
 - Saving a null `@Ref` writes SQL `NULL` rather than leaving the previous foreign key unchanged
 - Collection-valued getters are ignored by generated select/insert/update SQL by convention
-- `Model` provides `Key getRefs()/setRefs()` and `Long getId()/setId()`
+- `Model` provides `Key getRefs()/setRefs()` and numeric `Long getId()/setId()` conveniences
+- Use `getIdentifier()`, `Key.value(...)`, or typed variants for UUID and String identifiers
 - Getters/setters are required for mapped properties and relation fields
 
 ### Alternative: Implement Persistable Directly
@@ -274,7 +275,7 @@ Prefer this explicit pattern over hidden lazy loading.
 
 ## Operational Boundaries
 
-- Applications must provide `spring-jdbc`; the library declares it as `compileOnly`.
+- Spring JDBC is a published API dependency because its types are exposed by repository contracts.
 - `insertAll`, `updateAll`, and `deleteAll` use JDBC batching.
 - `saveAll` executes one save per entity to preserve generated-key behavior.
 - Repository and relation helpers do not start transactions. Callers control transaction boundaries.
@@ -302,10 +303,14 @@ It checks:
 ## Key Class
 ```java
 Key.of("column_name", 123L)           // Single key
+Key.of("external_id", UUID.randomUUID()) // UUID key
+Key.of("code", "customer-one")       // String key
 Key.of("col1", 1L).add("col2", 2L)    // Composite key
 key.primaryKey()                       // Get Pair<String,Long>
+key.primary()                          // Type-neutral Pair<String,Object>
+key.value("external_id", UUID.class)  // Typed value access
 key.count()                            // Number of key parts
-Key.None                               // Empty key constant
+Key.None                               // Immutable empty-key sentinel
 ```
 
 ## Common Patterns

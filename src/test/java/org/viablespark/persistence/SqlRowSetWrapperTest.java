@@ -30,7 +30,7 @@ class SqlRowSetWrapperTest {
     when(mockMetaData.getColumnLabel(2)).thenReturn("name");
 
     // Simulate an exception when calling a method on the proxy
-    when(mockRowSet.getLong(anyInt())).thenThrow(new RuntimeException("Unexpected error"));
+    when(mockRowSet.getObject(anyInt())).thenThrow(new RuntimeException("Unexpected error"));
 
     RuntimeException thrown =
         assertThrows(RuntimeException.class, () -> mapper.mapRow(mockRowSet, 1));
@@ -71,7 +71,7 @@ class SqlRowSetWrapperTest {
     when(mockMetaData.getColumnLabel(2)).thenReturn("name");
 
     // Simulate exception during method invocation
-    when(mockRowSet.getLong(1))
+    when(mockRowSet.getObject(1))
         .thenThrow(new RuntimeException("Wrapped exception", new SQLException("SQL Error")));
 
     RuntimeException thrown =
@@ -99,7 +99,7 @@ class SqlRowSetWrapperTest {
     when(mockMetaData.getColumnName(1)).thenReturn("id");
     when(mockMetaData.getColumnName(2)).thenReturn("name");
 
-    when(mockRowSet.getLong(1)).thenReturn(1L);
+    when(mockRowSet.getObject(1)).thenReturn(1L);
     when(mockRowSet.getString(2)).thenReturn("Test");
     when(mockRowSet.getObject(2)).thenReturn("Test");
     when(mockRowSet.wasNull()).thenReturn(false);

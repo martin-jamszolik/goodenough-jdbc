@@ -114,7 +114,10 @@ public class PersistableRowMapper<E extends Persistable> implements PersistableM
         int columnIdx =
             requireColumnIndex(
                 rs, columnName, String.format("Primary key mapping for %s", mappedType.getName()));
-        long pkValue = rs.getLong(columnIdx);
+        Object pkValue = rs.getObject(columnIdx);
+        if (pkValue == null) {
+          throw new SQLException(String.format("Primary key column '%s' was null", columnName));
+        }
         key.add(columnName, pkValue);
       }
       e.setRefs(key);
@@ -227,8 +230,8 @@ public class PersistableRowMapper<E extends Persistable> implements PersistableM
                 String.format(
                     "@Ref mapping for %s.%s", entity.getClass().getSimpleName(), m.getName()));
         int labelIdx = columnIndex(rs, ref.label());
-        long value = rs.getLong(valueIdx);
-        if (rs.wasNull()) {
+        Object value = rs.getObject(valueIdx);
+        if (value == null) {
           invokeSetter(entity, m, null);
           continue;
         }
@@ -251,8 +254,8 @@ public class PersistableRowMapper<E extends Persistable> implements PersistableM
               columnName,
               String.format(
                   "@Ref mapping for %s.%s", entity.getClass().getSimpleName(), m.getName()));
-      var pkValue = rs.getLong(columnIdx);
-      if (rs.wasNull()) {
+      var pkValue = rs.getObject(columnIdx);
+      if (pkValue == null) {
         invokeSetter(entity, m, null);
         continue;
       }

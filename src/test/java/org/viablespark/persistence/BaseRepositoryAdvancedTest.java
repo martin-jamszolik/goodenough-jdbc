@@ -118,6 +118,17 @@ class BaseRepositoryAdvancedTest {
   }
 
   @Test
+  void rejectsStaleUpdateAndDelete() {
+    TestEntity entity = new TestEntity();
+    entity.setName("Missing");
+    entity.setRefs(Key.of("id", 99L));
+    when(mockJdbc.update(anyString(), any(Object[].class))).thenReturn(0);
+
+    assertThrows(RuntimeException.class, () -> repository.save(entity));
+    assertThrows(IllegalStateException.class, () -> repository.delete(entity));
+  }
+
+  @Test
   void logsDebugMessageOnSave() throws Exception {
     TestEntity entity = new TestEntity();
     entity.setName("Test");

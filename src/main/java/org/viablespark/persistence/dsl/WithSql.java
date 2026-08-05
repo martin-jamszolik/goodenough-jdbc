@@ -149,8 +149,8 @@ public final class WithSql {
     Key key = new Key();
     for (String primaryKey : primaryKeys) {
       Object value = valuesByColumn.get(primaryKey);
-      if (value instanceof Number number) {
-        key.add(primaryKey, number);
+      if (value != null) {
+        key.add(primaryKey, value);
       }
     }
     return key;
@@ -216,7 +216,7 @@ public final class WithSql {
     }
     if (method.getReturnType().equals(RefValue.class)) {
       RefValue reference = (RefValue) value;
-      return reference == null || reference.getRef() == null ? null : reference.getRef().getValue();
+      return reference == null ? null : reference.referenceValue();
     }
     Persistable referencedEntity = (Persistable) value;
     if (referencedEntity == null
@@ -224,7 +224,7 @@ public final class WithSql {
         || referencedEntity.getRefs().count() == 0) {
       return null;
     }
-    return referencedEntity.getRefs().primaryKey().getValue();
+    return referencedEntity.getRefs().primary().getValue();
   }
 
   private static Optional<String> deriveNameForSelectClause(Method method, Class<?> cls) {
@@ -275,7 +275,7 @@ public final class WithSql {
     }
     sql.append(" WHERE ");
     boolean first = true;
-    for (Pair<String, Long> part : key.getKeys()) {
+    for (Pair<String, Object> part : key.parts()) {
       if (!first) {
         sql.append(" AND ");
       }
@@ -294,7 +294,7 @@ public final class WithSql {
     if (declared.isEmpty()) {
       return;
     }
-    List<String> supplied = key.getKeys().stream().map(Pair::getKey).toList();
+    List<String> supplied = key.parts().stream().map(Pair::getKey).toList();
     boolean matches =
         declared.size() == supplied.size()
             && declared.stream()
@@ -302,6 +302,9 @@ public final class WithSql {
     if (!matches) {
       throw new IllegalArgumentException(
           "Key for " + entityClass.getName() + " must contain exactly " + declared);
+    }
+    if (key.parts().stream().anyMatch(part -> part.getValue() == null)) {
+      throw new IllegalArgumentException("Key for " + entityClass.getName() + " contains null");
     }
   }
 

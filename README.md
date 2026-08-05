@@ -1,10 +1,59 @@
 # Good Enough JDBC
 
-[![Gradle CI](https://github.com/martin-jamszolik/goodenough-jdbc/actions/workflows/gradle.yml/badge.svg)](https://github.com/martin-jamszolik/goodenough-jdbc/actions/workflows/gradle.yml)  [![Coverage](.github/badges/jacoco.svg)](jacoco.svg)  [![Branches Coverage](.github/badges/branches.svg)](branches.svg)
+[![Gradle CI](https://github.com/martin-jamszolik/goodenough-jdbc/actions/workflows/gradle.yml/badge.svg)](https://github.com/martin-jamszolik/goodenough-jdbc/actions/workflows/gradle.yml)  [![Coverage](.github/badges/jacoco.svg)](.github/badges/jacoco.svg)  [![Branches Coverage](.github/badges/branches.svg)](.github/badges/branches.svg)
 
 ## Overview
 
 `goodenough-jdbc` is a lightweight, flexible library designed for **schema-first** databases, offering a middle ground between raw SQL and heavy ORM frameworks. It elevates and simplifies the `spring-jdbc` library, streamlining common database operations with Repository-style conventions.
+
+## Installation
+
+The 3.x line requires Java 17 and Spring Framework 6. Spring JDBC is declared as an API
+dependency because its types are part of the public repository and mapper contracts. It is not
+shaded or bundled into the library, and Spring Boot/BOM dependency management can select a
+compatible Spring 6 version.
+
+GitHub Packages requires authentication, including for public packages. Configure Gradle:
+
+```kotlin
+repositories {
+    mavenCentral()
+    maven {
+        url = uri("https://maven.pkg.github.com/martin-jamszolik/goodenough-jdbc")
+        credentials {
+            username = providers.gradleProperty("gpr.user").orNull
+            password = providers.gradleProperty("gpr.key").orNull
+        }
+    }
+}
+
+dependencies {
+    implementation("org.viablespark:goodenough-jdbc:3.0.0")
+    runtimeOnly("org.postgresql:postgresql:YOUR_DRIVER_VERSION") // Choose your JDBC driver
+}
+```
+
+Store credentials outside the project in `~/.gradle/gradle.properties`:
+
+```properties
+gpr.user=GITHUB_USERNAME
+gpr.key=CLASSIC_PAT_WITH_READ_PACKAGES
+```
+
+For Maven, configure a `github` server in `~/.m2/settings.xml`, then add:
+
+```xml
+<repository>
+  <id>github</id>
+  <url>https://maven.pkg.github.com/martin-jamszolik/goodenough-jdbc</url>
+</repository>
+
+<dependency>
+  <groupId>org.viablespark</groupId>
+  <artifactId>goodenough-jdbc</artifactId>
+  <version>3.0.0</version>
+</dependency>
+```
 
 ## Why Use Good Enough JDBC?
 
@@ -33,7 +82,7 @@ Modern ORM frameworks like [KTorm](https://www.ktorm.org/), [Django](https://doc
 
 ## Not All Batteries Included
 
-- Add `spring-jdbc` to your application dependencies; it is intentionally not bundled transitively.
+- Spring JDBC is declared transitively but remains application-managed and is never shaded.
 - Bring your own transaction management (e.g., Spring Transactions).
 - Bring your own schema and data migration/evolution (e.g., Flyway).
 - Query DSL is just a helper (e.g., SQL strings).
@@ -94,6 +143,10 @@ properties so the column pairing remains explicit.
 the foreign-key column and leave the display value null. A custom joined query that selects the
 configured `label` column populates the display value. Setting either an entity `@Ref` or a
 `RefValue` to null and saving writes SQL `NULL` to the foreign-key column.
+
+Primary and foreign-key values may be integral numbers, `UUID`, or `String`. Existing numeric
+helpers such as `getId()` and `primaryKey()` remain available; use `getIdentifier()`,
+`Key.primary()`, `Key.value(...)`, and `RefValue.referenceValue(...)` for UUID or String keys.
 
 ### Repository
 

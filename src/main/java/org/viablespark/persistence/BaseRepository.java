@@ -80,9 +80,17 @@ public abstract class BaseRepository<E extends Persistable> {
           sql,
           java.util.Arrays.toString(insertClause.values()));
     }
-    KeyHolder keyHolder = execWithKey(sql, insertClause.values());
-
-    Key insertedKey = resolveInsertedKey(entity, keyHolder);
+    List<String> primaryKeys = WithSql.getPrimaryKeys(entity.getClass());
+    Key assignedKey = WithSql.getEntityKey(entity);
+    Key insertedKey;
+    if (!primaryKeys.isEmpty() && assignedKey.count() == primaryKeys.size()) {
+      int inserted = jdbc.update(sql, insertClause.values());
+      requireSingleAffectedRow("insert", entity, inserted);
+      insertedKey = assignedKey;
+    } else {
+      KeyHolder keyHolder = execWithKey(sql, insertClause.values());
+      insertedKey = resolveInsertedKey(entity, keyHolder);
+    }
     if (insertedKey.count() > 0) {
       entity.setRefs(insertedKey);
     }
@@ -436,14 +444,14 @@ public abstract class BaseRepository<E extends Persistable> {
               .filter(entry -> entry.getKey().equalsIgnoreCase(primaryKey))
               .map(Map.Entry::getValue)
               .findFirst()
-              .orElseGet(() -> resolved.contains(primaryKey).map(Pair::getValue).orElse(null));
+              .orElseGet(() -> resolved.findPart(primaryKey).map(Pair::getValue).orElse(null));
       if (value == null && primaryKeys.size() == 1 && generated.size() == 1) {
         value = generated.values().iterator().next();
       }
-      if (!(value instanceof Number number)) {
+      if (value == null) {
         return resolved;
       }
-      result.add(primaryKey, number);
+      result.add(primaryKey, value);
     }
     return result;
   }
@@ -463,7 +471,7 @@ public abstract class BaseRepository<E extends Persistable> {
     if (key == null) {
       return List.of();
     }
-    return key.getKeys().stream().map(Pair::getKey).toList();
+    return key.parts().stream().map(Pair::getKey).toList();
   }
 
   private SqlClause keyPredicate(Key key) {
@@ -471,10 +479,10 @@ public abstract class BaseRepository<E extends Persistable> {
       throw new IllegalArgumentException("A repository key must contain at least one column");
     }
     String clause =
-        key.getKeys().stream()
+        key.parts().stream()
             .map(part -> part.getKey() + " = ?")
             .collect(java.util.stream.Collectors.joining(" AND "));
-    Object[] values = key.getKeys().stream().map(Pair::getValue).toArray();
+    Object[] values = key.parts().stream().map(Pair::getValue).toArray();
     return new SqlClause(clause, values);
   }
 
