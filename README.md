@@ -71,6 +71,30 @@ Key Annotations:
 - **`@Ref`**: Maps foreign key references, supporting lightweight lookups with `RefValue`.
 - **`@Skip`**: Ignore a column(field) or a list, so you can seperate to another Repository.
 
+Entity mappings include inherited getters and field annotations. The nearest `@Named` and
+`@PrimaryKey` declarations in the class hierarchy define the table and key, while properties from
+both parent and child classes map to that table. This supports either an annotated parent with an
+unannotated concrete child, or an unannotated property parent with an annotated child.
+
+Repeat `@PrimaryKey` in database key order for composite identities:
+
+```java
+@PrimaryKey("order_id")
+@PrimaryKey("line_number")
+public class OrderLine extends Model {
+    // mapped properties
+}
+```
+
+Repository get, query, update, delete, and batch operations use every key component. A single
+`@Ref` still represents one foreign-key column; map references to composite identities as separate
+properties so the column pairing remains explicit.
+
+`RefValue` participates in generated CRUD through its `ref` value. Generated entity reads select
+the foreign-key column and leave the display value null. A custom joined query that selects the
+configured `label` column populates the display value. Setting either an entity `@Ref` or a
+`RefValue` to null and saving writes SQL `NULL` to the foreign-key column.
+
 ### Repository
 
 The `BaseRepository` class simplifies CRUD operations:
@@ -247,7 +271,8 @@ SchemaValidator.assertMappings(
 );
 ```
 
-It validates table presence, required columns, and common annotation mistakes such as missing setters for mapped fields or inconsistent `@Ref`/`RefValue` configuration.
+It validates table presence, required columns, primary-key composition, and common annotation
+mistakes such as missing setters or inconsistent `@Ref`/`RefValue` configuration.
 
 
 ### Mapping Helper

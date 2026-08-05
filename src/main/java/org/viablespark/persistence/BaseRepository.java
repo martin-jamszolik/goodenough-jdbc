@@ -18,12 +18,14 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.DataClassRowMapper;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.ResultSetExtractor;
@@ -31,8 +33,6 @@ import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.jdbc.support.rowset.ResultSetWrappingSqlRowSet;
-import org.viablespark.persistence.dsl.Named;
-import org.viablespark.persistence.dsl.PrimaryKey;
 import org.viablespark.persistence.dsl.SqlClause;
 import org.viablespark.persistence.dsl.SqlQuery;
 import org.viablespark.persistence.dsl.WithSql;
@@ -55,6 +55,12 @@ public abstract class BaseRepository<E extends Persistable> {
       } else {
         return updateEntity(entity);
       }
+    } catch (IllegalArgumentException e) {
+      log.error("Invalid mapping for entity {}", describeEntity(entity), e);
+      throw e;
+    } catch (DataAccessException e) {
+      log.error("Failed to save entity {}", describeEntity(entity), e);
+      throw e;
     } catch (Exception e) {
       String description = describeEntity(entity);
       log.error("Failed to save entity {}", description, e);
@@ -76,17 +82,16 @@ public abstract class BaseRepository<E extends Persistable> {
     }
     KeyHolder keyHolder = execWithKey(sql, insertClause.values());
 
-    if (keyHolder.getKeys() != null) {
-      entity.setRefs(
-          Key.of(
-              entity.getClass().getAnnotation(PrimaryKey.class).value(),
-              keyHolder.getKey().longValue()));
+    Key insertedKey = resolveInsertedKey(entity, keyHolder);
+    if (insertedKey.count() > 0) {
+      entity.setRefs(insertedKey);
     }
 
-    return Optional.of(entity.getRefs());
+    return optionalIdentity(entity);
   }
 
   private Optional<Key> updateEntity(E entity) throws Exception {
+    WithSql.validateKey(entity.getClass(), entity.getRefs());
     SqlClause updateClause = WithSql.getUpdateClause(entity);
     String sql =
         String.format("UPDATE %s %s", deriveEntityName(entity.getClass()), updateClause.clause());
@@ -97,36 +102,38 @@ public abstract class BaseRepository<E extends Persistable> {
           sql,
           java.util.Arrays.toString(updateClause.values()));
     }
-    jdbc.update(sql, updateClause.values());
+    int updated = jdbc.update(sql, updateClause.values());
+    requireSingleAffectedRow("update", entity, updated);
 
     return Optional.ofNullable(entity.getRefs());
   }
 
   public void delete(E entity) {
+    WithSql.validateKey(entity.getClass(), entity.getRefs());
+    SqlClause predicate = keyPredicate(entity.getRefs());
     String sql =
         String.format(
-            "DELETE FROM %s WHERE %s = ?",
-            deriveEntityName(entity.getClass()), entity.getRefs().primaryKey().getKey());
+            "DELETE FROM %s WHERE %s", deriveEntityName(entity.getClass()), predicate.clause());
     if (log.isDebugEnabled()) {
       log.debug("Deleting entity {} using SQL [{}]", describeEntity(entity), sql);
     }
-    jdbc.update(sql, entity.getRefs().primaryKey().getValue());
+    int deleted = jdbc.update(sql, predicate.values());
+    requireSingleAffectedRow("delete", entity, deleted);
   }
 
   public Optional<E> get(Key key, Class<E> cls) {
+    WithSql.validateKey(cls, key);
+    SqlClause predicate = keyPredicate(key);
     String sql =
         String.format(
-            "SELECT %s FROM %s WHERE %s = ?",
-            selectClause(cls, key.primaryKey().getKey()),
-            deriveEntityName(cls),
-            key.primaryKey().getKey());
+            "SELECT %s FROM %s WHERE %s",
+            selectClause(cls, keyNames(key)), deriveEntityName(cls), predicate.clause());
     if (log.isDebugEnabled()) {
       log.debug("Fetching {} using SQL [{}] and key {}", cls.getSimpleName(), sql, key);
     }
     List<E> list;
     try {
-      list =
-          queryRows(sql, new Object[] {key.primaryKey().getValue()}, PersistableRowMapper.of(cls));
+      list = queryRows(sql, predicate.values(), PersistableRowMapper.of(cls));
     } catch (RuntimeException ex) {
       log.error(
           "Failed to execute get for {} with SQL [{}] and key {}", cls.getName(), sql, key, ex);
@@ -137,22 +144,21 @@ public abstract class BaseRepository<E extends Persistable> {
         .findFirst()
         .map(
             entity -> {
-              entity.setRefs(key);
+              if (WithSql.getPrimaryKeys(cls).isEmpty()) {
+                entity.setRefs(key);
+              }
               return entity;
             });
   }
 
   public List<E> queryEntity(SqlQuery query, Class<E> cls) {
     requireFragment(query, "queryEntity");
-    var primaryKeyName =
-        cls.isAnnotationPresent(PrimaryKey.class)
-            ? cls.getAnnotation(PrimaryKey.class).value()
-            : query.getPrimaryKeyName();
+    List<String> primaryKeyNames = primaryKeyNames(cls, query);
     SqlQueryValidator.assertPlaceholderCount(query);
     String sql =
         String.format(
             "SELECT %s FROM %s %s",
-            selectClause(cls, primaryKeyName), deriveEntityName(cls), query.sql());
+            selectClause(cls, primaryKeyNames), deriveEntityName(cls), query.sql());
     if (log.isDebugEnabled()) {
       log.debug(
           "Executing queryEntity for {} with SQL [{}] and values {}",
@@ -187,15 +193,12 @@ public abstract class BaseRepository<E extends Persistable> {
 
   public Optional<E> queryOne(SqlQuery query, Class<E> cls) {
     requireFragment(query, "queryOne");
-    var primaryKeyName =
-        cls.isAnnotationPresent(PrimaryKey.class)
-            ? cls.getAnnotation(PrimaryKey.class).value()
-            : query.getPrimaryKeyName();
+    List<String> primaryKeyNames = primaryKeyNames(cls, query);
     SqlQueryValidator.assertPlaceholderCount(query);
     String sql =
         String.format(
             "SELECT %s FROM %s %s",
-            selectClause(cls, primaryKeyName), deriveEntityName(cls), query.sql());
+            selectClause(cls, primaryKeyNames), deriveEntityName(cls), query.sql());
     return singleResult(queryAtMostTwo(sql, PersistableRowMapper.of(cls), query.values()), sql);
   }
 
@@ -264,12 +267,15 @@ public abstract class BaseRepository<E extends Persistable> {
   public int[] deleteAll(List<E> entities) {
     return batchStatements(
         entities,
-        entity ->
-            new BatchStatement(
-                String.format(
-                    "DELETE FROM %s WHERE %s = ?",
-                    deriveEntityName(entity.getClass()), entity.getRefs().primaryKey().getKey()),
-                new Object[] {entity.getRefs().primaryKey().getValue()}));
+        entity -> {
+          WithSql.validateKey(entity.getClass(), entity.getRefs());
+          SqlClause predicate = keyPredicate(entity.getRefs());
+          return new BatchStatement(
+              String.format(
+                  "DELETE FROM %s WHERE %s",
+                  deriveEntityName(entity.getClass()), predicate.clause()),
+              predicate.values());
+        });
   }
 
   public List<Optional<Key>> saveAll(List<E> entities) {
@@ -297,22 +303,14 @@ public abstract class BaseRepository<E extends Persistable> {
   }
 
   private String deriveEntityName(Class<?> cls) {
-    if (cls.isAnnotationPresent(Named.class)) {
-      return cls.getAnnotation(Named.class).value();
-    }
-
-    return camelToSnake(cls.getSimpleName());
+    return WithSql.getEntityName(cls);
   }
 
-  private String selectClause(Class<?> cls, String primaryKeyName) {
-    if (primaryKeyName == null || primaryKeyName.isBlank()) {
+  private String selectClause(Class<?> cls, Collection<String> primaryKeyNames) {
+    if (primaryKeyNames == null || primaryKeyNames.isEmpty()) {
       return WithSql.getSelectClause(cls);
     }
-    return WithSql.getSelectClause(cls, primaryKeyName);
-  }
-
-  private String camelToSnake(String name) {
-    return name.replaceAll("([a-z])([A-Z]+)", "$1_$2").toLowerCase();
+    return WithSql.getSelectClause(cls, primaryKeyNames.toArray(String[]::new));
   }
 
   private String describeEntity(Persistable entity) {
@@ -421,6 +419,77 @@ public abstract class BaseRepository<E extends Persistable> {
       }
     }
     return results;
+  }
+
+  private Key resolveInsertedKey(E entity, KeyHolder keyHolder) throws Exception {
+    List<String> primaryKeys = WithSql.getPrimaryKeys(entity.getClass());
+    Key resolved = WithSql.getEntityKey(entity);
+    Map<String, Object> generated = keyHolder.getKeys();
+    if (generated == null || generated.isEmpty() || primaryKeys.isEmpty()) {
+      return resolved.count() == primaryKeys.size() ? resolved : Key.None;
+    }
+
+    Key result = new Key();
+    for (String primaryKey : primaryKeys) {
+      Object value =
+          generated.entrySet().stream()
+              .filter(entry -> entry.getKey().equalsIgnoreCase(primaryKey))
+              .map(Map.Entry::getValue)
+              .findFirst()
+              .orElseGet(() -> resolved.contains(primaryKey).map(Pair::getValue).orElse(null));
+      if (value == null && primaryKeys.size() == 1 && generated.size() == 1) {
+        value = generated.values().iterator().next();
+      }
+      if (!(value instanceof Number number)) {
+        return resolved;
+      }
+      result.add(primaryKey, number);
+    }
+    return result;
+  }
+
+  private List<String> primaryKeyNames(Class<?> cls, SqlQuery query) {
+    List<String> primaryKeys = WithSql.getPrimaryKeys(cls);
+    if (!primaryKeys.isEmpty()) {
+      return primaryKeys;
+    }
+    String queryPrimaryKey = query.getPrimaryKeyName();
+    return queryPrimaryKey == null || queryPrimaryKey.isBlank()
+        ? List.of()
+        : List.of(queryPrimaryKey);
+  }
+
+  private List<String> keyNames(Key key) {
+    if (key == null) {
+      return List.of();
+    }
+    return key.getKeys().stream().map(Pair::getKey).toList();
+  }
+
+  private SqlClause keyPredicate(Key key) {
+    if (key == null || key.count() == 0) {
+      throw new IllegalArgumentException("A repository key must contain at least one column");
+    }
+    String clause =
+        key.getKeys().stream()
+            .map(part -> part.getKey() + " = ?")
+            .collect(java.util.stream.Collectors.joining(" AND "));
+    Object[] values = key.getKeys().stream().map(Pair::getValue).toArray();
+    return new SqlClause(clause, values);
+  }
+
+  private void requireSingleAffectedRow(String operation, E entity, int affectedRows) {
+    if (affectedRows != 1) {
+      throw new IllegalStateException(
+          String.format(
+              "Expected %s of %s to affect 1 row but affected %d",
+              operation, describeEntity(entity), affectedRows));
+    }
+  }
+
+  private Optional<Key> optionalIdentity(E entity) {
+    Key refs = entity.getRefs();
+    return refs == null || refs.count() == 0 ? Optional.empty() : Optional.of(refs);
   }
 
   @FunctionalInterface

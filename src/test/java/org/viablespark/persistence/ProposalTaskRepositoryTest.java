@@ -15,6 +15,8 @@ package org.viablespark.persistence;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
@@ -29,6 +31,7 @@ import org.viablespark.persistence.dsl.SqlQuery;
 
 public class ProposalTaskRepositoryTest {
   private EmbeddedDatabase db;
+  private JdbcTemplate jdbc;
   private ProposalTaskRepository repository;
 
   @Test
@@ -50,8 +53,66 @@ public class ProposalTaskRepositoryTest {
     repository.getProposal(1L).ifPresent(entity::setProposal);
 
     var keyOption = repository.save(entity);
-    entity.setRefs(entity.getTask().getRefs()); // composite pk - Not auto-generated
-    keyOption.ifPresent(key -> assertEquals(Key.None, key));
+    Key expected = Key.of("t_key", 3L).add("pr_key", 1L);
+
+    assertEquals(Optional.of(expected), keyOption);
+    assertEquals(expected, entity.getRefs());
+  }
+
+  @Test
+  public void testCompositeKeyCrudUsesEveryKeyPart() {
+    jdbc.update("INSERT INTO proposal_task (t_key, pr_key, price) VALUES (?, ?, ?)", 1L, 2L, 400L);
+    Key firstKey = Key.of("t_key", 1L).add("pr_key", 1L);
+    Key siblingKey = Key.of("t_key", 1L).add("pr_key", 2L);
+
+    ProposalTask first = repository.get(firstKey, ProposalTask.class).orElseThrow();
+    ProposalTask sibling = repository.get(siblingKey, ProposalTask.class).orElseThrow();
+    assertEquals(200L, first.getPrice());
+    assertEquals(400L, sibling.getPrice());
+    assertEquals(firstKey, first.getRefs());
+    assertTrue(
+        repository.get(Key.of("t_key", 1L).add("pr_key", 999L), ProposalTask.class).isEmpty());
+
+    first.setPrice(250L);
+    repository.save(first);
+    assertEquals(250L, price(firstKey));
+    assertEquals(400L, price(siblingKey));
+
+    repository.delete(first);
+    assertTrue(repository.get(firstKey, ProposalTask.class).isEmpty());
+    assertTrue(repository.get(siblingKey, ProposalTask.class).isPresent());
+  }
+
+  @Test
+  public void testCompositeOperationsRejectPartialKeysBeforeExecution() {
+    Key partial = Key.of("t_key", 1L);
+
+    assertThrows(IllegalArgumentException.class, () -> repository.get(partial, ProposalTask.class));
+    ProposalTask task = new ProposalTask();
+    task.setRefs(partial);
+    task.setPrice(999L);
+    assertThrows(IllegalArgumentException.class, () -> repository.save(task));
+    assertThrows(IllegalArgumentException.class, () -> repository.delete(task));
+
+    assertEquals(200L, price(Key.of("t_key", 1L).add("pr_key", 1L)));
+    assertEquals(300L, price(Key.of("t_key", 2L).add("pr_key", 1L)));
+  }
+
+  @Test
+  public void testCompositeKeyBatchOperationsUseEveryKeyPart() {
+    jdbc.update("INSERT INTO proposal_task (t_key, pr_key, price) VALUES (?, ?, ?)", 1L, 2L, 400L);
+    Key firstKey = Key.of("t_key", 1L).add("pr_key", 1L);
+    Key siblingKey = Key.of("t_key", 1L).add("pr_key", 2L);
+    ProposalTask first = repository.get(firstKey, ProposalTask.class).orElseThrow();
+
+    first.setPrice(275L);
+    assertEquals(1, repository.updateAll(List.of(first))[0]);
+    assertEquals(275L, price(firstKey));
+    assertEquals(400L, price(siblingKey));
+
+    assertEquals(1, repository.deleteAll(List.of(first))[0]);
+    assertTrue(repository.get(firstKey, ProposalTask.class).isEmpty());
+    assertTrue(repository.get(siblingKey, ProposalTask.class).isPresent());
   }
 
   @Test
@@ -78,12 +139,24 @@ public class ProposalTaskRepositoryTest {
             .addDefaultScripts()
             .setName("ProposalTaskRepositoryTest")
             .build();
-    repository = new ProposalTaskRepository(new JdbcTemplate(db));
+    jdbc = new JdbcTemplate(db);
+    repository = new ProposalTaskRepository(jdbc);
   }
 
   @AfterEach
   public void tearDown() {
     db.shutdown();
+  }
+
+  private Long price(Key key) {
+    Long price =
+        jdbc.queryForObject(
+            "SELECT price FROM proposal_task WHERE t_key = ? AND pr_key = ?",
+            Long.class,
+            key.getKey("t_key"),
+            key.getKey("pr_key"));
+    assertNotNull(price);
+    return price;
   }
 
   public static class ProposalTaskRepository extends BaseRepository<ProposalTask> {

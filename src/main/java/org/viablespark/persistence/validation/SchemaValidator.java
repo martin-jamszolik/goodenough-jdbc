@@ -12,6 +12,7 @@ import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
@@ -80,6 +81,18 @@ public final class SchemaValidator {
       return;
     }
 
+    List<String> declaredPrimaryKeys = WithSql.getPrimaryKeys(entityClass);
+    PrimaryKeyMetadata primaryKeyMetadata = loadPrimaryKeys(metaData, actualTable.get());
+    List<String> actualPrimaryKeys = primaryKeyMetadata.columns();
+    if (!declaredPrimaryKeys.isEmpty()
+        && primaryKeyMetadata.available()
+        && !equalsIgnoreCase(declaredPrimaryKeys, actualPrimaryKeys)) {
+      failures.add(
+          String.format(
+              "- Primary key for %s declares %s but table '%s' uses %s",
+              entityClass.getName(), declaredPrimaryKeys, actualTable.get(), actualPrimaryKeys));
+    }
+
     Set<String> expectedColumns;
     try {
       expectedColumns = collectExpectedColumns(entityClass, failures);
@@ -87,10 +100,7 @@ public final class SchemaValidator {
       throw new IllegalStateException(
           "Failed to derive expected columns for " + entityClass.getName(), ex);
     }
-    WithSql.getPrimaryKey(entityClass).ifPresent(pk -> expectedColumns.add(pk));
-    if (entityClass.getSuperclass() != null) {
-      WithSql.getPrimaryKey(entityClass.getSuperclass()).ifPresent(expectedColumns::add);
-    }
+    expectedColumns.addAll(WithSql.getPrimaryKeys(entityClass));
 
     try {
       for (String column : expectedColumns) {
@@ -117,10 +127,7 @@ public final class SchemaValidator {
   private static Set<String> collectExpectedColumns(
       Class<? extends Persistable> entityClass, List<String> failures) {
     Set<String> columns = new LinkedHashSet<>();
-    for (Method method : entityClass.getDeclaredMethods()) {
-      if (!method.getName().startsWith("get")) {
-        continue;
-      }
+    for (Method method : WithSql.persistentGetters(entityClass)) {
       if (WithSql.getAnnotation(method, entityClass, Skip.class).isPresent()) {
         continue;
       }
@@ -176,7 +183,7 @@ public final class SchemaValidator {
         }
       } else {
         validateSetter(entityClass, method, failures);
-        columns.add(camelToSnake(method.getName().substring(3)));
+        columns.add(camelToSnake(WithSql.propertyName(method)));
       }
     }
     return columns;
@@ -184,9 +191,9 @@ public final class SchemaValidator {
 
   private static void validateSetter(
       Class<? extends Persistable> entityClass, Method getter, List<String> failures) {
-    String setterName = getter.getName().replaceFirst("^get", "set");
+    String setterName = WithSql.setterName(getter);
     try {
-      entityClass.getDeclaredMethod(setterName, getter.getReturnType());
+      WithSql.findSetter(entityClass, getter);
     } catch (NoSuchMethodException ex) {
       failures.add(
           String.format(
@@ -226,15 +233,50 @@ public final class SchemaValidator {
     return columns;
   }
 
+  private static PrimaryKeyMetadata loadPrimaryKeys(DatabaseMetaData metaData, String tableName)
+      throws SQLException {
+    Map<Integer, String> columnsBySequence = new java.util.TreeMap<>();
+    boolean available = false;
+    for (String candidate : candidates(tableName)) {
+      ResultSet primaryKeys = metaData.getPrimaryKeys(null, null, candidate);
+      if (primaryKeys == null) {
+        continue;
+      }
+      available = true;
+      try (primaryKeys) {
+        while (primaryKeys.next()) {
+          columnsBySequence.put(
+              primaryKeys.getInt("KEY_SEQ"), primaryKeys.getString("COLUMN_NAME"));
+        }
+      }
+      if (!columnsBySequence.isEmpty()) {
+        break;
+      }
+    }
+    return new PrimaryKeyMetadata(
+        available, columnsBySequence.values().stream().filter(Objects::nonNull).toList());
+  }
+
+  private static boolean equalsIgnoreCase(List<String> first, List<String> second) {
+    if (first.size() != second.size()) {
+      return false;
+    }
+    for (int index = 0; index < first.size(); index++) {
+      if (!first.get(index).equalsIgnoreCase(second.get(index))) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  private record PrimaryKeyMetadata(boolean available, List<String> columns) {}
+
   private static List<String> candidates(String name) {
     return List.of(name, name.toUpperCase(Locale.ROOT), name.toLowerCase(Locale.ROOT));
   }
 
   private static String resolveTableName(Class<? extends Persistable> entityClass) {
-    if (entityClass.isAnnotationPresent(Named.class)) {
-      return entityClass.getAnnotation(Named.class).value();
-    }
-    return camelToSnake(entityClass.getSimpleName());
+    return WithSql.getEntityName(entityClass);
   }
 
   private static String camelToSnake(String value) {

@@ -164,4 +164,19 @@ public class KeyTest {
     Long third = key.getKey("third");
     assertNotEquals(key.addIfValid("third", 34443L).getKey("third"), third);
   }
+
+  @Test
+  public void emptyKeySentinelIsImmutable() {
+    assertThrows(UnsupportedOperationException.class, () -> Key.None.add("id", 1L));
+    assertEquals(0, Key.None.count());
+  }
+
+  @Test
+  public void compositeEqualityDoesNotDependOnDeclarationOrder() {
+    Key first = Key.of("first", 1L).add("second", 2L);
+    Key second = Key.of("second", 2L).add("first", 1L);
+
+    assertEquals(first, second);
+    assertEquals(first.hashCode(), second.hashCode());
+  }
 }

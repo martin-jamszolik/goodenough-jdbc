@@ -15,6 +15,7 @@ package org.viablespark.persistence;
 
 import java.io.Serializable;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -22,12 +23,20 @@ import java.util.Optional;
 
 public class Key implements Serializable {
 
-  public static final Key None = new Key();
+  public static final Key None = new Key(true);
   private final Map<String, Pair<String, Long>> keys = new LinkedHashMap<>();
+  private final boolean immutable;
 
-  public Key() {}
+  public Key() {
+    this(false);
+  }
+
+  private Key(boolean immutable) {
+    this.immutable = immutable;
+  }
 
   public Key(Pair<String, Long> primaryKey) {
+    this(false);
     keys.put(primaryKey.getKey(), primaryKey);
   }
 
@@ -36,6 +45,7 @@ public class Key implements Serializable {
   }
 
   public Key(Map<String, ?> map) {
+    this(false);
     for (Entry<String, ?> e : map.entrySet()) {
       keys.put(e.getKey(), Pair.of(e.getKey(), ((Number) e.getValue()).longValue()));
     }
@@ -53,6 +63,7 @@ public class Key implements Serializable {
   }
 
   public Key add(String name, Long key) {
+    requireMutable();
     keys.put(name, Pair.of(name, key));
     return this;
   }
@@ -62,10 +73,11 @@ public class Key implements Serializable {
   }
 
   public Collection<Pair<String, Long>> getKeys() {
-    return keys.values();
+    return Collections.unmodifiableCollection(keys.values());
   }
 
   public void setKeys(Collection<Pair<String, Long>> _keys) {
+    requireMutable();
     _keys.forEach(pair -> keys.put(pair.getKey(), pair));
   }
 
@@ -102,30 +114,22 @@ public class Key implements Serializable {
       return false;
     }
 
-    if (((Key) other).count() != count()) {
-      return false;
-    }
-
-    for (int i = 0; i < count(); i++) {
-      if (!getAt(i).equals(((Key) other).getAt(i))) {
-        return false;
-      }
-    }
-
-    return true;
+    return keys.equals(((Key) other).keys);
   }
 
   @Override
   public int hashCode() {
-    int hash = 0;
-    for (int i = 0; i < count(); i++) {
-      hash += getAt(i).hashCode();
-    }
-    return hash;
+    return keys.hashCode();
   }
 
   public Pair<String, Long> primaryKey() {
     return getAt(0);
+  }
+
+  private void requireMutable() {
+    if (immutable) {
+      throw new UnsupportedOperationException("Key.None is immutable");
+    }
   }
 
   @Override

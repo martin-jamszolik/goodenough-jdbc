@@ -13,7 +13,7 @@
 
 package org.viablespark.persistence;
 
-import org.viablespark.persistence.dsl.PrimaryKey;
+import org.viablespark.persistence.dsl.WithSql;
 
 public interface Persistable {
   Key getRefs();
@@ -29,10 +29,7 @@ public interface Persistable {
 
   default void setId(Long value) {
     if (getRefs() == null || getRefs().count() == 0) {
-      var pk = this.getClass().getAnnotation(PrimaryKey.class);
-      if (pk != null && !pk.value().isEmpty()) {
-        setRefs(Key.of(pk.value(), value));
-      }
+      WithSql.getPrimaryKey(this.getClass()).ifPresent(pk -> setRefs(Key.of(pk, value)));
       return;
     }
     getRefs().primaryKey().setValue(value);

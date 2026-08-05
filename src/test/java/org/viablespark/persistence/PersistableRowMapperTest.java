@@ -124,15 +124,17 @@ class PersistableRowMapperTest {
   }
 
   @Test
-  public void testMissingLabelColumnForRefValueThrowsException() throws Exception {
+  public void testMissingLabelColumnForRefValueLeavesLabelNull() throws Exception {
     var mapper = PersistableRowMapper.of(PurchaseOrder.class);
     String sql = "select id, n_key, supplier_id from purchase_order";
     try (var conn = db.getConnection();
         var stmt = conn.prepareStatement(sql)) {
       var rs = stmt.executeQuery();
       rs.next();
-      SQLException ex = assertThrows(SQLException.class, () -> mapper.mapRow(rs, rs.getRow()));
-      org.junit.jupiter.api.Assertions.assertTrue(ex.getMessage().contains("sup_name"));
+      PurchaseOrder order = mapper.mapRow(rs, rs.getRow());
+      assertNotNull(order.getSupplierRef());
+      assertEquals(1L, order.getSupplierRef().getRef().getValue());
+      assertNull(order.getSupplierRef().getValue());
     }
   }
 
@@ -244,8 +246,9 @@ class PersistableRowMapperTest {
         var stmt = conn.prepareStatement(sql)) {
       var rs = stmt.executeQuery();
       rs.next();
-      // Should throw because sup_name is missing
-      assertThrows(SQLException.class, () -> mapper.mapRow(rs, rs.getRow()));
+      PurchaseOrder order = mapper.mapRow(rs, rs.getRow());
+      assertNotNull(order.getSupplierRef());
+      assertNull(order.getSupplierRef().getValue());
     }
   }
 

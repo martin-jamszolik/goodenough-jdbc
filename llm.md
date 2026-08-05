@@ -34,6 +34,9 @@ public class MyEntity extends Model {
 - Default column mapping: `camelCase` → `snake_case`
 - `@Ref` on `Persistable` type = foreign key reference (stores only the key)
 - `@Ref` on `RefValue` = foreign key with label lookup (value + display text)
+- Repeat `@PrimaryKey` on the entity for every composite-key column, in database key order
+- Mapped getters/fields are inherited; the nearest annotated class supplies table and key metadata
+- Saving a null `@Ref` writes SQL `NULL` rather than leaving the previous foreign key unchanged
 - Collection-valued getters are ignored by generated select/insert/update SQL by convention
 - `Model` provides `Key getRefs()/setRefs()` and `Long getId()/setId()`
 - Getters/setters are required for mapped properties and relation fields
@@ -291,6 +294,7 @@ SchemaValidator.assertMappings(
 It checks:
 - Table existence
 - Required columns derived from getters and annotations
+- Declared primary-key columns and order against database metadata
 - Missing setters for actionable mapped fields
 - Common `@Ref` / `RefValue` configuration mistakes
 - Collection fields are ignored by convention
@@ -298,7 +302,7 @@ It checks:
 ## Key Class
 ```java
 Key.of("column_name", 123L)           // Single key
-Key.of("col1", 1L).and("col2", 2L)    // Composite key
+Key.of("col1", 1L).add("col2", 2L)    // Composite key
 key.primaryKey()                       // Get Pair<String,Long>
 key.count()                            // Number of key parts
 Key.None                               // Empty key constant
@@ -324,17 +328,21 @@ repository.save(proposal); // INSERT includes sc_key=1
 // For dropdown/display scenarios - stores FK + fetches label
 @Ref(value = "supplier_id", label = "sup_name")
 private RefValue supplierRef;
-// On read: RefValue { value="Acme Corp", ref=Pair("supplier_id", 5) }
+// Generated CRUD reads/writes supplier_id; value is null on a generated base-table read.
+// A custom JOIN selecting sup_name populates the display value:
+// RefValue { value="Acme Corp", ref=Pair("supplier_id", 5) }
 ```
 
 ### Composite Primary Key (Junction Table)
 ```java
-@PrimaryKey("t_key") // One of the composite parts
+@PrimaryKey("t_key")
+@PrimaryKey("pr_key")
 public class ProposalTask extends Model {
     @Ref private Proposal proposal;
     @Ref private Task task;
 }
-// Insert returns Key.None (no auto-generated key)
+// Insert derives and returns Key { t_key, pr_key } from the mapped references.
+// All repository predicates use both key parts.
 ```
 
 ### New vs Existing Entity
@@ -347,9 +355,8 @@ entity.isNew()  // true if getRefs() is null or empty
 ```java
 try {
     repository.save(entity);
-} catch (RuntimeException e) {
-    // Message: "Failed to save entity: ClassName [key=value]"
-    // Wraps underlying JDBC exception
+} catch (DataAccessException e) {
+    // Spring's exception taxonomy is preserved for database failures.
 }
 ```
 

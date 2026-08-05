@@ -21,28 +21,24 @@ import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.time.LocalDate;
-import java.util.Arrays;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.jdbc.core.BeanPropertyRowMapper;
 import org.springframework.jdbc.support.rowset.SqlRowSet;
 import org.springframework.jdbc.support.rowset.SqlRowSetMetaData;
 import org.viablespark.persistence.dsl.Named;
-import org.viablespark.persistence.dsl.PrimaryKey;
 import org.viablespark.persistence.dsl.Ref;
 import org.viablespark.persistence.dsl.WithSql;
 
 public class PersistableRowMapper<E extends Persistable> implements PersistableMapper<E> {
   private final BeanPropertyRowMapper<E> propertyMapper;
   private final Class<E> mappedType;
+  private final List<Method> namedMethods;
+  private final List<Method> referenceMethods;
   private static final Logger log = LoggerFactory.getLogger(PersistableRowMapper.class);
   private static final Map<
           Class<? extends Persistable>, PersistableRowMapper<? extends Persistable>>
@@ -55,6 +51,22 @@ public class PersistableRowMapper<E extends Persistable> implements PersistableM
   private PersistableRowMapper(Class<E> cls) {
     this.mappedType = cls;
     this.propertyMapper = new BeanPropertyRowMapper<>(cls);
+    this.namedMethods =
+        WithSql.persistentGetters(cls).stream()
+            .filter(method -> WithSql.getAnnotation(method, cls, Named.class).isPresent())
+            .filter(method -> WithSql.getAnnotation(method, cls, Ref.class).isEmpty())
+            .filter(method -> !WithSql.isCollectionLike(method.getReturnType()))
+            .filter(method -> !method.getReturnType().equals(RefValue.class))
+            .toList();
+    this.referenceMethods =
+        WithSql.persistentGetters(cls).stream()
+            .filter(method -> WithSql.getAnnotation(method, cls, Ref.class).isPresent())
+            .filter(method -> !WithSql.isCollectionLike(method.getReturnType()))
+            .filter(
+                method ->
+                    WithSql.getPrimaryKeys(method.getReturnType()).size() == 1
+                        || method.getReturnType().equals(RefValue.class))
+            .toList();
   }
 
   @SuppressWarnings("unchecked")
@@ -95,35 +107,22 @@ public class PersistableRowMapper<E extends Persistable> implements PersistableM
   }
 
   private void assignPrimaryKey(Persistable e, ResultSet rs) throws Exception {
-    Optional<String> found =
-        Stream.of(e.getClass(), e.getClass().getSuperclass())
-            .filter(tp -> tp.isAnnotationPresent(PrimaryKey.class))
-            .map(tp -> tp.getAnnotation(PrimaryKey.class).value())
-            .findFirst();
-
-    if (found.isPresent()) {
-      var columnName = found.get();
-      int columnIdx =
-          requireColumnIndex(
-              rs, columnName, String.format("Primary key mapping for %s", mappedType.getName()));
-      long pkValue = rs.getLong(columnIdx);
-      e.setRefs(Key.of(columnName, pkValue));
+    List<String> primaryKeys = WithSql.getPrimaryKeys(e.getClass());
+    if (!primaryKeys.isEmpty()) {
+      Key key = new Key();
+      for (String columnName : primaryKeys) {
+        int columnIdx =
+            requireColumnIndex(
+                rs, columnName, String.format("Primary key mapping for %s", mappedType.getName()));
+        long pkValue = rs.getLong(columnIdx);
+        key.add(columnName, pkValue);
+      }
+      e.setRefs(key);
     }
   }
 
   private void assignNamedFields(Persistable entity, ResultSet rs) throws Exception {
-    List<Method> methods =
-        Arrays.stream(entity.getClass().getDeclaredMethods())
-            .filter(
-                m ->
-                    m.getName().startsWith("get")
-                        && WithSql.getAnnotation(m, entity.getClass(), Named.class).isPresent()
-                        && WithSql.getAnnotation(m, entity.getClass(), Ref.class).isEmpty()
-                        && !WithSql.isCollectionLike(m.getReturnType())
-                        && !m.getReturnType().equals(RefValue.class))
-            .collect(Collectors.toList());
-
-    for (Method m : methods) {
+    for (Method m : namedMethods) {
       var optionMethod = WithSql.getAnnotation(m, entity.getClass(), Named.class);
 
       var customField = optionMethod.orElseThrow().value();
@@ -163,13 +162,21 @@ public class PersistableRowMapper<E extends Persistable> implements PersistableM
     return parameterType == boolean.class || parameterType == Boolean.class;
   }
 
+  protected static boolean isLongType(Class<?> parameterType) {
+    return parameterType == long.class || parameterType == Long.class;
+  }
+
   private static Object interpolateValue(Object value, Class<?> asType) {
     if (value == null) {
       return null;
     }
 
-    if (value instanceof Long && isIntegerType(asType)) {
-      return Math.toIntExact((Long) value);
+    if (value instanceof Number number && isIntegerType(asType)) {
+      return Math.toIntExact(number.longValue());
+    }
+
+    if (value instanceof Number number && isLongType(asType)) {
+      return number.longValue();
     }
 
     if (isBooleanType(asType)) {
@@ -200,32 +207,10 @@ public class PersistableRowMapper<E extends Persistable> implements PersistableM
   }
 
   private void assignForeignRefs(Persistable entity, ResultSet rs) throws Exception {
-    List<Method> methods =
-        Arrays.stream(entity.getClass().getDeclaredMethods())
-            .filter(m -> m.getName().startsWith("get"))
-            .filter(m -> WithSql.getAnnotation(m, entity.getClass(), Ref.class).isPresent())
-            .filter(m -> !WithSql.isCollectionLike(m.getReturnType()))
-            .filter(
-                m ->
-                    m.getReturnType().isAnnotationPresent(PrimaryKey.class)
-                        || m.getReturnType().equals(RefValue.class))
-            .collect(Collectors.toList());
-
-    // Cache reflection results
-    Map<Method, Class<?>> foreignTypes = new HashMap<>();
-    Map<Method, Optional<Named>> namedOptions = new HashMap<>();
-    Map<Method, Ref> refs = new HashMap<>();
-
-    for (Method m : methods) {
-      foreignTypes.put(m, m.getReturnType());
-      namedOptions.put(m, WithSql.getAnnotation(m, entity.getClass(), Named.class));
-      refs.put(m, WithSql.getAnnotation(m, entity.getClass(), Ref.class).orElseThrow());
-    }
-
-    for (Method m : methods) {
-      Class<?> foreignType = foreignTypes.get(m);
-      var namedOption = namedOptions.get(m);
-      var ref = refs.get(m);
+    for (Method m : referenceMethods) {
+      Class<?> foreignType = m.getReturnType();
+      var namedOption = WithSql.getAnnotation(m, entity.getClass(), Named.class);
+      var ref = WithSql.getAnnotation(m, entity.getClass(), Ref.class).orElseThrow();
 
       if (foreignType.equals(RefValue.class)) {
         if (ref.value().isBlank() || ref.label().isBlank()) {
@@ -241,19 +226,13 @@ public class PersistableRowMapper<E extends Persistable> implements PersistableM
                 ref.value(),
                 String.format(
                     "@Ref mapping for %s.%s", entity.getClass().getSimpleName(), m.getName()));
-        int labelIdx =
-            requireColumnIndex(
-                rs,
-                ref.label(),
-                String.format(
-                    "@Ref label mapping for %s.%s",
-                    entity.getClass().getSimpleName(), m.getName()));
+        int labelIdx = columnIndex(rs, ref.label());
         long value = rs.getLong(valueIdx);
         if (rs.wasNull()) {
           invokeSetter(entity, m, null);
           continue;
         }
-        String labelValue = rs.getString(labelIdx);
+        String labelValue = labelIdx > 0 ? rs.getString(labelIdx) : null;
         var fkValue = new RefValue(labelValue, Pair.of(ref.value(), value));
         invokeSetter(entity, m, fkValue);
 
@@ -261,7 +240,7 @@ public class PersistableRowMapper<E extends Persistable> implements PersistableM
         continue;
       }
 
-      var pkName = foreignType.getAnnotation(PrimaryKey.class).value();
+      var pkName = WithSql.getPrimaryKey(foreignType).orElseThrow();
       String columnName = pkName;
       if (namedOption.isPresent()) {
         columnName = namedOption.get().value();
@@ -294,9 +273,9 @@ public class PersistableRowMapper<E extends Persistable> implements PersistableM
   }
 
   private void invokeSetter(Persistable entity, Method accessor, Object value) throws SQLException {
-    String setterName = accessor.getName().replace("get", "set");
+    String setterName = WithSql.setterName(accessor);
     try {
-      Method setter = entity.getClass().getDeclaredMethod(setterName, accessor.getReturnType());
+      Method setter = WithSql.findSetter(entity.getClass(), accessor);
       setter.invoke(entity, value);
     } catch (NoSuchMethodException ex) {
       throw new SQLException(

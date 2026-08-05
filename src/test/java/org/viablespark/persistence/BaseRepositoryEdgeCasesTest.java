@@ -60,8 +60,11 @@ public class BaseRepositoryEdgeCasesTest {
     try {
       repository.save(proposal);
     } catch (RuntimeException e) {
-      assertTrue(e.getMessage().contains("Failed to save entity"));
+      assertTrue(e instanceof DataAccessException);
+      return;
     }
+    org.junit.jupiter.api.Assertions.fail(
+        "Expected the database constraint to reject the proposal");
   }
 
   @Test

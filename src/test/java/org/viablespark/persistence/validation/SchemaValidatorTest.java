@@ -130,6 +130,17 @@ class SchemaValidatorTest {
   }
 
   @Test
+  void reportsIncompleteCompositePrimaryKey() {
+    IllegalStateException thrown =
+        assertThrows(
+            IllegalStateException.class,
+            () -> SchemaValidator.assertMappings(database, IncompleteProposalTask.class));
+
+    assertTrue(thrown.getMessage().contains("Primary key"));
+    assertTrue(thrown.getMessage().contains("PR_KEY"));
+  }
+
+  @Test
   void handlesEntityWithSkippedFields() {
     assertDoesNotThrow(() -> SchemaValidator.assertMappings(database, Proposal.class));
   }
@@ -213,6 +224,10 @@ class SchemaValidatorTest {
     @SuppressWarnings("unused")
     public void setNothing(RefValue value) {}
   }
+
+  @Named("proposal_task")
+  @PrimaryKey("t_key")
+  static class IncompleteProposalTask extends Model {}
 
   @Named("contractor")
   @PrimaryKey("sc_key")

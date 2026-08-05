@@ -3,7 +3,6 @@ package org.viablespark.persistence;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -50,9 +49,9 @@ class BaseRepositoryAdvancedTest {
     when(mockJdbc.update(any(PreparedStatementCreator.class), any(KeyHolder.class)))
         .thenThrow(new DataAccessException("Insert failed") {});
 
-    RuntimeException thrown = assertThrows(RuntimeException.class, () -> repository.save(entity));
-    assertTrue(thrown.getMessage().contains("Failed to save entity"));
-    assertNotNull(thrown.getCause());
+    DataAccessException thrown =
+        assertThrows(DataAccessException.class, () -> repository.save(entity));
+    assertEquals("Insert failed", thrown.getMessage());
   }
 
   @Test
@@ -64,9 +63,9 @@ class BaseRepositoryAdvancedTest {
     when(mockJdbc.update(anyString(), any(Object[].class)))
         .thenThrow(new DataAccessException("Update failed") {});
 
-    RuntimeException thrown = assertThrows(RuntimeException.class, () -> repository.save(entity));
-    assertTrue(thrown.getMessage().contains("Failed to save entity"));
-    assertNotNull(thrown.getCause());
+    DataAccessException thrown =
+        assertThrows(DataAccessException.class, () -> repository.save(entity));
+    assertEquals("Update failed", thrown.getMessage());
   }
 
   @Test
@@ -196,10 +195,8 @@ class BaseRepositoryAdvancedTest {
 
     when(mockJdbc.update(any(PreparedStatementCreator.class), any(KeyHolder.class))).thenReturn(1);
 
-    // Should handle null refs gracefully
-    RuntimeException thrown = assertThrows(RuntimeException.class, () -> repository.save(entity));
-    // The exception might come from isNew() or other internal checks
-    assertNotNull(thrown);
+    // A successful insert without a returned or derivable key has no identity result.
+    assertTrue(repository.save(entity).isEmpty());
   }
 
   @Test
