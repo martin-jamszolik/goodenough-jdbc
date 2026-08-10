@@ -40,6 +40,24 @@ gpr.user=GITHUB_USERNAME
 gpr.key=CLASSIC_PAT_WITH_READ_PACKAGES
 ```
 
+### Publishing to the private registry
+
+The `Private` publishing repository is enabled only when `PRIVATE_REGISTRY_URL` is set. Its
+release endpoint is `https://<PRIVATE_REGISTRY_URL>/m2/maven-releases`. Supply credentials with
+Gradle properties or environment variables; the `gpr.*` properties are used only for GitHub
+Packages.
+
+```sh
+PRIVATE_REGISTRY_URL=tefcor.com \
+  ./gradlew publishMavenPublicationToPrivateRepository \
+  -Pprivate.user=YOUR_USERNAME \
+  -Pprivate.key=YOUR_TOKEN
+```
+
+Alternatively, set `PRIVATE_REGISTRY_USERNAME` and `PRIVATE_REGISTRY_TOKEN` in the environment.
+Keep tokens out of the repository; `private.user` and `private.key` can be stored in
+`~/.gradle/gradle.properties`.
+
 For Maven, configure a `github` server in `~/.m2/settings.xml`, then add:
 
 ```xml
