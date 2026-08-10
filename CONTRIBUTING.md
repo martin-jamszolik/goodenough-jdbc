@@ -14,7 +14,7 @@ First off, thank you for taking the time to contribute! :+1:
 
 ### Code of Conduct
 
-This project is governed by the [Code of Conduct](CODE_OF_CONDUCT.adoc).
+This project is governed by the [Code of Conduct](CODE_OF_CONDUCT.md).
 By participating you are expected to uphold this code.
 Please report unacceptable behavior to the owner of the project
 
@@ -59,7 +59,7 @@ follow-up reports will need to be created as new issues with a fresh description
    about the issue will continue under the pull request.
 
 1. Always check out the `main` branch and submit pull requests against it
-   (for target version see [settings.gradle.kts](settings.gradle.kts)).
+   (for target version see [gradle.properties](gradle.properties)).
    Backports to prior versions will be considered on a case-by-case basis and reflected as
    the fix version in the issue tracker.
 
@@ -93,4 +93,8 @@ committer for the Project.
 
 ### Build from Source
 
-See build.gradle.kts
+Run the complete verification and local publication checks:
+
+```shell
+./gradlew clean publicationCheck jacocoTestReport
+```

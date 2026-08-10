@@ -1,10 +1,59 @@
 # Good Enough JDBC
 
-[![Gradle CI](https://github.com/martin-jamszolik/goodenough-jdbc/actions/workflows/gradle.yml/badge.svg)](https://github.com/martin-jamszolik/goodenough-jdbc/actions/workflows/gradle.yml)  [![Coverage](.github/badges/jacoco.svg)](jacoco.svg)  [![Branches Coverage](.github/badges/branches.svg)](branches.svg)
+[![Gradle CI](https://github.com/martin-jamszolik/goodenough-jdbc/actions/workflows/gradle.yml/badge.svg)](https://github.com/martin-jamszolik/goodenough-jdbc/actions/workflows/gradle.yml)  [![Coverage](.github/badges/jacoco.svg)](.github/badges/jacoco.svg)  [![Branches Coverage](.github/badges/branches.svg)](.github/badges/branches.svg)
 
 ## Overview
 
 `goodenough-jdbc` is a lightweight, flexible library designed for **schema-first** databases, offering a middle ground between raw SQL and heavy ORM frameworks. It elevates and simplifies the `spring-jdbc` library, streamlining common database operations with Repository-style conventions.
+
+## Installation
+
+The 3.x line requires Java 17 and Spring Framework 6. Spring JDBC is declared as an API
+dependency because its types are part of the public repository and mapper contracts. It is not
+shaded or bundled into the library, and Spring Boot/BOM dependency management can select a
+compatible Spring 6 version.
+
+GitHub Packages requires authentication, including for public packages. Configure Gradle:
+
+```kotlin
+repositories {
+    mavenCentral()
+    maven {
+        url = uri("https://maven.pkg.github.com/martin-jamszolik/goodenough-jdbc")
+        credentials {
+            username = providers.gradleProperty("gpr.user").orNull
+            password = providers.gradleProperty("gpr.key").orNull
+        }
+    }
+}
+
+dependencies {
+    implementation("org.viablespark:goodenough-jdbc:3.0.0")
+    runtimeOnly("org.postgresql:postgresql:YOUR_DRIVER_VERSION") // Choose your JDBC driver
+}
+```
+
+Store credentials outside the project in `~/.gradle/gradle.properties`:
+
+```properties
+gpr.user=GITHUB_USERNAME
+gpr.key=CLASSIC_PAT_WITH_READ_PACKAGES
+```
+
+For Maven, configure a `github` server in `~/.m2/settings.xml`, then add:
+
+```xml
+<repository>
+  <id>github</id>
+  <url>https://maven.pkg.github.com/martin-jamszolik/goodenough-jdbc</url>
+</repository>
+
+<dependency>
+  <groupId>org.viablespark</groupId>
+  <artifactId>goodenough-jdbc</artifactId>
+  <version>3.0.0</version>
+</dependency>
+```
 
 ## Why Use Good Enough JDBC?
 
@@ -20,6 +69,7 @@ Modern ORM frameworks like [KTorm](https://www.ktorm.org/), [Django](https://doc
 - Ease of use for CRUD operations.
 - Minimal boilerplate while avoiding runtime model generation.
 - Easy foreign relationship composition with repository pattern.
+- Positional query DSL, batch operations, projections, and explicit relation attachment helpers.
 
 ## Key Features
 
@@ -27,9 +77,12 @@ Modern ORM frameworks like [KTorm](https://www.ktorm.org/), [Django](https://doc
 - Common repository (column) operations.
 - Flexible, customizable mappers for advanced scenarios.
 - Designed for **manual SQL control** where necessary.
+- Collection-valued relationships are ignored by convention and loaded explicitly.
+- Schema validation helpers for catching mapping drift early.
 
 ## Not All Batteries Included
 
+- Spring JDBC is declared transitively but remains application-managed and is never shaded.
 - Bring your own transaction management (e.g., Spring Transactions).
 - Bring your own schema and data migration/evolution (e.g., Flyway).
 - Query DSL is just a helper (e.g., SQL strings).
@@ -67,11 +120,41 @@ Key Annotations:
 - **`@Ref`**: Maps foreign key references, supporting lightweight lookups with `RefValue`.
 - **`@Skip`**: Ignore a column(field) or a list, so you can seperate to another Repository.
 
+Entity mappings include inherited getters and field annotations. The nearest `@Named` and
+`@PrimaryKey` declarations in the class hierarchy define the table and key, while properties from
+both parent and child classes map to that table. This supports either an annotated parent with an
+unannotated concrete child, or an unannotated property parent with an annotated child.
+
+Repeat `@PrimaryKey` in database key order for composite identities:
+
+```java
+@PrimaryKey("order_id")
+@PrimaryKey("line_number")
+public class OrderLine extends Model {
+    // mapped properties
+}
+```
+
+Repository get, query, update, delete, and batch operations use every key component. A single
+`@Ref` still represents one foreign-key column; map references to composite identities as separate
+properties so the column pairing remains explicit.
+
+`RefValue` participates in generated CRUD through its `ref` value. Generated entity reads select
+the foreign-key column and leave the display value null. A custom joined query that selects the
+configured `label` column populates the display value. Setting either an entity `@Ref` or a
+`RefValue` to null and saving writes SQL `NULL` to the foreign-key column.
+
+Primary and foreign-key values may be integral numbers, `UUID`, or `String`. Existing numeric
+helpers such as `getId()` and `primaryKey()` remain available; use `getIdentifier()`,
+`Key.primary()`, `Key.value(...)`, and `RefValue.referenceValue(...)` for UUID or String keys.
+
 ### Repository
 
 The `BaseRepository` class simplifies CRUD operations:
 
 - **`create`**, **`update`**, **`delete`**, **`list`**, and more.
+- **`insertAll`**, **`updateAll`**, **`deleteAll`**, **`saveAll`** for batch-oriented workflows.
+- **`queryOne`**, **`exists`**, **`count`**, **`queryRows`**, **`queryRow`**, **`queryProjection`**, and **`queryProjectionOne`** for common repository reads.
 - Extend `BaseRepository` to define custom, high performance queries and composite operations.
 
 Example:
@@ -88,12 +171,57 @@ List<Proposal> results = repository.queryEntity(
     Proposal.class
 );
 
+// Query a single entity safely
+Optional<Proposal> proposal = repository.queryOne(
+    new SqlQuery().where("pr_key = ?", 1L),
+    Proposal.class
+);
+
 // Use raw SQL when needed
 List<Proposal> rawResults = repository.query(
     SqlQuery.raw("SELECT * FROM est_proposal WHERE dist > ?", 10),
     new ProposalMapper()
 );
+
+// Read DTO/record projections directly
+List<ContractorSummary> summaries = repository.queryProjection(
+    new SqlQuery()
+        .selectColumns("sc_key as id", "sc_name as name")
+        .from("contractor")
+        .where("sc_key IN (?, ?)", 1L, 2L)
+        .orderBy("sc_key"),
+    ContractorSummary.class
+);
 ```
+
+### Collection Relationships
+
+Collection-valued getters such as `List<Task>` are **ignored by convention**. They are not mapped from the base row, they are not included in generated insert/update SQL, and they are not validated against table columns.
+
+This keeps relation loading explicit and predictable:
+
+```java
+var proposals = proposalRepository.queryEntity(
+    new SqlQuery().where("sc_key = ?", 1L),
+    Proposal.class
+);
+
+RelationLoader.attachOneToMany(
+    proposals,
+    ids -> proposalTaskRepository.query(
+        SqlQuery.statement("SELECT * FROM proposal_task WHERE pr_key IN (?, ?)", ids.get(0), ids.get(1)),
+        PersistableRowMapper.of(ProposalTask.class)
+    ),
+    proposal -> proposal.getRefs().primaryKey().getValue(),
+    proposalTask -> proposalTask.getProposal().getRefs().primaryKey().getValue(),
+    Proposal::setTasks
+);
+```
+
+Build `IN` placeholder lists and their values explicitly for variable-size batches. Chunk large ID
+lists according to your database's parameter limit.
+
+Use `@Skip` when you need to omit a scalar property or a relationship for a custom reason. You no longer need it for `List`, `Set`, or `Collection` properties.
 
 ### SqlQuery DSL
 
@@ -118,8 +246,8 @@ new SqlQuery()
     .from("proposals")
     .where("created_date > ?", LocalDate.now().minusDays(30));
 
-// Raw SQL for complex scenarios
-SqlQuery.raw(
+// Complete SQL statement for complex scenarios
+SqlQuery.statement(
     "SELECT * FROM proposal p " +
     "INNER JOIN contractor c ON (p.sc_key = c.sc_key) " +
     "WHERE p.dist > ?", 
@@ -134,8 +262,70 @@ Key Methods:
 - **`from()`**, **`join()`**: Define table expressions and joins
 - **`orderBy()`**: Sort results by column or expression
 - **`limit()`**, **`offset()`**, **`paginate()`**: Control result pagination
-- **`SqlQuery.raw()`**: Use raw SQL for complex queries
-- **`primaryKey()`**: Specify primary key for entity mapping
+- **`SqlQuery.statement()`**: Use a complete SQL statement for projections and custom rows
+- **`SqlQuery.fragment()`**: Use a raw query fragment with `queryEntity`, `queryOne`, or `count`
+
+Legacy `SqlQuery.raw()` works in either context for compatibility. Prefer `statement()` and
+`fragment()` in new code so context mistakes are rejected before execution.
+
+### Batch Operations
+
+`BaseRepository` includes explicit batch helpers for repetitive write operations:
+
+```java
+int[] inserted = contractorRepository.insertAll(List.of(first, second));
+int[] updated = contractorRepository.updateAll(List.of(first, second));
+int[] deleted = contractorRepository.deleteAll(List.of(first, second));
+
+// saveAll keeps per-entity save semantics when you need generated keys back
+List<Optional<Key>> keys = contractorRepository.saveAll(List.of(first, second));
+```
+
+`insertAll`, `updateAll`, and `deleteAll` use JDBC batching. `saveAll` executes one save per entity
+so generated keys remain available. None of these methods starts a transaction; wrap multi-step
+work in your transaction manager when atomicity is required.
+
+### Projections And Single-Row Reads
+
+For read models, DTOs, and API-facing shapes, prefer projections over entity overloading:
+
+```java
+record ContractorSummary(Long id, String name) {}
+
+Optional<ContractorSummary> contractor = contractorRepository.queryProjectionOne(
+    SqlQuery.statement(
+        "SELECT sc_key as id, sc_name as name FROM contractor WHERE sc_key = ?",
+        1L
+    ),
+    ContractorSummary.class
+);
+
+Optional<String> contractorName = contractorRepository.queryRow(
+    new SqlQuery()
+        .selectColumns("sc_name")
+        .from("contractor")
+        .where("sc_key = ?", 2L),
+    (rs, rowNum) -> rs.getString("sc_name")
+);
+```
+
+`queryOne(...)`, `queryRow(...)`, and `queryProjectionOne(...)` enforce single-result semantics and return `Optional`.
+
+### Schema Validation
+
+Use `SchemaValidator` in tests or startup checks to catch mapping drift early:
+
+```java
+SchemaValidator.assertMappings(
+    dataSource,
+    Contractor.class,
+    Proposal.class,
+    Note.class
+);
+```
+
+It validates table presence, required columns, primary-key composition, and common annotation
+mistakes such as missing setters or inconsistent `@Ref`/`RefValue` configuration.
 
 
 ### Mapping Helper
@@ -148,15 +338,15 @@ var mapper = PersistableRowMapper.of(PurchaseOrder.class);
 
 // For advanced composites, use custom mappers
 var results = repository.query(
-    SqlQuery.asRaw("SELECT * FROM est_proposal p " +
-                      "INNER JOIN contractor c ON (c.sc_key = p.sc_key) " +
-                      "WHERE dist > 0"),
+    SqlQuery.statement("SELECT * FROM est_proposal p " +
+                    "INNER JOIN contractor c ON (c.sc_key = p.sc_key) " +
+                    "WHERE dist > 0"),
     new ProposalMapper()
 );
 ```
 
 - For most use cases, `PersistableRowMapper` is sufficient.
-- Use custom implementations of `PersistableMapper` for complex mappings.
+- Use `PersistableMapper` for custom scalar, DTO, or entity mappings.
 
 **Advanced Example:**  
 See the [ProposalMapper](src/test/java/org/viablespark/persistence/ProposalMapper.java) for a detailed example of custom mapping.
@@ -184,6 +374,9 @@ The test suite demonstrates real-world usage patterns covering common developmen
 | **Manual Row Mapping** | [`testRowSetQuery()`](src/test/java/org/viablespark/persistence/ProposalRepositoryTest.java#L120) | Map result sets manually using lambda expressions |
 | **Insert with Foreign Key** | [`testInsertNote()`](src/test/java/org/viablespark/persistence/NoteRepositoryTest.java#L48) | Create entity with nested foreign key relationships |
 | **Select with Relations** | [`testSelectNote()`](src/test/java/org/viablespark/persistence/NoteRepositoryTest.java#L53) | Retrieve entity and verify foreign key references are populated |
+| **Query DSL & Projections** | [`RepositoryEnhancementsTest`](src/test/java/org/viablespark/persistence/RepositoryEnhancementsTest.java) | Positional query builder, single-row helpers, and DTO projection reads |
+| **Explicit Relation Loading** | [`RelationLoaderTest`](src/test/java/org/viablespark/persistence/RelationLoaderTest.java) | One-to-many, many-to-one, one-to-one, and many-to-many attachment patterns |
+| **Schema Validation** | [`SchemaValidatorTest`](src/test/java/org/viablespark/persistence/validation/SchemaValidatorTest.java) | Validate mappings, relation metadata, and setter requirements |
 | **Query with Primary Key** | [`testQueryNote()`](src/test/java/org/viablespark/persistence/NoteRepositoryTest.java#L61) | Query entities using SqlQuery with primary key specification |
 | **Many-to-Many Mapping** | [`testInsertWithPKnoAutoGenerate()`](src/test/java/org/viablespark/persistence/ProposalTaskRepositoryTest.java#L45) | Handle junction table with composite primary keys (no auto-generation) |
 | **Validate Constraints** | [`testSaveContractorThrowsException()`](src/test/java/org/viablespark/persistence/ContractorRepositoryTest.java#L69) | Handle database constraint violations gracefully |

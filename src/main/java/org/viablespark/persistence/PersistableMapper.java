@@ -13,21 +13,11 @@
 
 package org.viablespark.persistence;
 
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import org.springframework.jdbc.core.RowMapper;
-import org.springframework.jdbc.support.rowset.ResultSetWrappingSqlRowSet;
 import org.springframework.jdbc.support.rowset.SqlRowSet;
-import org.springframework.lang.Nullable;
 
+/** Maps a SQL row without exposing JDBC's checked {@code SQLException}. */
 @FunctionalInterface
-public interface PersistableMapper<E extends Persistable> extends RowMapper<E> {
+public interface PersistableMapper<T> {
 
-  @Override
-  default E mapRow(ResultSet rs, int rowNum) throws SQLException {
-    return mapRow(new ResultSetWrappingSqlRowSet(rs), rowNum);
-  }
-
-  @Nullable
-  E mapRow(SqlRowSet rs, int rowNum);
+  T mapRow(SqlRowSet rs, int rowNum);
 }

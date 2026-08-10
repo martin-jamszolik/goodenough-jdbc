@@ -14,7 +14,7 @@
 import org.gradle.api.plugins.quality.Checkstyle
 
 plugins {
-    id("java")
+    id("java-library")
     id("jacoco")
     id("maven-publish")
     id("checkstyle")
@@ -22,22 +22,20 @@ plugins {
     id("com.diffplug.spotless") version "6.25.0"
 }
 
-var libReleaseVersion = "2.0.2"
 val springFrameworkVersion = "6.2.12"
 val slf4jVersion = "2.0.17"
 val junitVersion = "5.10.3"
 
-group = "org.viablespark"
-version = libReleaseVersion
+group = providers.gradleProperty("projectGroup").get()
+version = providers.gradleProperty("projectVersion").get()
 
 repositories {
     mavenCentral()
 }
 
 dependencies {
-    compileOnly("org.springframework:spring-jdbc:$springFrameworkVersion")
-    compileOnly("org.slf4j:slf4j-api:$slf4jVersion")
-    compileOnly("com.google.code.findbugs:jsr305:3.0.2")
+    api("org.springframework:spring-jdbc:$springFrameworkVersion")
+    implementation("org.slf4j:slf4j-api:$slf4jVersion")
 
     // Kotlin only needed for tests (compatibility checks / data classes)
     testImplementation(kotlin("stdlib"))
@@ -62,6 +60,7 @@ java {
         languageVersion.set(JavaLanguageVersion.of(17))
     }
     withSourcesJar()
+    withJavadocJar()
 }
 
 kotlin {
@@ -101,7 +100,7 @@ spotless {
 }
 
 tasks.named("check") {
-    dependsOn("spotlessCheck")
+    dependsOn("spotlessCheck", "jacocoTestCoverageVerification")
 }
 
 
@@ -116,7 +115,19 @@ tasks.jacocoTestReport {
     }
 }
 
-val privateRegistryURL: String = System.getenv("PRIVATE_REGISTRY_URL")  ?: "private"
+tasks.jacocoTestCoverageVerification {
+    violationRules {
+        rule {
+            limit {
+                counter = "LINE"
+                value = "COVEREDRATIO"
+                minimum = "0.95".toBigDecimal()
+            }
+        }
+    }
+}
+
+val privateRegistryUrl = providers.environmentVariable("PRIVATE_REGISTRY_URL").orNull
 
 publishing {
     repositories {
@@ -124,49 +135,85 @@ publishing {
             name = "GitHubPackages"
             url = uri("https://maven.pkg.github.com/martin-jamszolik/goodenough-jdbc")
             credentials {
-                username = project.findProperty("gpr.user") as String? ?: System.getenv("USERNAME")
-                password = project.findProperty("gpr.key") as String? ?: System.getenv("TOKEN")
+                username = project.findProperty("gpr.user") as String? ?: System.getenv("GITHUB_ACTOR")
+                password = project.findProperty("gpr.key") as String? ?: System.getenv("GITHUB_TOKEN")
             }
         }
-        // Private Repository
         maven {
-            name = "Private"
-            url = uri("https://$privateRegistryURL/m2/maven-releases")
-            credentials {
-                username = project.findProperty("gpr.user") as String? ?: System.getenv("USERNAME")
-                password = project.findProperty("gpr.key") as String? ?: System.getenv("TOKEN")
+            name = "LocalBuild"
+            url = layout.buildDirectory.dir("publication-repository").get().asFile.toURI()
+        }
+        if (privateRegistryUrl != null) {
+            maven {
+                name = "Private"
+                url = uri("https://$privateRegistryUrl/m2/maven-releases")
+                credentials {
+                    username = project.findProperty("private.user") as String?
+                        ?: System.getenv("PRIVATE_REGISTRY_USERNAME")
+                    password = project.findProperty("private.key") as String?
+                        ?: System.getenv("PRIVATE_REGISTRY_TOKEN")
+                }
             }
         }
     }
     publications {
         create<MavenPublication>("maven") {
-            groupId = "org.viablespark"
-            artifactId = "goodenough-jdbc"
-            version = libReleaseVersion
-
             from(components["java"])
+            versionMapping {
+                usage("java-api") { fromResolutionOf("runtimeClasspath") }
+                usage("java-runtime") { fromResolutionResult() }
+            }
             pom {
-                description.set("Good Enough JDBC")
+                name.set("Good Enough JDBC")
+                description.set(
+                    "A lightweight schema-first repository and mapping library built on Spring JDBC."
+                )
+                url.set("https://github.com/martin-jamszolik/goodenough-jdbc")
                 scm {
-                    connection.set("scm:git:git@github.com:martin-jamszolik/goodenough-jdbc.git")
+                    connection.set(
+                        "scm:git:https://github.com/martin-jamszolik/goodenough-jdbc.git"
+                    )
+                    developerConnection.set(
+                        "scm:git:ssh://git@github.com/martin-jamszolik/goodenough-jdbc.git"
+                    )
                     url.set("https://github.com/martin-jamszolik/goodenough-jdbc")
+                    tag.set("HEAD")
                 }
                 licenses {
                     license {
                         name.set("The Apache License, Version 2.0")
                         url.set("https://www.apache.org/licenses/LICENSE-2.0.txt")
+                        distribution.set("repo")
                     }
                 }
                 developers {
                     developer {
                         id.set("martin-jamszolik")
                         name.set("Martin Jamszolik")
+                        url.set("https://github.com/martin-jamszolik")
                     }
                 }
             }
         }
 
     }
+}
+
+tasks.register("publicationCheck") {
+    group = "verification"
+    description = "Builds and publishes all artifacts to a local repository for validation."
+    dependsOn(
+        "check",
+        "javadocJar",
+        "sourcesJar",
+        "generatePomFileForMavenPublication",
+        "generateMetadataFileForMavenPublication",
+        "publishMavenPublicationToLocalBuildRepository"
+    )
+}
+
+tasks.register("printVersion") {
+    doLast { println(project.version) }
 }
 
 tasks.jar {
@@ -174,4 +221,3 @@ tasks.jar {
         attributes("Automatic-Module-Name" to "org.viablespark.persistence")
     }
 }
-

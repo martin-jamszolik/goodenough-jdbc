@@ -13,10 +13,12 @@
 
 package org.viablespark.persistence;
 
+import java.io.Serializable;
 import java.util.Objects;
 
-public class Pair<T, Y> {
+public class Pair<T, Y> implements Serializable {
 
+  private static final long serialVersionUID = 1L;
   private T key;
   private Y value;
 

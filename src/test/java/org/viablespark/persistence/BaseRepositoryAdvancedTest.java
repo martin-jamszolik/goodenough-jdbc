@@ -3,7 +3,6 @@ package org.viablespark.persistence;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -21,8 +20,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.PreparedStatementCreator;
+import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.support.KeyHolder;
-import org.springframework.jdbc.support.rowset.SqlRowSet;
 import org.viablespark.persistence.dsl.Named;
 import org.viablespark.persistence.dsl.PrimaryKey;
 import org.viablespark.persistence.dsl.SqlQuery;
@@ -50,9 +49,9 @@ class BaseRepositoryAdvancedTest {
     when(mockJdbc.update(any(PreparedStatementCreator.class), any(KeyHolder.class)))
         .thenThrow(new DataAccessException("Insert failed") {});
 
-    RuntimeException thrown = assertThrows(RuntimeException.class, () -> repository.save(entity));
-    assertTrue(thrown.getMessage().contains("Failed to save entity"));
-    assertNotNull(thrown.getCause());
+    DataAccessException thrown =
+        assertThrows(DataAccessException.class, () -> repository.save(entity));
+    assertEquals("Insert failed", thrown.getMessage());
   }
 
   @Test
@@ -64,14 +63,14 @@ class BaseRepositoryAdvancedTest {
     when(mockJdbc.update(anyString(), any(Object[].class)))
         .thenThrow(new DataAccessException("Update failed") {});
 
-    RuntimeException thrown = assertThrows(RuntimeException.class, () -> repository.save(entity));
-    assertTrue(thrown.getMessage().contains("Failed to save entity"));
-    assertNotNull(thrown.getCause());
+    DataAccessException thrown =
+        assertThrows(DataAccessException.class, () -> repository.save(entity));
+    assertEquals("Update failed", thrown.getMessage());
   }
 
   @Test
   void handlesGetWithDatabaseException() {
-    when(mockJdbc.query(anyString(), any(PersistableRowMapper.class), any(Object[].class)))
+    when(mockJdbc.query(anyString(), any(RowMapper.class), any(Object[].class)))
         .thenThrow(new DataAccessException("Query failed") {});
 
     RuntimeException thrown =
@@ -84,7 +83,7 @@ class BaseRepositoryAdvancedTest {
   void handlesQueryEntityWithException() {
     SqlQuery query = new SqlQuery().where("name = ?", "Test");
 
-    when(mockJdbc.query(anyString(), any(PersistableRowMapper.class), any(Object[].class)))
+    when(mockJdbc.query(anyString(), any(RowMapper.class), any(Object[].class)))
         .thenThrow(new DataAccessException("Query failed") {});
 
     RuntimeException thrown =
@@ -97,7 +96,7 @@ class BaseRepositoryAdvancedTest {
     SqlQuery query = SqlQuery.raw("SELECT * FROM test_entity");
     PersistableMapper<TestEntity> mapper = PersistableRowMapper.of(TestEntity.class);
 
-    when(mockJdbc.queryForRowSet(anyString(), any(Object[].class)))
+    when(mockJdbc.query(anyString(), any(RowMapper.class), any(Object[].class)))
         .thenThrow(new DataAccessException("Query failed") {});
 
     RuntimeException thrown =
@@ -116,6 +115,17 @@ class BaseRepositoryAdvancedTest {
     assertDoesNotThrow(() -> repository.delete(entity));
 
     verify(mockJdbc).update(contains("DELETE"), eq(1L));
+  }
+
+  @Test
+  void rejectsStaleUpdateAndDelete() {
+    TestEntity entity = new TestEntity();
+    entity.setName("Missing");
+    entity.setRefs(Key.of("id", 99L));
+    when(mockJdbc.update(anyString(), any(Object[].class))).thenReturn(0);
+
+    assertThrows(RuntimeException.class, () -> repository.save(entity));
+    assertThrows(IllegalStateException.class, () -> repository.delete(entity));
   }
 
   @Test
@@ -147,7 +157,7 @@ class BaseRepositoryAdvancedTest {
 
   @Test
   void logsDebugMessageOnGet() {
-    when(mockJdbc.query(anyString(), any(PersistableRowMapper.class), any(Object[].class)))
+    when(mockJdbc.query(anyString(), any(RowMapper.class), any(Object[].class)))
         .thenReturn(List.of());
 
     Optional<TestEntity> result = repository.get(Key.of("id", 1L), TestEntity.class);
@@ -169,7 +179,7 @@ class BaseRepositoryAdvancedTest {
   void logsDebugMessageOnQueryEntity() {
     SqlQuery query = new SqlQuery().where("name = ?", "Test");
 
-    when(mockJdbc.query(anyString(), any(PersistableRowMapper.class), any(Object[].class)))
+    when(mockJdbc.query(anyString(), any(RowMapper.class), any(Object[].class)))
         .thenReturn(List.of());
 
     List<TestEntity> results = repository.queryEntity(query, TestEntity.class);
@@ -181,9 +191,8 @@ class BaseRepositoryAdvancedTest {
     SqlQuery query = SqlQuery.raw("SELECT * FROM test_entity");
     PersistableMapper<TestEntity> mapper = PersistableRowMapper.of(TestEntity.class);
 
-    SqlRowSet mockRowSet = mock(SqlRowSet.class);
-    when(mockRowSet.next()).thenReturn(false);
-    when(mockJdbc.queryForRowSet(anyString(), any(Object[].class))).thenReturn(mockRowSet);
+    when(mockJdbc.query(anyString(), any(RowMapper.class), any(Object[].class)))
+        .thenReturn(List.of());
 
     List<TestEntity> results = repository.query(query, mapper);
     assertTrue(results.isEmpty());
@@ -197,10 +206,8 @@ class BaseRepositoryAdvancedTest {
 
     when(mockJdbc.update(any(PreparedStatementCreator.class), any(KeyHolder.class))).thenReturn(1);
 
-    // Should handle null refs gracefully
-    RuntimeException thrown = assertThrows(RuntimeException.class, () -> repository.save(entity));
-    // The exception might come from isNew() or other internal checks
-    assertNotNull(thrown);
+    // A successful insert without a returned or derivable key has no identity result.
+    assertTrue(repository.save(entity).isEmpty());
   }
 
   @Test
@@ -242,7 +249,7 @@ class BaseRepositoryAdvancedTest {
     entity2.setName("Test2");
     entity2.setRefs(Key.of("id", 2L));
 
-    when(mockJdbc.query(anyString(), any(PersistableRowMapper.class), any(Object[].class)))
+    when(mockJdbc.query(anyString(), any(RowMapper.class), any(Object[].class)))
         .thenReturn(List.of(entity1, entity2));
 
     List<TestEntity> results = repository.queryEntity(query, TestEntity.class);
@@ -253,7 +260,7 @@ class BaseRepositoryAdvancedTest {
   void handlesEmptyQueryResult() {
     SqlQuery query = new SqlQuery().where("name = ?", "NonExistent");
 
-    when(mockJdbc.query(anyString(), any(PersistableRowMapper.class), any(Object[].class)))
+    when(mockJdbc.query(anyString(), any(RowMapper.class), any(Object[].class)))
         .thenReturn(List.of());
 
     List<TestEntity> results = repository.queryEntity(query, TestEntity.class);

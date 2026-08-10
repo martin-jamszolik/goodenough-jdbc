@@ -13,17 +13,23 @@
 
 package org.viablespark.persistence;
 
+import java.io.Serializable;
 import java.util.Objects;
 
-public class RefValue {
+public class RefValue implements Serializable {
+  private static final long serialVersionUID = 1L;
   private String value;
-  private Pair<String, Long> ref;
+  private Pair<String, Object> ref;
 
   public RefValue() {}
 
-  public RefValue(String value, Pair<String, Long> ref) {
+  public RefValue(String value, Pair<String, ?> ref) {
     this.value = value;
-    this.ref = ref;
+    setReference(ref);
+  }
+
+  public static RefValue of(String value, String column, Object referenceValue) {
+    return new RefValue(value, Pair.of(column, referenceValue));
   }
 
   public String getValue() {
@@ -34,12 +40,40 @@ public class RefValue {
     this.value = value;
   }
 
+  @SuppressWarnings({"unchecked", "rawtypes"})
   public Pair<String, Long> getRef() {
-    return ref;
+    if (ref == null) {
+      return null;
+    }
+    return (Pair) ref;
   }
 
   public void setRef(Pair<String, Long> ref) {
-    this.ref = ref;
+    setReference(ref);
+  }
+
+  public Pair<String, Object> reference() {
+    return ref == null ? null : Pair.of(ref.getKey(), ref.getValue());
+  }
+
+  public void setReference(Pair<String, ?> ref) {
+    if (ref == null) {
+      this.ref = null;
+      return;
+    }
+    Key normalized = Key.of(ref.getKey(), ref.getValue());
+    this.ref = Pair.of(ref.getKey(), normalized.value(ref.getKey()));
+  }
+
+  public Object referenceValue() {
+    return ref == null ? null : ref.getValue();
+  }
+
+  public <T> T referenceValue(Class<T> type) {
+    if (ref == null) {
+      return null;
+    }
+    return Key.of(ref.getKey(), ref.getValue()).value(ref.getKey(), type);
   }
 
   @Override

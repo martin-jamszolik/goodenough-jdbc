@@ -17,10 +17,12 @@ import org.viablespark.persistence.dsl.PrimaryKey;
 import org.viablespark.persistence.dsl.Ref;
 
 @PrimaryKey("t_key")
+@PrimaryKey("pr_key")
 public class ProposalTask extends Model {
 
   private Task task;
   private Proposal proposal;
+  private Long price;
 
   @Ref
   public Task getTask() {
@@ -38,5 +40,13 @@ public class ProposalTask extends Model {
 
   public void setProposal(Proposal proposal) {
     this.proposal = proposal;
+  }
+
+  public Long getPrice() {
+    return price;
+  }
+
+  public void setPrice(Long price) {
+    this.price = price;
   }
 }

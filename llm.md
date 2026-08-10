@@ -1,7 +1,7 @@
 # goodenough-jdbc - LLM Agent Instructions
 
 ## Overview
-Lightweight schema-first JDBC library built on `spring-jdbc`. Maps entities via annotations; provides repository CRUD and `SqlQuery` DSL.
+Lightweight schema-first JDBC library built on `spring-jdbc`. Maps entities via annotations; provides repository CRUD, a positional query DSL, projection reads, explicit relation loaders, and schema validation helpers.
 
 ## Core Concepts
 
@@ -34,7 +34,13 @@ public class MyEntity extends Model {
 - Default column mapping: `camelCase` → `snake_case`
 - `@Ref` on `Persistable` type = foreign key reference (stores only the key)
 - `@Ref` on `RefValue` = foreign key with label lookup (value + display text)
-- `Model` provides `Key getRefs()/setRefs()` and `Long getId()/setId()`
+- Repeat `@PrimaryKey` on the entity for every composite-key column, in database key order
+- Mapped getters/fields are inherited; the nearest annotated class supplies table and key metadata
+- Saving a null `@Ref` writes SQL `NULL` rather than leaving the previous foreign key unchanged
+- Collection-valued getters are ignored by generated select/insert/update SQL by convention
+- `Model` provides `Key getRefs()/setRefs()` and numeric `Long getId()/setId()` conveniences
+- Use `getIdentifier()`, `Key.value(...)`, or typed variants for UUID and String identifiers
+- Getters/setters are required for mapped properties and relation fields
 
 ### Alternative: Implement Persistable Directly
 ```java
@@ -99,8 +105,31 @@ List<MyEntity> results = repository.queryEntity(
 // Pagination
 new SqlQuery().where("id > ?", 0).limit(20).offset(40); // page 3
 
-// Specify primary key for query (if not on class annotation)
-new SqlQuery().where("fk_id = ?", 1).primaryKey("pk_column");
+// Entity queries accept fragments only; entities should declare @PrimaryKey.
+new SqlQuery().where("fk_id = ?", 1);
+
+// Single-result entity read
+Optional<MyEntity> one = repository.queryOne(
+    new SqlQuery().where("id = ?", 1L),
+    MyEntity.class
+);
+
+// Ad-hoc scalar / DTO reads
+Optional<String> status = repository.queryRow(
+    new SqlQuery()
+        .selectColumns("status")
+        .from("my_entity")
+        .where("id = ?", 1L),
+    (rs, rowNum) -> rs.getString("status")
+);
+
+List<MySummary> summaries = repository.queryProjection(
+    new SqlQuery()
+        .selectColumns("id as id", "display_name as name")
+        .from("my_entity")
+        .where("status = ?", "active"),
+    MySummary.class
+);
 ```
 
 ## SqlQuery DSL Reference
@@ -121,11 +150,34 @@ new SqlQuery()
     .orderBy("CASE WHEN x=1 THEN 0 END") // Raw expression
     .limit(10)
     .offset(20)
-    .paginate(pageSize, pageNumber);     // Convenience for limit+offset
+    .paginate(pageSize, offset);         // Convenience for limit+offset
 
-// Raw SQL (use for complex JOINs)
-SqlQuery.raw("SELECT * FROM t1 INNER JOIN t2 ON ... WHERE x > ?", value);
+// Complete SQL statement (use for projections or custom rows)
+SqlQuery.statement("SELECT * FROM t1 INNER JOIN t2 ON ... WHERE x > ?", value);
 ```
+
+## Projection Reads
+
+Projection helpers use Spring's `DataClassRowMapper`, so aliases must match constructor parameter names or bean property names.
+
+```java
+record MySummary(Long id, String name) {}
+
+Optional<MySummary> summary = repository.queryProjectionOne(
+    SqlQuery.statement(
+        "SELECT id as id, display_name as name FROM my_entity WHERE id = ?",
+        1L
+    ),
+    MySummary.class
+);
+```
+
+For custom conversions, use `queryRow(...)` / `queryRows(...)` with a `PersistableMapper`.
+
+Entity operations (`queryEntity`, `queryOne`, and `count`) accept only SQL fragments such as
+`WHERE ...`. Custom-row and projection operations accept only complete SQL statements. Use
+`SqlQuery.fragment(...)` for a raw fragment and `SqlQuery.statement(...)` for a raw statement.
+Legacy `raw(...)` queries are accepted in either context; prefer the explicit factories in new code.
 
 ## Custom Mappers (for JOINs)
 
@@ -199,13 +251,66 @@ List<Proposal> results = repository.query(
 );
 ```
 
+## Explicit Relation Loading
+
+Collections are not auto-loaded. Compose relationships explicitly after the base query.
+
+```java
+RelationLoader.attachOneToMany(
+    orders,
+    ids -> lineItemRepository.queryEntity(
+        SqlQuery.fragment("WHERE order_id IN (?, ?)", ids.get(0), ids.get(1)),
+        LineItem.class
+    ),
+    Order::getId,
+    item -> item.getOrder().getId(),
+    Order::setItems
+);
+```
+
+Build `IN` placeholder lists and their values explicitly for variable-size batches.
+Chunk large ID lists according to the target database's parameter limit.
+
+Prefer this explicit pattern over hidden lazy loading.
+
+## Operational Boundaries
+
+- Spring JDBC is a published API dependency because its types are exposed by repository contracts.
+- `insertAll`, `updateAll`, and `deleteAll` use JDBC batching.
+- `saveAll` executes one save per entity to preserve generated-key behavior.
+- Repository and relation helpers do not start transactions. Callers control transaction boundaries.
+
+## Schema Validation
+
+Use `SchemaValidator` in tests or startup validation to catch drift between entity mappings and the real schema:
+
+```java
+SchemaValidator.assertMappings(
+    dataSource,
+    MyEntity.class,
+    OtherEntity.class
+);
+```
+
+It checks:
+- Table existence
+- Required columns derived from getters and annotations
+- Declared primary-key columns and order against database metadata
+- Missing setters for actionable mapped fields
+- Common `@Ref` / `RefValue` configuration mistakes
+- Collection fields are ignored by convention
+
 ## Key Class
 ```java
 Key.of("column_name", 123L)           // Single key
-Key.of("col1", 1L).and("col2", 2L)    // Composite key
+Key.of("external_id", UUID.randomUUID()) // UUID key
+Key.of("code", "customer-one")       // String key
+Key.of("col1", 1L).add("col2", 2L)    // Composite key
 key.primaryKey()                       // Get Pair<String,Long>
+key.primary()                          // Type-neutral Pair<String,Object>
+key.value("external_id", UUID.class)  // Typed value access
 key.count()                            // Number of key parts
-Key.None                               // Empty key constant
+Key.None                               // Immutable empty-key sentinel
 ```
 
 ## Common Patterns
@@ -228,17 +333,21 @@ repository.save(proposal); // INSERT includes sc_key=1
 // For dropdown/display scenarios - stores FK + fetches label
 @Ref(value = "supplier_id", label = "sup_name")
 private RefValue supplierRef;
-// On read: RefValue { value="Acme Corp", ref=Pair("supplier_id", 5) }
+// Generated CRUD reads/writes supplier_id; value is null on a generated base-table read.
+// A custom JOIN selecting sup_name populates the display value:
+// RefValue { value="Acme Corp", ref=Pair("supplier_id", 5) }
 ```
 
 ### Composite Primary Key (Junction Table)
 ```java
-@PrimaryKey("t_key") // One of the composite parts
+@PrimaryKey("t_key")
+@PrimaryKey("pr_key")
 public class ProposalTask extends Model {
     @Ref private Proposal proposal;
     @Ref private Task task;
 }
-// Insert returns Key.None (no auto-generated key)
+// Insert derives and returns Key { t_key, pr_key } from the mapped references.
+// All repository predicates use both key parts.
 ```
 
 ### New vs Existing Entity
@@ -251,10 +360,17 @@ entity.isNew()  // true if getRefs() is null or empty
 ```java
 try {
     repository.save(entity);
-} catch (RuntimeException e) {
-    // Message: "Failed to save entity: ClassName [key=value]"
-    // Wraps underlying JDBC exception
+} catch (DataAccessException e) {
+    // Spring's exception taxonomy is preserved for database failures.
 }
+```
+
+Single-result helpers throw `IllegalStateException` when more than one row matches:
+
+```java
+Optional<MyEntity> one = repository.queryOne(query, MyEntity.class);
+Optional<MySummary> projection = repository.queryProjectionOne(query, MySummary.class);
+Optional<String> scalar = repository.queryRow(query, rowMapper);
 ```
 
 ## Testing Setup
@@ -271,3 +387,11 @@ void setUp() {
 @AfterEach
 void tearDown() { db.shutdown(); }
 ```
+
+## Agent Guidance
+
+- Prefer `queryEntity(...)` for entity reads, `queryProjection(...)` for DTO/record reads, and `queryRow(...)` for scalar/custom row mapping.
+- Keep placeholder values explicit; build `IN` placeholder lists when a batch is variable-sized.
+- Alias projection columns to the DTO/record field names.
+- Do not assume collections are persisted or loaded automatically.
+- When generating startup checks or integration tests, add `SchemaValidator.assertMappings(...)`.

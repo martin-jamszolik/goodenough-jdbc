@@ -508,9 +508,13 @@ class SchemaValidatorAdvancedTest {
       return "";
     }
 
+    public void setMyComplexField(String value) {}
+
     public String getAnotherValue() {
       return "";
     }
+
+    public void setAnotherValue(String value) {}
 
     @Override
     public Key getRefs() {
@@ -531,5 +535,7 @@ class SchemaValidatorAdvancedTest {
     public String getChildName() {
       return "";
     }
+
+    public void setChildName(String value) {}
   }
 }

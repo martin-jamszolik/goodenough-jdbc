@@ -17,7 +17,9 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.springframework.test.util.AssertionErrors.assertTrue;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.viablespark.persistence.*;
 
@@ -36,6 +38,7 @@ public class WithSqlTest {
     assertEquals(
         "sc_key,dist as \"distance\",prop_date,prop_id,proposal_name as \"prop_name\",submit_deadline",
         select);
+    assertFalse(select.contains("tasks"));
 
     String notesSelect = WithSql.getSelectClause(Note.class, "n_key");
     assertEquals(
@@ -51,7 +54,7 @@ public class WithSqlTest {
   @Test
   public void testGetUpdateClause() throws Exception {
     Proposal e = new Proposal();
-    e.setRefs(Key.of("pri_key", 233L));
+    e.setRefs(Key.of("pr_key", 233L));
     e.setDistance(344);
     e.setPropDate(new Date());
     e.setPropId("propId");
@@ -63,7 +66,7 @@ public class WithSqlTest {
     assertNotNull(update);
 
     assertEquals(
-        "SET sc_key=?,dist=?,prop_date=?,prop_id=?,proposal_name=?,submit_deadline=? WHERE pri_key=?",
+        "SET sc_key=?,dist=?,prop_date=?,prop_id=?,proposal_name=?,submit_deadline=? WHERE pr_key=?",
         update.clause());
 
     Exception thrown =
@@ -82,7 +85,7 @@ public class WithSqlTest {
     assertNotNull(update);
 
     assertEquals(
-        "SET some_fake_field=?,long_id=?,po_number_id=?,primitive_id=?,requester=? WHERE id=?",
+        "SET some_fake_field=?,long_id=?,n_key=?,po_number_id=?,primitive_id=?,requester=?,supplier_id=? WHERE id=?",
         update.clause());
   }
 
@@ -96,7 +99,7 @@ public class WithSqlTest {
     assertNotNull(insert);
 
     assertEquals(
-        "(some_fake_field,long_id,po_number_id,primitive_id,requester) VALUES (?,?,?,?,?)",
+        "(some_fake_field,long_id,n_key,po_number_id,primitive_id,requester,supplier_id) VALUES (?,?,?,?,?,?,?)",
         insert.clause());
   }
 
@@ -123,5 +126,140 @@ public class WithSqlTest {
             Exception.class, () -> WithSql.getInsertClause(null), "Should throw Exception");
 
     assertTrue("Should throw", thrown != null);
+  }
+
+  @Test
+  public void testCollectionGetterIgnoredByConvention() throws Exception {
+    var entity = new CollectionHolder();
+    entity.setName("Grouped");
+    entity.setRefs(Key.of("id", 10L));
+    entity.setChildren(List.of(new ProposalTask()));
+
+    assertEquals("name as \"name\"", WithSql.getSelectClause(CollectionHolder.class));
+    assertEquals("(name) VALUES (?)", WithSql.getInsertClause(entity).clause());
+    assertEquals("SET name=? WHERE id=?", WithSql.getUpdateClause(entity).clause());
+  }
+
+  @Test
+  void rejectsEntitiesWithoutMappedPropertiesOrUpdateIdentity() throws Exception {
+    assertThrows(IllegalArgumentException.class, () -> WithSql.getSelectClause(EmptyEntity.class));
+    assertThrows(java.sql.SQLException.class, () -> WithSql.getInsertClause(new EmptyEntity()));
+    assertThrows(java.sql.SQLException.class, () -> WithSql.getUpdateClause(new EmptyEntity()));
+
+    UnkeyedValueEntity valueEntity = new UnkeyedValueEntity();
+    valueEntity.setName("value");
+    assertEquals(Key.None, WithSql.getEntityKey(valueEntity));
+    assertThrows(java.sql.SQLException.class, () -> WithSql.getUpdateClause(valueEntity));
+  }
+
+  @Test
+  void supportsPropertyPrimaryKeysAndChildFieldAnnotationOverrides() throws Exception {
+    PropertyKeyEntity entity = new PropertyKeyEntity();
+    entity.setId(9L);
+    entity.setName("property key");
+
+    assertEquals(List.of("account_id"), WithSql.getPrimaryKeys(PropertyKeyEntity.class));
+    assertEquals("account_id as \"id\",name", WithSql.getSelectClause(PropertyKeyEntity.class));
+    assertEquals("(account_id,name) VALUES (?,?)", WithSql.getInsertClause(entity).clause());
+    assertEquals(Key.of("account_id", 9L), WithSql.getEntityKey(entity));
+    assertEquals("child_name as \"name\"", WithSql.getSelectClause(ChildOverride.class));
+    assertEquals("url", WithSql.getSelectClause(AcronymEntity.class));
+  }
+
+  static class EmptyEntity extends Model {}
+
+  static class UnkeyedValueEntity extends Model {
+    private String name;
+
+    public String getName() {
+      return name;
+    }
+
+    public void setName(String name) {
+      this.name = name;
+    }
+  }
+
+  static class PropertyKeyEntity extends Model {
+    private Long id;
+    private String name;
+
+    @Override
+    @PrimaryKey("account_id")
+    public Long getId() {
+      return id;
+    }
+
+    @Override
+    public void setId(Long id) {
+      this.id = id;
+    }
+
+    public String getName() {
+      return name;
+    }
+
+    public void setName(String name) {
+      this.name = name;
+    }
+  }
+
+  static class ParentOverride extends Model {
+    @Named("parent_name")
+    public String getName() {
+      return null;
+    }
+
+    public void setName(String name) {}
+  }
+
+  static class ChildOverride extends ParentOverride {
+    @Named("child_name")
+    private String name;
+
+    @Override
+    public String getName() {
+      return name;
+    }
+
+    @Override
+    public void setName(String name) {
+      this.name = name;
+    }
+  }
+
+  static class AcronymEntity extends Model {
+    private String url;
+
+    public String getURL() {
+      return url;
+    }
+
+    public void setURL(String url) {
+      this.url = url;
+    }
+  }
+
+  @PrimaryKey("id")
+  static class CollectionHolder extends Model {
+    private String name;
+    private List<ProposalTask> children = new ArrayList<>();
+
+    @Named("name")
+    public String getName() {
+      return name;
+    }
+
+    public void setName(String name) {
+      this.name = name;
+    }
+
+    public List<ProposalTask> getChildren() {
+      return children;
+    }
+
+    public void setChildren(List<ProposalTask> children) {
+      this.children = children;
+    }
   }
 }

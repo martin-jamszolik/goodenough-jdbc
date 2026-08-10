@@ -13,7 +13,7 @@
 
 package org.viablespark.persistence;
 
-import org.viablespark.persistence.dsl.PrimaryKey;
+import org.viablespark.persistence.dsl.WithSql;
 
 public interface Persistable {
   Key getRefs();
@@ -21,21 +21,45 @@ public interface Persistable {
   void setRefs(Key refs);
 
   default Long getId() {
-    if (getRefs() == null || getRefs().count() == 0) {
-      return null;
+    Object identifier = getIdentifier();
+    if (identifier == null || identifier instanceof Long) {
+      return (Long) identifier;
     }
-    return getRefs().primaryKey().getValue();
+    throw new IllegalStateException(
+        "Entity identifier is "
+            + identifier.getClass().getSimpleName()
+            + "; use getIdentifier() for nonnumeric keys");
   }
 
   default void setId(Long value) {
+    setIdentifier(value);
+  }
+
+  default Object getIdentifier() {
     if (getRefs() == null || getRefs().count() == 0) {
-      var pk = this.getClass().getAnnotation(PrimaryKey.class);
-      if (pk != null && !pk.value().isEmpty()) {
-        setRefs(Key.of(pk.value(), value));
-      }
+      return null;
+    }
+    return getRefs().primary().getValue();
+  }
+
+  default <T> T getIdentifier(Class<T> type) {
+    Object identifier = getIdentifier();
+    if (identifier == null) {
+      return null;
+    }
+    if (!type.isInstance(identifier)) {
+      throw new IllegalArgumentException(
+          "Entity identifier is " + identifier.getClass().getName() + ", not " + type.getName());
+    }
+    return type.cast(identifier);
+  }
+
+  default void setIdentifier(Object value) {
+    if (getRefs() == null || getRefs().count() == 0) {
+      WithSql.getPrimaryKey(this.getClass()).ifPresent(pk -> setRefs(Key.of(pk, value)));
       return;
     }
-    getRefs().primaryKey().setValue(value);
+    getRefs().setPrimaryValue(value);
   }
 
   default boolean isNew() {
