@@ -125,6 +125,11 @@ class SchemaValidatorTest {
   }
 
   @Test
+  void validatesQuotedTableNames() {
+    assertDoesNotThrow(() -> SchemaValidator.assertMappings(database, QuotedProposal.class));
+  }
+
+  @Test
   void validatesEntityWithRefAnnotation() {
     assertDoesNotThrow(() -> SchemaValidator.assertMappings(database, ProposalTask.class));
   }
@@ -340,4 +345,8 @@ class SchemaValidatorTest {
       return null;
     }
   }
+
+  @Named("`est_proposal`")
+  @PrimaryKey("pr_key")
+  static class QuotedProposal extends Model {}
 }

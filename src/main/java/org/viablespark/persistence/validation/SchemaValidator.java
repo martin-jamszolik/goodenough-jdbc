@@ -272,7 +272,19 @@ public final class SchemaValidator {
   private record PrimaryKeyMetadata(boolean available, List<String> columns) {}
 
   private static List<String> candidates(String name) {
-    return List.of(name, name.toUpperCase(Locale.ROOT), name.toLowerCase(Locale.ROOT));
+    String identifier = unquoteIdentifier(name);
+    return List.of(
+        identifier, identifier.toUpperCase(Locale.ROOT), identifier.toLowerCase(Locale.ROOT));
+  }
+
+  private static String unquoteIdentifier(String name) {
+    if (name != null
+        && name.length() > 1
+        && ((name.startsWith("`") && name.endsWith("`"))
+            || (name.startsWith("\"") && name.endsWith("\"")))) {
+      return name.substring(1, name.length() - 1);
+    }
+    return name;
   }
 
   private static String resolveTableName(Class<? extends Persistable> entityClass) {
