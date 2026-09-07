@@ -109,6 +109,38 @@ tasks.getByName<Test>("test") {
     useJUnitPlatform()
 }
 
+// Live-database integration tests: consumer-style repositories (e.g. demo) proven
+// against a real engine. This source set is intentionally NOT part of `check` and feeds
+// neither the unit-test task nor the jacoco coverage gate — it proves the mapping, it
+// does not measure it. Run explicitly: ./gradlew integrationTest
+// (requires DEMO_JDBC_URL, DEMO_JDBC_USER, DEMO_JDBC_PASSWORD; aborts otherwise).
+sourceSets {
+    create("integrationTest") {
+        compileClasspath += sourceSets["main"].output
+        runtimeClasspath += sourceSets["main"].output
+    }
+}
+
+configurations.named("integrationTestImplementation") {
+    extendsFrom(configurations.getByName("testImplementation"))
+}
+configurations.named("integrationTestRuntimeOnly") {
+    extendsFrom(configurations.getByName("testRuntimeOnly"))
+}
+
+dependencies {
+    "integrationTestImplementation"("org.mariadb.jdbc:mariadb-java-client:3.5.3")
+}
+
+tasks.register<Test>("integrationTest") {
+    description =
+        "Runs live-database repository tests (requires DEMO_JDBC_* env vars); not part of check."
+    group = "verification"
+    useJUnitPlatform()
+    testClassesDirs = sourceSets["integrationTest"].output.classesDirs
+    classpath = sourceSets["integrationTest"].runtimeClasspath
+}
+
 tasks.jacocoTestReport {
     reports {
         csv.required.set(true)
