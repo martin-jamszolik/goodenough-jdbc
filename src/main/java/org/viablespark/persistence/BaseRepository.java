@@ -100,7 +100,23 @@ public abstract class BaseRepository<E extends Persistable> {
 
   private Optional<Key> updateEntity(E entity) throws Exception {
     WithSql.validateKey(entity.getClass(), entity.getRefs());
-    SqlClause updateClause = WithSql.getUpdateClause(entity);
+    return executeUpdate(entity, WithSql.getUpdateClause(entity));
+  }
+
+  /**
+   * Updates only the selected mapped Java properties. Requires complete identity; selected nulls
+   * write SQL NULL. Callers own authorization, concurrency policy, and transaction boundaries.
+   */
+  public Optional<Key> updateFields(E entity, String... properties) {
+    WithSql.validateKey(entity.getClass(), entity.getRefs());
+    try {
+      return executeUpdate(entity, WithSql.getUpdateClause(entity, properties));
+    } catch (SQLException ex) {
+      throw new RuntimeException("Failed to update entity: " + describeEntity(entity), ex);
+    }
+  }
+
+  private Optional<Key> executeUpdate(E entity, SqlClause updateClause) {
     String sql =
         String.format("UPDATE %s %s", deriveEntityName(entity.getClass()), updateClause.clause());
     if (log.isDebugEnabled()) {

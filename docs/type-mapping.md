@@ -45,9 +45,13 @@ your rules.
 Key components may be integral numbers, `UUID`, or `String` — nothing else,
 enforced by `Key` itself. Two habits follow from this:
 
-1. **Pre-generate assigned keys client-side.** `UUID.randomUUID()`, set it, then
-   `save()`. A fully-specified key is used as-is; the library only asks the
-   database for generated keys when you haven't supplied one.
+1. **Pre-generate assigned keys client-side.** Set `UUID.randomUUID()` on the
+   insertable mapped key property, leaving refs empty, then `save()`. The insert
+   path derives a complete assigned key from mapped properties without requesting
+   generated keys. Do not use `setIdentifier`/`setRefs` for a new row: those set
+   identity and make `save()` choose UPDATE. `@Write(updatable = false)` can keep
+   an assigned key insertable while excluding it from full updates; see
+   [partial writes](partial-writes.md).
 2. **Use `getIdentifier()`, not `getId()`, for non-numeric keys.**
    `getId()` throws for UUID/String identifiers *on purpose* — it's a
    `Long`-shaped convenience, and pretending otherwise would just move the

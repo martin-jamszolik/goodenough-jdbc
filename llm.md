@@ -37,6 +37,8 @@ public class MyEntity extends Model {
 - Repeat `@PrimaryKey` on the entity for every composite-key column, in database key order
 - Mapped getters/fields are inherited; the nearest annotated class supplies table and key metadata
 - Saving a null `@Ref` writes SQL `NULL` rather than leaving the previous foreign key unchanged
+- `@Write(insertable = true, updatable = true)` controls generated writes only; fields/getters
+  remain readable and schema-validated. Use false flags for database-managed or insert-only values.
 - Collection-valued getters are ignored by generated select/insert/update SQL by convention
 - `Model` provides `Key getRefs()/setRefs()` and numeric `Long getId()/setId()` conveniences
 - Use `getIdentifier()`, `Key.value(...)`, or typed variants for UUID and String identifiers
@@ -78,6 +80,10 @@ Optional<MyEntity> found = repository.get(Key.of("pk_column", 1L), MyEntity.clas
 // UPDATE - automatic when entity has refs set
 found.get().setName("Updated");
 repository.save(found.get()); // updates because isNew() == false
+
+// Selected UPDATE: complete refs required; Java property names, not column names.
+repository.updateFields(found.get(), "name", "other");
+// Selected null writes NULL; unselected values are untouched and need not be loaded.
 
 // DELETE
 repository.delete(entity); // uses entity.getRefs()
@@ -355,6 +361,17 @@ public class ProposalTask extends Model {
 entity.isNew()  // true if getRefs() is null or empty
 // save() calls INSERT if isNew(), UPDATE otherwise
 ```
+
+For assigned inserts, set the insertable mapped key property, leaving refs empty.
+Insert-excluded key properties never supply assigned or fallback insertion identity.
+`setIdentifier`/`setRefs` makes `save` choose UPDATE, even for a row not yet inserted.
+`updateFields` always updates and rejects empty/invalid/duplicate selections, keys,
+skipped/collection/non-updatable properties, and incomplete identity before JDBC.
+All generated write paths honor `@Write`; no-eligible-column operations fail.
+No read-before-write or automatic refresh occurs. Independent narrow entities can
+map fixed table slices; subclasses still inherit all mapped properties.
+Consumers own authorization, tenancy, concurrency and transactions.
+See [partial writes](docs/partial-writes.md) for semantics and verification.
 
 ## Error Handling
 ```java

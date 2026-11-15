@@ -103,9 +103,8 @@ public class Member extends Model {
     private Team team;                        // team_id -> team.team_id, single-column FK.
                                               // Stores the key only. Null member writes SQL NULL.
 
-    private java.time.LocalDateTime createdAt; // has a DB default: map it AND always
-                                              // supply it on insert, or @Skip it
-                                              // (knowing skipped columns are never read either).
+    @Write(insertable = false, updatable = false)
+    private java.time.LocalDateTime createdAt; // DB-managed, but still readable.
 
     // Getters and setters for everything mapped. No exceptions —
     // the validator will fail you on a missing setter, and it will be right.
@@ -113,6 +112,10 @@ public class Member extends Model {
 ```
 
 A few transcription rules that save real debugging sessions:
+
+- **Database-managed columns can stay readable.** Use `@Write` to omit them from
+  generated inserts/updates, not `@Skip` (which also excludes reads). Read explicitly
+  after saving when you need defaults; see [partial writes](partial-writes.md).
 
 - **Annotate every name that isn't plain camelCase→snake_case.** Especially
   acronyms — `getURLValue` does not map to `url_value`, and the database will

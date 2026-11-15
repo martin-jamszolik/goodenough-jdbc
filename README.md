@@ -97,6 +97,8 @@ Modern ORM frameworks like [KTorm](https://www.ktorm.org/), [Django](https://doc
 - Designed for **manual SQL control** where necessary.
 - Collection-valued relationships are ignored by convention and loaded explicitly.
 - Schema validation helpers for catching mapping drift early.
+- [Partial writes](docs/partial-writes.md): `updateFields(entity, "property")` and
+  `@Write(insertable = false, updatable = false)` for readable database-managed columns.
 
 ## Not All Batteries Included
 

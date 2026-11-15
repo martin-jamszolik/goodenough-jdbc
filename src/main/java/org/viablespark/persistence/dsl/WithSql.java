@@ -82,8 +82,44 @@ public final class WithSql {
   }
 
   public static SqlClause getUpdateClause(Persistable entity) throws SQLException {
+    return createUpdateClause(entity, operationGetters(entity.getClass(), false));
+  }
+
+  /** Builds an update from Java property names, never from caller-supplied SQL identifiers. */
+  public static SqlClause getUpdateClause(Persistable entity, String... properties)
+      throws SQLException {
+    Class<?> cls = entity.getClass();
+    validateKey(cls, entity.getRefs());
+    if (properties == null || properties.length == 0) {
+      throw new IllegalArgumentException("An update requires a nonempty property selection");
+    }
+    Map<String, Method> eligible = new LinkedHashMap<>();
+    for (Method method : operationGetters(cls, false)) {
+      Optional<String> column = deriveName(method, cls);
+      if (column.isPresent()
+          && getPrimaryKeys(cls).stream().noneMatch(column.orElseThrow()::equalsIgnoreCase)
+          && entity.getRefs().parts().stream()
+              .noneMatch(part -> part.getKey().equalsIgnoreCase(column.orElseThrow()))) {
+        eligible.put(propertyName(method), method);
+      }
+    }
+    Set<String> seen = new LinkedHashSet<>();
+    List<Method> selected = new ArrayList<>();
+    for (String property : properties) {
+      if (property == null || property.isBlank() || !eligible.containsKey(property)) {
+        throw new IllegalArgumentException("Not an updatable non-key property: " + property);
+      }
+      if (!seen.add(property)) {
+        throw new IllegalArgumentException("Duplicate update property: " + property);
+      }
+      selected.add(eligible.get(property));
+    }
+    return createUpdateClause(entity, selected);
+  }
+
+  private static SqlClause createUpdateClause(Persistable entity, List<Method> methods)
+      throws SQLException {
     try {
-      List<Method> methods = writableGetters(entity.getClass());
       StringBuilder sql = new StringBuilder("SET ");
       List<Object> answers = new ArrayList<>(methods.size() + entity.getRefs().count());
       for (Method method : methods) {
@@ -108,7 +144,7 @@ public final class WithSql {
 
   public static SqlClause getInsertClause(Persistable entity) throws SQLException {
     try {
-      List<Method> methods = writableGetters(entity.getClass());
+      List<Method> methods = operationGetters(entity.getClass(), true);
       List<String> columnNames = new ArrayList<>(methods.size());
       List<Object> answers = new ArrayList<>(methods.size());
       for (Method method : methods) {
@@ -131,7 +167,7 @@ public final class WithSql {
     }
   }
 
-  /** Derives an assigned/composite key from properties that map to declared key columns. */
+  /** Derives an assigned/composite insertion key from insert-eligible mapped properties. */
   public static Key getEntityKey(Persistable entity) throws Exception {
     List<String> primaryKeys = getPrimaryKeys(entity.getClass());
     if (primaryKeys.isEmpty()) {
@@ -139,7 +175,7 @@ public final class WithSql {
     }
 
     Map<String, Object> valuesByColumn = new LinkedHashMap<>();
-    for (Method method : writableGetters(entity.getClass())) {
+    for (Method method : operationGetters(entity.getClass(), true)) {
       Optional<String> column = deriveName(method, entity.getClass());
       if (column.isPresent()) {
         valuesByColumn.put(column.orElseThrow(), deriveValue(method, entity));
@@ -165,6 +201,16 @@ public final class WithSql {
             method ->
                 !method.getReturnType().equals(RefValue.class)
                     || validRefValue(method, cls).isPresent())
+        .toList();
+  }
+
+  private static List<Method> operationGetters(Class<?> cls, boolean insert) {
+    return writableGetters(cls).stream()
+        .filter(
+            method ->
+                getAnnotation(method, cls, Write.class)
+                    .map(write -> insert ? write.insertable() : write.updatable())
+                    .orElse(true))
         .toList();
   }
 
