@@ -33,7 +33,7 @@ public class MyEntity extends Model {
 - `@Named` on class = table name; on field/getter = column name
 - Default column mapping: `camelCase` → `snake_case`
 - `@Ref` on `Persistable` type = foreign key reference (stores only the key)
-- `@Ref` on `RefValue` = foreign key with label lookup (value + display text)
+- `@Ref` on `RefValue` = foreign key value with optional display metadata; no automatic label lookup
 - Repeat `@PrimaryKey` on the entity for every composite-key column, in database key order
 - Mapped getters/fields are inherited; the nearest annotated class supplies table and key metadata
 - Saving a null `@Ref` writes SQL `NULL` rather than leaving the previous foreign key unchanged
@@ -336,13 +336,49 @@ repository.save(proposal); // INSERT includes sc_key=1
 
 ### Foreign Key with Label (RefValue)
 ```java
-// For dropdown/display scenarios - stores FK + fetches label
+// Sole mapping of supplier_id; no separate scalar supplierId is needed.
 @Ref(value = "supplier_id", label = "sup_name")
 private RefValue supplierRef;
-// Generated CRUD reads/writes supplier_id; value is null on a generated base-table read.
-// A custom JOIN selecting sup_name populates the display value:
-// RefValue { value="Acme Corp", ref=Pair("supplier_id", 5) }
 ```
+
+`RefValue` is a first-class FK value, not a loaded related entity:
+- `@Ref.value` is the sole persistence column. Insert/update bind
+  `referenceValue()` (the FK), never `getValue()` (the display label). The column
+  name carried inside the reference does not override the annotation.
+- Generated base-table reads select the FK only. A non-null FK produces a usable
+  `RefValue` even without the label column; `getValue()` is then null.
+  An explicit joined query mapped with `PersistableRowMapper` can supply the
+  configured label column/alias. A SQL NULL FK maps to a null property.
+- Both annotation attributes (`value` and `label`) must be nonblank for row
+  mapping, even though the label column may be absent from the result set.
+  Optional metadata does not mean an optional annotation name. `SchemaValidator`
+  rejects exactly one blank attribute, but currently accepts both blank; it
+  does not fully enforce this row-mapping requirement.
+- A null reference (or a reference with no FK value) writes SQL NULL when that
+  property is included in the write; the database still enforces nullability.
+- Labels never trigger joins, cascades, or writes to the referenced table.
+  Saving an unchanged entity still issues an UPDATE, not a dirty-checked no-op;
+  a missing or changed label does not change the persisted FK.
+
+For example, this Kotlin property can replace both a scalar `certId` and a
+skipped certificate display property:
+
+```kotlin
+@field:Ref(value = "cert_id", label = "certificate_name")
+var certificate: RefValue? = null
+```
+
+Do not also map a writable scalar property to `cert_id`. Current SQL generation
+does **not** provide a dedicated duplicate-column mapping diagnostic, and
+`SchemaValidator` does not reject such duplication; do not assume that proposed
+safeguard already exists. Prefer one authoritative mapped property. When
+refactoring an application, update callers and verify its serialization/API
+contracts rather than retaining duplicate writable state.
+
+Verification anchors: `ReferenceCrudTest` covers reference-only insert, base and
+joined reads, and clearing nullable FKs; `PersistableRowMapperTest` and
+`PersistableRowMapperLabelTest` cover label mapping. When changing this contract,
+also test non-null FK updates and unchanged saves explicitly.
 
 ### Composite Primary Key (Junction Table)
 ```java
