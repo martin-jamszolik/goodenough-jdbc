@@ -32,10 +32,84 @@ public final class SqlQueryValidator {
     }
     int count = 0;
     for (int i = 0; i < sql.length(); i++) {
-      if (sql.charAt(i) == '?') {
-        count++;
+      char current = sql.charAt(i);
+      if (current == '\'' || current == '"') {
+        i = skipQuoted(sql, i, current);
+      } else if (current == '-' && hasNext(sql, i, '-')) {
+        int newline = sql.indexOf('\n', i + 2);
+        if (newline < 0) {
+          break;
+        }
+        i = newline;
+      } else if (current == '/' && hasNext(sql, i, '*')) {
+        i = skipBlockComment(sql, i);
+      } else if (current == '$') {
+        String delimiter = dollarQuoteDelimiter(sql, i);
+        if (delimiter != null) {
+          int end = sql.indexOf(delimiter, i + delimiter.length());
+          if (end < 0) {
+            break;
+          }
+          i = end + delimiter.length() - 1;
+        }
+      } else if (current == '?') {
+        if (hasNext(sql, i, '?')) {
+          i++;
+        } else if (!hasNext(sql, i, '|') && !hasNext(sql, i, '&')) {
+          count++;
+        }
       }
     }
     return count;
+  }
+
+  private static int skipQuoted(String sql, int start, char quote) {
+    for (int i = start + 1; i < sql.length(); i++) {
+      if (sql.charAt(i) == '\\' && i + 1 < sql.length()) {
+        i++;
+      } else if (sql.charAt(i) == quote) {
+        if (hasNext(sql, i, quote)) {
+          i++;
+        } else {
+          return i;
+        }
+      }
+    }
+    return sql.length() - 1;
+  }
+
+  private static int skipBlockComment(String sql, int start) {
+    int depth = 1;
+    for (int i = start + 2; i < sql.length() - 1; i++) {
+      if (sql.charAt(i) == '/' && hasNext(sql, i, '*')) {
+        depth++;
+        i++;
+      } else if (sql.charAt(i) == '*' && hasNext(sql, i, '/')) {
+        depth--;
+        if (depth == 0) {
+          return i + 1;
+        }
+        i++;
+      }
+    }
+    return sql.length() - 1;
+  }
+
+  private static String dollarQuoteDelimiter(String sql, int start) {
+    int end = sql.indexOf('$', start + 1);
+    if (end < 0) {
+      return null;
+    }
+    for (int i = start + 1; i < end; i++) {
+      char character = sql.charAt(i);
+      if (!Character.isLetterOrDigit(character) && character != '_') {
+        return null;
+      }
+    }
+    return sql.substring(start, end + 1);
+  }
+
+  private static boolean hasNext(String sql, int index, char expected) {
+    return index + 1 < sql.length() && sql.charAt(index + 1) == expected;
   }
 }

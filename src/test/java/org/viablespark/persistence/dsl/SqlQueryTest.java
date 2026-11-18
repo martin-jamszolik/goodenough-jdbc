@@ -14,6 +14,8 @@
 package org.viablespark.persistence.dsl;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Date;
@@ -30,6 +32,38 @@ public class SqlQueryTest {
 
     String result = q.sql();
     assertEquals("WHERE pri_key=? AND sec_date >=?", result);
+  }
+
+  @Test
+  public void testComposedQueryDefaultsToFragment() {
+    SqlQuery query = new SqlQuery().where("id = ?", 1);
+
+    assertEquals(SqlQuery.Kind.FRAGMENT, query.kind());
+    assertTrue(query.isFragment());
+    assertFalse(query.isStatement());
+  }
+
+  @Test
+  public void testStatementBuildingMethodsMarkComposedQueryAsStatement() {
+    SqlQuery[] queries = {
+      new SqlQuery().select("SELECT id"),
+      new SqlQuery().selectColumns("id"),
+      new SqlQuery().selectDistinct("id")
+    };
+
+    for (SqlQuery query : queries) {
+      assertEquals(SqlQuery.Kind.STATEMENT, query.kind());
+      assertFalse(query.isFragment());
+      assertTrue(query.isStatement());
+    }
+  }
+
+  @Test
+  public void testFromAloneIsNotACompleteStatement() {
+    SqlQuery query = new SqlQuery().from("users");
+
+    assertTrue(query.isFragment());
+    assertFalse(query.isStatement());
   }
 
   @Test
@@ -140,6 +174,20 @@ public class SqlQueryTest {
     assertEquals(1, q.values().length);
     assertEquals(123, q.values()[0]);
     assertTrue(q.isRaw());
+    assertTrue(q.isFragment());
+    assertTrue(q.isStatement());
+    assertEquals(SqlQuery.Kind.RAW, q.kind());
+  }
+
+  @Test
+  public void testRawFactoriesSetExplicitKinds() {
+    SqlQuery fragment = SqlQuery.fragment("WHERE id = ?", 123);
+    SqlQuery statement = SqlQuery.statement("SELECT * FROM users WHERE id = ?", 123);
+
+    assertEquals(SqlQuery.Kind.FRAGMENT, fragment.kind());
+    assertTrue(fragment.isFragment());
+    assertEquals(SqlQuery.Kind.STATEMENT, statement.kind());
+    assertTrue(statement.isStatement());
   }
 
   @Test
@@ -153,6 +201,23 @@ public class SqlQueryTest {
     SqlQuery q = new SqlQuery().condition("status IN (?, ?)", "active", "pending");
     assertEquals("WHERE status IN (?, ?)", q.sql());
     assertEquals(2, q.values().length);
+  }
+
+  @Test
+  public void testConditionUsesAndAfterExistingCondition() {
+    SqlQuery query =
+        new SqlQuery().condition("status = ?", "active").condition("category = ?", "internal");
+
+    assertEquals("WHERE status = ? AND category = ?", query.sql());
+    assertEquals(2, query.values().length);
+  }
+
+  @Test
+  public void testConditionUsesAndAfterWhere() {
+    SqlQuery query =
+        new SqlQuery().where("status = ?", "active").condition("category = ?", "internal");
+
+    assertEquals("WHERE status = ? AND category = ?", query.sql());
   }
 
   @Test
@@ -173,9 +238,10 @@ public class SqlQueryTest {
   }
 
   @Test
-  public void testNullValuesSanitization() {
+  public void testSingleNullValueIsPreserved() {
     SqlQuery q = new SqlQuery().where("id IS NOT NULL").andWhere("status=?", new Object[] {null});
-    assertEquals(0, q.values().length);
+    assertEquals(1, q.values().length);
+    assertEquals(null, q.values()[0]);
   }
 
   @Test
@@ -205,6 +271,24 @@ public class SqlQueryTest {
   }
 
   @Test
+  public void testInvalidSelectColumnsBlank() {
+    IllegalArgumentException thrown =
+        assertThrows(
+            IllegalArgumentException.class, () -> new SqlQuery().selectColumns("id", "  "));
+
+    assertEquals("Select columns must not be blank", thrown.getMessage());
+  }
+
+  @Test
+  public void testInvalidSelectColumnsNullEntry() {
+    IllegalArgumentException thrown =
+        assertThrows(
+            IllegalArgumentException.class, () -> new SqlQuery().selectColumns("id", null));
+
+    assertEquals("Select columns must not be blank", thrown.getMessage());
+  }
+
+  @Test
   public void testInvalidSelectDistinctEmpty() {
     try {
       new SqlQuery().selectDistinct();
@@ -212,6 +296,15 @@ public class SqlQueryTest {
     } catch (IllegalArgumentException e) {
       assertEquals("At least one column must be specified", e.getMessage());
     }
+  }
+
+  @Test
+  public void testInvalidSelectDistinctBlank() {
+    IllegalArgumentException thrown =
+        assertThrows(
+            IllegalArgumentException.class, () -> new SqlQuery().selectDistinct("category", ""));
+
+    assertEquals("Select columns must not be blank", thrown.getMessage());
   }
 
   @Test

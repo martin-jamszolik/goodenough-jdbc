@@ -20,6 +20,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.springframework.test.util.AssertionErrors.assertTrue;
 
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -29,6 +30,9 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.embedded.EmbeddedDatabase;
 import org.springframework.jdbc.datasource.embedded.EmbeddedDatabaseBuilder;
 import org.springframework.jdbc.support.rowset.SqlRowSet;
+import org.viablespark.persistence.dsl.Named;
+import org.viablespark.persistence.dsl.PrimaryKey;
+import org.viablespark.persistence.dsl.Ref;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class PersistableRowMapperTest {
@@ -40,7 +44,11 @@ class PersistableRowMapperTest {
     var f = PersistableRowMapper.of(Contractor.class);
     var jdbc = new JdbcTemplate(db);
     var rowSet = jdbc.queryForRowSet("select * from contractor order by sc_key asc");
-    List<Contractor> resultSet = jdbc.query("select * from contractor order by sc_key asc", f);
+    List<Contractor> resultSet = new ArrayList<>();
+    var mappedRows = jdbc.queryForRowSet("select * from contractor order by sc_key asc");
+    while (mappedRows.next()) {
+      resultSet.add(f.mapRow(mappedRows, mappedRows.getRow()));
+    }
     while (rowSet.next()) {
       Contractor contractor = f.mapRow(rowSet, rowSet.getRow());
       assertEquals(contractor.getRefs(), resultSet.get(rowSet.getRow() - 1).getRefs());
@@ -63,14 +71,13 @@ class PersistableRowMapperTest {
     var sql =
         "select sc_key, sc_name as name, contact, phone1, fax, email from contractor c order by sc_key asc";
 
-    List<Contractor> list = jdbc.query(sql, f);
-
-    try (var statement = db.getConnection().prepareStatement(sql)) {
-      var rs = statement.executeQuery();
-      rs.next();
-      Contractor entity = f.mapRow(rs, rs.getRow());
-      assertEquals(entity.getRefs(), list.get(rs.getRow() - 1).getRefs());
+    List<Contractor> list = new ArrayList<>();
+    var rowSet = jdbc.queryForRowSet(sql);
+    while (rowSet.next()) {
+      list.add(f.mapRow(rowSet, rowSet.getRow()));
     }
+
+    assertEquals(list.get(0).getRefs(), Key.of("sc_key", 1L));
   }
 
   @Test
@@ -117,15 +124,17 @@ class PersistableRowMapperTest {
   }
 
   @Test
-  public void testMissingLabelColumnForRefValueThrowsException() throws Exception {
+  public void testMissingLabelColumnForRefValueLeavesLabelNull() throws Exception {
     var mapper = PersistableRowMapper.of(PurchaseOrder.class);
     String sql = "select id, n_key, supplier_id from purchase_order";
     try (var conn = db.getConnection();
         var stmt = conn.prepareStatement(sql)) {
       var rs = stmt.executeQuery();
       rs.next();
-      SQLException ex = assertThrows(SQLException.class, () -> mapper.mapRow(rs, rs.getRow()));
-      org.junit.jupiter.api.Assertions.assertTrue(ex.getMessage().contains("sup_name"));
+      PurchaseOrder order = mapper.mapRow(rs, rs.getRow());
+      assertNotNull(order.getSupplierRef());
+      assertEquals(1L, order.getSupplierRef().getRef().getValue());
+      assertNull(order.getSupplierRef().getValue());
     }
   }
 
@@ -158,6 +167,23 @@ class PersistableRowMapperTest {
   }
 
   @Test
+  public void testNullForeignKeysRemainNull() {
+    var mapper = PersistableRowMapper.of(NullableRefsEntity.class);
+    var jdbc = new JdbcTemplate(db);
+
+    NullableRefsEntity entity =
+        jdbc.queryForObject(
+            "SELECT 1 AS entity_id, CAST(NULL AS BIGINT) AS related_id, "
+                + "CAST(NULL AS BIGINT) AS lookup_id, CAST(NULL AS VARCHAR(20)) AS lookup_label "
+                + "FROM (VALUES(0))",
+            mapper::mapRow);
+
+    assertNotNull(entity);
+    assertNull(entity.getRelated());
+    assertNull(entity.getLookup());
+  }
+
+  @Test
   public void testTypeConversionLongToInt() throws Exception {
     var mapper = PersistableRowMapper.of(Contractor.class);
     var jdbc = new JdbcTemplate(db);
@@ -166,6 +192,23 @@ class PersistableRowMapperTest {
     if (rowSet.next()) {
       Contractor c = mapper.mapRow(rowSet, rowSet.getRow());
       assertNotNull(c);
+    }
+  }
+
+  @Test
+  public void testTypeConversionNumericToBoolean() throws Exception {
+    var mapper = PersistableRowMapper.of(BooleanValueEntity.class);
+    try (var conn = db.getConnection();
+        var stmt =
+            conn.prepareStatement(
+                "select sc_key as id, 1 as active, 0 as enabled from contractor limit 1")) {
+      var rs = stmt.executeQuery();
+      rs.next();
+
+      BooleanValueEntity entity = mapper.mapRow(rs, rs.getRow());
+
+      assertTrue("active should map to true", entity.isActive());
+      org.junit.jupiter.api.Assertions.assertFalse(entity.getEnabled());
     }
   }
 
@@ -203,8 +246,9 @@ class PersistableRowMapperTest {
         var stmt = conn.prepareStatement(sql)) {
       var rs = stmt.executeQuery();
       rs.next();
-      // Should throw because sup_name is missing
-      assertThrows(SQLException.class, () -> mapper.mapRow(rs, rs.getRow()));
+      PurchaseOrder order = mapper.mapRow(rs, rs.getRow());
+      assertNotNull(order.getSupplierRef());
+      assertNull(order.getSupplierRef().getValue());
     }
   }
 
@@ -216,6 +260,28 @@ class PersistableRowMapperTest {
     assertNotNull(mapper1);
     assertNotNull(mapper2);
     // Both should work correctly
+  }
+
+  @PrimaryKey("id")
+  public static class BooleanValueEntity extends Model {
+    private boolean active;
+    private Boolean enabled;
+
+    public boolean isActive() {
+      return active;
+    }
+
+    public void setActive(boolean active) {
+      this.active = active;
+    }
+
+    public Boolean getEnabled() {
+      return enabled;
+    }
+
+    public void setEnabled(Boolean enabled) {
+      this.enabled = enabled;
+    }
   }
 
   @Test
@@ -267,11 +333,43 @@ class PersistableRowMapperTest {
     var jdbc = new JdbcTemplate(db);
 
     // Test data has 2 contractors
-    List<Contractor> contractors = jdbc.query("select * from contractor order by sc_key", mapper);
+    List<Contractor> contractors = new ArrayList<>();
+    var rowSet = jdbc.queryForRowSet("select * from contractor order by sc_key");
+    while (rowSet.next()) {
+      contractors.add(mapper.mapRow(rowSet, rowSet.getRow()));
+    }
     assertEquals(2, contractors.size());
     assertEquals("Mr Contractor", contractors.get(0).getName());
     assertEquals("ABC Contractor Inc", contractors.get(1).getName());
   }
+
+  @PrimaryKey("entity_id")
+  public static class NullableRefsEntity extends Model {
+    private NullableRelatedEntity related;
+    private RefValue lookup;
+
+    @Ref
+    @Named("related_id")
+    public NullableRelatedEntity getRelated() {
+      return related;
+    }
+
+    public void setRelated(NullableRelatedEntity related) {
+      this.related = related;
+    }
+
+    @Ref(value = "lookup_id", label = "lookup_label")
+    public RefValue getLookup() {
+      return lookup;
+    }
+
+    public void setLookup(RefValue lookup) {
+      this.lookup = lookup;
+    }
+  }
+
+  @PrimaryKey("related_id")
+  public static class NullableRelatedEntity extends Model {}
 
   @BeforeEach
   public void setUp() {

@@ -14,6 +14,7 @@ package org.viablespark.persistence;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -91,7 +92,9 @@ class PersistableRowMapperLabelTest {
             WHERE purchase_order.id = 1
         """;
 
-    var po = jdbc.queryForObject(sql, mapper);
+    var rowSet = jdbc.queryForRowSet(sql);
+    assertTrue(rowSet.next());
+    var po = mapper.mapRow(rowSet, rowSet.getRow());
 
     assertNotNull(po);
     assertEquals("Mr. Requester", po.getRequester());

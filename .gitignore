@@ -5,6 +5,7 @@ bin/
 !**/src/test/**/target/
 .gradle
 *.orig
+.codex
 
 ### IntelliJ IDEA ###
 .idea
@@ -41,3 +42,7 @@ build/
 
 ### Mac OS ###
 .DS_Store
+
+### Local secrets (never commit) ###
+.env
+.direnv/

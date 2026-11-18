@@ -19,6 +19,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.function.Executable;
+import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.embedded.EmbeddedDatabase;
 import org.springframework.jdbc.datasource.embedded.EmbeddedDatabaseBuilder;
@@ -88,8 +89,8 @@ public class ContractorRepositoryTest {
     Executable executable = () -> repository.save(contractor);
     Exception thrownException = assertThrows(RuntimeException.class, executable);
     assertTrue(
-        thrownException.getMessage().contains("Failed to save entity"),
-        "Exception message should indicate a not-null constraint violation");
+        thrownException instanceof DataAccessException,
+        "Spring's data-access exception type should be preserved");
   }
 
   public static class ContractorRepository extends BaseRepository<Contractor> {

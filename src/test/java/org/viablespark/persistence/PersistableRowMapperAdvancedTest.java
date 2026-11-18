@@ -38,7 +38,7 @@ class PersistableRowMapperAdvancedTest {
     when(metaData.getColumnCount()).thenReturn(2);
     when(metaData.getColumnLabel(1)).thenReturn("id");
     when(metaData.getColumnLabel(2)).thenReturn("name");
-    when(rs.getLong(1)).thenReturn(1L);
+    when(rs.getObject(1)).thenReturn(1L);
     when(rs.getString(2)).thenReturn("Test");
     when(rs.getObject(2)).thenReturn("Test");
 
@@ -61,7 +61,7 @@ class PersistableRowMapperAdvancedTest {
     when(metaData.getColumnCount()).thenReturn(2);
     when(metaData.getColumnLabel(1)).thenReturn("id");
     when(metaData.getColumnLabel(2)).thenReturn("created_date");
-    when(rs.getLong(1)).thenReturn(1L);
+    when(rs.getObject(1)).thenReturn(1L);
 
     Timestamp timestamp = Timestamp.valueOf(LocalDateTime.of(2024, 1, 15, 10, 30));
     when(rs.getObject(2)).thenReturn(timestamp);
@@ -82,7 +82,7 @@ class PersistableRowMapperAdvancedTest {
     when(metaData.getColumnCount()).thenReturn(2);
     when(metaData.getColumnLabel(1)).thenReturn("id");
     when(metaData.getColumnLabel(2)).thenReturn("created_date");
-    when(rs.getLong(1)).thenReturn(1L);
+    when(rs.getObject(1)).thenReturn(1L);
     when(rs.getObject(2)).thenReturn(null);
     when(rs.wasNull()).thenReturn(true);
 
@@ -100,7 +100,7 @@ class PersistableRowMapperAdvancedTest {
     when(rs.getMetaData()).thenReturn(metaData);
     when(metaData.getColumnCount()).thenReturn(1);
     when(metaData.getColumnLabel(1)).thenReturn("id");
-    when(rs.getLong(1)).thenReturn(1L);
+    when(rs.getObject(1)).thenReturn(1L);
     when(rs.wasNull()).thenReturn(false);
 
     // Missing label in @Ref should cause SQLException
@@ -126,6 +126,20 @@ class PersistableRowMapperAdvancedTest {
   }
 
   @Test
+  void rejectsNullPrimaryKeyValue() throws SQLException {
+    var mapper = PersistableRowMapper.of(TestEntityWithPK.class);
+    ResultSet rs = mock(ResultSet.class);
+    ResultSetMetaData metaData = mock(ResultSetMetaData.class);
+    when(rs.getMetaData()).thenReturn(metaData);
+    when(metaData.getColumnCount()).thenReturn(1);
+    when(metaData.getColumnLabel(1)).thenReturn("id");
+    when(rs.getObject(1)).thenReturn(null);
+
+    SQLException thrown = assertThrows(SQLException.class, () -> mapper.mapRow(rs, 1));
+    assertTrue(thrown.getMessage().contains("was null"));
+  }
+
+  @Test
   void handlesMissingRefColumn() throws SQLException {
     var mapper = PersistableRowMapper.of(EntityWithRef.class);
     ResultSet rs = mock(ResultSet.class);
@@ -134,7 +148,7 @@ class PersistableRowMapperAdvancedTest {
     when(rs.getMetaData()).thenReturn(metaData);
     when(metaData.getColumnCount()).thenReturn(1);
     when(metaData.getColumnLabel(1)).thenReturn("id");
-    when(rs.getLong(1)).thenReturn(1L);
+    when(rs.getObject(1)).thenReturn(1L);
     when(rs.wasNull()).thenReturn(false);
 
     // Missing foreign key column should cause SQLException
@@ -151,7 +165,7 @@ class PersistableRowMapperAdvancedTest {
     when(rs.getMetaData()).thenReturn(metaData);
     when(metaData.getColumnCount()).thenReturn(1);
     when(metaData.getColumnLabel(1)).thenReturn("id");
-    when(rs.getLong(1)).thenReturn(1L);
+    when(rs.getObject(1)).thenReturn(1L);
     when(rs.wasNull()).thenReturn(false);
 
     SQLException thrown = assertThrows(SQLException.class, () -> mapper.mapRow(rs, 1));
@@ -173,7 +187,7 @@ class PersistableRowMapperAdvancedTest {
     when(mockMetaData.getColumnLabel(2)).thenReturn("name");
 
     // Simulate exception when accessing data
-    when(mockRowSet.getLong(anyInt())).thenThrow(new RuntimeException("Database error"));
+    when(mockRowSet.getObject(anyInt())).thenThrow(new RuntimeException("Database error"));
 
     RuntimeException thrown =
         assertThrows(RuntimeException.class, () -> mapper.mapRow(mockRowSet, 1));
@@ -190,7 +204,7 @@ class PersistableRowMapperAdvancedTest {
     when(metaData.getColumnCount()).thenReturn(2);
     when(metaData.getColumnLabel(1)).thenReturn("id");
     when(metaData.getColumnLabel(2)).thenReturn("count");
-    when(rs.getLong(1)).thenReturn(1L);
+    when(rs.getObject(1)).thenReturn(1L);
     when(rs.getObject(2)).thenReturn(42L); // Long value for integer field
     when(rs.wasNull()).thenReturn(false);
 
@@ -209,7 +223,7 @@ class PersistableRowMapperAdvancedTest {
     when(metaData.getColumnCount()).thenReturn(2);
     when(metaData.getColumnLabel(1)).thenReturn("id");
     when(metaData.getColumnLabel(2)).thenReturn("count");
-    when(rs.getLong(1)).thenReturn(1L);
+    when(rs.getObject(1)).thenReturn(1L);
     when(rs.getObject(2)).thenReturn(Long.MAX_VALUE); // Value too large for int
     when(rs.wasNull()).thenReturn(false);
 
@@ -227,7 +241,7 @@ class PersistableRowMapperAdvancedTest {
     when(metaData.getColumnCount()).thenReturn(2);
     when(metaData.getColumnLabel(1)).thenReturn("id");
     when(metaData.getColumnLabel(2)).thenReturn("custom_ref_id");
-    when(rs.getLong(1)).thenReturn(1L);
+    when(rs.getObject(1)).thenReturn(1L);
     when(rs.getLong(2)).thenReturn(99L);
     when(rs.wasNull()).thenReturn(false);
 
@@ -253,7 +267,7 @@ class PersistableRowMapperAdvancedTest {
     when(metaData.getColumnCount()).thenReturn(2);
     when(metaData.getColumnLabel(1)).thenReturn("id");
     when(metaData.getColumnLabel(2)).thenReturn("created_date");
-    when(rs.getLong(1)).thenReturn(1L);
+    when(rs.getObject(1)).thenReturn(1L);
 
     java.sql.Date sqlDate = java.sql.Date.valueOf("2024-01-15");
     when(rs.getObject(2)).thenReturn(sqlDate);
@@ -274,7 +288,7 @@ class PersistableRowMapperAdvancedTest {
     when(metaData.getColumnCount()).thenReturn(2);
     when(metaData.getColumnLabel(1)).thenReturn("id");
     when(metaData.getColumnLabel(2)).thenReturn("created_date");
-    when(rs.getLong(1)).thenReturn(1L);
+    when(rs.getObject(1)).thenReturn(1L);
 
     LocalDate localDate = LocalDate.of(2024, 1, 15);
     when(rs.getObject(2)).thenReturn(localDate);

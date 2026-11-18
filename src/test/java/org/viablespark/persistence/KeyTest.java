@@ -16,11 +16,16 @@ package org.viablespark.persistence;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.springframework.test.util.AssertionErrors.assertTrue;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
@@ -163,5 +168,73 @@ public class KeyTest {
     assertEquals(key, key.addIfValid("third", null));
     Long third = key.getKey("third");
     assertNotEquals(key.addIfValid("third", 34443L).getKey("third"), third);
+  }
+
+  @Test
+  public void emptyKeySentinelIsImmutable() {
+    assertThrows(UnsupportedOperationException.class, () -> Key.None.add("id", 1L));
+    assertEquals(0, Key.None.count());
+  }
+
+  @Test
+  public void compositeEqualityDoesNotDependOnDeclarationOrder() {
+    Key first = Key.of("first", 1L).add("second", 2L);
+    Key second = Key.of("second", 2L).add("first", 1L);
+
+    assertEquals(first, second);
+    assertEquals(first.hashCode(), second.hashCode());
+  }
+
+  @Test
+  public void supportsUuidAndStringValuesThroughTypedApi() {
+    UUID uuid = UUID.randomUUID();
+    Key uuidKey = Key.of("uuid_id", uuid);
+    Key stringKey = new Key(java.util.Map.of("code", "customer-one"));
+
+    assertEquals(uuid, uuidKey.value("uuid_id", UUID.class));
+    assertEquals(uuid, uuidKey.primary().getValue());
+    assertEquals("customer-one", stringKey.value("code", String.class));
+    assertThrows(IllegalStateException.class, uuidKey::primaryKey);
+    assertThrows(IllegalArgumentException.class, () -> uuidKey.value("uuid_id", String.class));
+
+    Pair<?, ?> beanVisiblePart = uuidKey.getKeys().iterator().next();
+    assertEquals(uuid, beanVisiblePart.getValue());
+
+    assertThrows(IllegalStateException.class, () -> new Key().setPrimaryValue("missing"));
+    assertThrows(IllegalArgumentException.class, () -> Key.of("unsupported", new Object()));
+    assertNull(Key.of("nullable", (Object) null).value("nullable", String.class));
+  }
+
+  @Test
+  public void serializesUuidKeysAndRefValues() throws Exception {
+    UUID uuid = UUID.randomUUID();
+    Key key = Key.of("uuid_id", uuid);
+    RefValue reference = RefValue.of("UUID label", "uuid_id", uuid);
+
+    assertEquals(key, roundTrip(key));
+    assertEquals(reference, roundTrip(reference));
+    Pair<?, ?> beanVisibleReference = reference.getRef();
+    assertEquals(uuid, beanVisibleReference.getValue());
+
+    RefValue emptyReference = new RefValue();
+    assertNull(emptyReference.getRef());
+    emptyReference.setReference(null);
+    assertNull(emptyReference.referenceValue(UUID.class));
+
+    Model model = new Model() {};
+    assertNull(model.getIdentifier(String.class));
+    model.setRefs(Key.of("uuid_id", uuid));
+    assertThrows(IllegalArgumentException.class, () -> model.getIdentifier(String.class));
+  }
+
+  private Object roundTrip(Object value) throws Exception {
+    ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+    try (ObjectOutputStream output = new ObjectOutputStream(bytes)) {
+      output.writeObject(value);
+    }
+    try (ObjectInputStream input =
+        new ObjectInputStream(new ByteArrayInputStream(bytes.toByteArray()))) {
+      return input.readObject();
+    }
   }
 }
