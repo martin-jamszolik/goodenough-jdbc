@@ -1,6 +1,9 @@
 # Good Enough JDBC
 
-[![Gradle CI](https://github.com/martin-jamszolik/goodenough-jdbc/actions/workflows/gradle.yml/badge.svg)](https://github.com/martin-jamszolik/goodenough-jdbc/actions/workflows/gradle.yml)  [![Coverage](.github/badges/jacoco.svg)](.github/badges/jacoco.svg)  [![Branches Coverage](.github/badges/branches.svg)](.github/badges/branches.svg)
+[![Gradle CI](https://github.com/martin-jamszolik/goodenough-jdbc/actions/workflows/gradle.yml/badge.svg)](https://github.com/martin-jamszolik/goodenough-jdbc/actions/workflows/gradle.yml)
+
+See the summary of a [Gradle CI run](https://github.com/martin-jamszolik/goodenough-jdbc/actions/workflows/gradle.yml)
+for coverage percentages, or download its `jacoco-report` artifact for the report and badges.
 
 ## Overview
 
